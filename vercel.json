@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://brief-eedhhwdwfbergxed.koreacentral-01.azurewebsites.net/api/:path*"
+    },
+    {
+      "source": "/signalr/:path*",
+      "destination": "https://brief-eedhhwdwfbergxed.koreacentral-01.azurewebsites.net/signalr/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
