@@ -107,6 +107,7 @@ export default function TicketsSettingsPage() {
   const [isProcedureGroupMgrOpen, setIsProcedureGroupMgrOpen] = useState(false);
   const [newProcedureGroupName, setNewProcedureGroupName] = useState("");
   const [newProcedureGroupKeywords, setNewProcedureGroupKeywords] = useState("");
+  const [newProcedureGroupEquipCount, setNewProcedureGroupEquipCount] = useState(1);
   const [autoTodoTaskInput, setAutoTodoTaskInput] = useState("");
 
   const weekTicketToPreset = (wt: WeekTicketDefResponse): TicketRestrictionPreset => ({
@@ -312,6 +313,8 @@ export default function TicketsSettingsPage() {
 
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"all" | "session" | "period" | "package">("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
   const [queueCategoryFilter, setQueueCategoryFilter] = useState("all");
   const [activeTab, setActiveTab] = useState<"tickets" | "memberships">("tickets");
   const [editingMembership, setEditingMembership] = useState<MembershipItem | null>(null);
@@ -386,6 +389,8 @@ export default function TicketsSettingsPage() {
     }
     return true;
   });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // Modal State (Draft)
   // Modal State (Draft)
@@ -655,14 +660,14 @@ export default function TicketsSettingsPage() {
                     className="pl-9 w-[240px]"
                     placeholder="코드/티켓명 검색"
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                   />
                 </div>
                 <div className="flex rounded-lg border border-[rgb(var(--kkeut-border))] bg-gray-50 p-1">
                   {(["all", "session", "period", "package"] as const).map((t) => (
                     <button
                       key={t}
-                      onClick={() => setFilterType(t)}
+                      onClick={() => { setFilterType(t); setCurrentPage(1); }}
                       className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${filterType === t
                         ? "bg-white text-gray-900 shadow-sm"
                         : "text-gray-500 hover:text-gray-700"
@@ -675,10 +680,10 @@ export default function TicketsSettingsPage() {
                 <Select
                   className="h-10 min-w-[180px]"
                   value={queueCategoryFilter}
-                  onChange={(e) => setQueueCategoryFilter(e.target.value)}
+                  onChange={(e) => { setQueueCategoryFilter(e.target.value); setCurrentPage(1); }}
                 >
-                  <option value="all">중분류 전체</option>
-                  <option value="__unassigned__">중분류 미지정</option>
+                  <option value="all">시술 그룹 전체</option>
+                  <option value="__unassigned__">시술 그룹 미지정</option>
                   {queueCategoryOptions.map((category) => (
                     <option key={category} value={category}>
                       {category}
@@ -713,7 +718,7 @@ export default function TicketsSettingsPage() {
                     <th className="px-4 py-3 text-center font-medium whitespace-nowrap">횟수/기간</th>
                     <th className="px-4 py-3 text-center font-medium whitespace-nowrap">가격</th>
                     <th className="px-4 py-3 text-center font-medium whitespace-nowrap">이벤트가</th>
-                    <th className="px-4 py-3 text-center font-medium whitespace-nowrap">중분류/소요</th>
+                    <th className="px-4 py-3 text-center font-medium whitespace-nowrap">시술 그룹/소요</th>
                     <th className="px-4 py-3 text-center font-medium whitespace-nowrap">예약카테고리</th>
                     <th className="px-4 py-3 text-center font-medium whitespace-nowrap">요일권</th>
                     <th className="px-4 py-3 text-center font-medium whitespace-nowrap">자동할일</th>
@@ -722,14 +727,14 @@ export default function TicketsSettingsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[rgb(var(--kkeut-border))]">
-                  {filtered.length === 0 ? (
+                  {paged.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="py-8 text-center text-gray-400">
+                      <td colSpan={12} className="py-8 text-center text-gray-400">
                         등록된 티켓이 없습니다.
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((item) => (
+                    paged.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-center font-mono text-xs whitespace-nowrap">{item.code || "-"}</td>
                         <td className="px-4 py-3 text-center">
@@ -866,6 +871,68 @@ export default function TicketsSettingsPage() {
                 </tbody>
               </table>
               </div>
+              <div className="flex items-center justify-between border-t border-[rgb(var(--kkeut-border))] px-4 py-3">
+                <div className="text-xs text-slate-500">
+                  총 <span className="font-bold text-slate-700">{filtered.length}</span>건
+                  {filtered.length !== items.length && ` (전체 ${items.length}건)`}
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => { setCurrentPage(1); }}
+                      disabled={currentPage === 1}
+                      className="rounded px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                    >
+                      ««
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="rounded px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                    >
+                      «
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                      .reduce<(number | string)[]>((acc, p, i, arr) => {
+                        if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("...");
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, i) =>
+                        typeof p === "string" ? (
+                          <span key={`dot-${i}`} className="px-1 text-xs text-slate-400">...</span>
+                        ) : (
+                          <button
+                            key={p}
+                            onClick={() => setCurrentPage(p)}
+                            className={`min-w-[28px] rounded px-2 py-1 text-xs font-medium transition ${
+                              currentPage === p
+                                ? "bg-[rgb(var(--kkeut-primary))] text-white"
+                                : "text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )}
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="rounded px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                    >
+                      »
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="rounded px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                    >
+                      »»
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mt-6 rounded-xl bg-blue-50 p-4 text-sm text-blue-700">
@@ -929,7 +996,7 @@ export default function TicketsSettingsPage() {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <div className="mb-1 flex items-center justify-between">
-                      <label className="block text-xs font-bold text-gray-500">중분류 카테고리</label>
+                      <label className="block text-xs font-bold text-gray-500">시술 그룹</label>
                       <button
                         type="button"
                         className="rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-bold text-gray-600 hover:bg-gray-50"
@@ -945,7 +1012,7 @@ export default function TicketsSettingsPage() {
                       }
                       className="h-11"
                     >
-                      <option value="">중분류 선택</option>
+                      <option value="">시술 그룹 선택</option>
                       {editingItem.queueCategoryName &&
                         !registeredProcedureGroupNames.includes(editingItem.queueCategoryName) && (
                           <option value={editingItem.queueCategoryName}>
@@ -959,7 +1026,7 @@ export default function TicketsSettingsPage() {
                       ))}
                     </Select>
                     <p className="mt-1 text-[10px] text-gray-400">
-                      같은 장비/중분류는 동일 이름으로 입력하면 대기 인원/시간이 합산됩니다.
+                      같은 장비/시술 그룹은 동일 이름으로 입력하면 대기 인원/시간이 합산됩니다.
                     </p>
                   </div>
                   <div>
@@ -1413,7 +1480,7 @@ export default function TicketsSettingsPage() {
                         </p>
                       </div>
                       <p className="text-[10px] text-gray-500">
-                        자동 할일 통계/표시는 티켓의 중분류 카테고리를 기준으로 집계됩니다.
+                        자동 할일 통계/표시는 티켓의 시술 그룹를 기준으로 집계됩니다.
                       </p>
                     </div>
                   )}
@@ -1478,9 +1545,9 @@ export default function TicketsSettingsPage() {
             <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl animate-in zoom-in-95">
               <div className="mb-5 flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold">중분류 카테고리 관리</h3>
+                  <h3 className="text-lg font-bold">시술 그룹 관리</h3>
                   <p className="mt-1 text-xs text-gray-500">
-                    티켓 중분류(대기/통계 집계 기준) 이름을 추가/수정/삭제할 수 있습니다.
+                    시술 그룹(대기/통계 집계 기준) 이름을 추가/수정/삭제할 수 있습니다.
                   </p>
                 </div>
                 <button
@@ -1492,7 +1559,7 @@ export default function TicketsSettingsPage() {
               </div>
 
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                <div className="grid gap-2 md:grid-cols-[1fr_1fr_80px_auto]">
                   <Input
                     value={newProcedureGroupName}
                     onChange={(e) => setNewProcedureGroupName(e.target.value)}
@@ -1501,7 +1568,14 @@ export default function TicketsSettingsPage() {
                   <Input
                     value={newProcedureGroupKeywords}
                     onChange={(e) => setNewProcedureGroupKeywords(e.target.value)}
-                    placeholder="키워드(콤마 구분, 예: 제모, 인중제모)"
+                    placeholder="키워드(콤마 구분)"
+                  />
+                  <Input
+                    type="number"
+                    min={1}
+                    value={newProcedureGroupEquipCount ?? 1}
+                    onChange={(e) => setNewProcedureGroupEquipCount(Math.max(1, Number(e.target.value) || 1))}
+                    placeholder="장비 수"
                   />
                   <Button
                     variant="primary"
@@ -1523,7 +1597,7 @@ export default function TicketsSettingsPage() {
                     .slice()
                     .sort((a, b) => a.name.localeCompare(b.name, "ko"))
                     .map((group) => (
-                      <div key={group.id} className="grid gap-2 rounded-xl border border-gray-200 bg-white p-3 md:grid-cols-[1fr_1fr_auto]">
+                      <div key={group.id} className="grid gap-2 rounded-xl border border-gray-200 bg-white p-3 md:grid-cols-[1fr_1fr_80px_auto]">
                         <Input
                           value={group.name}
                           onChange={(e) => {
@@ -1541,6 +1615,13 @@ export default function TicketsSettingsPage() {
                             })
                           }
                           placeholder="키워드(콤마 구분)"
+                        />
+                        <Input
+                          type="number"
+                          min={1}
+                          value={(group as any).equipmentCount ?? 1}
+                          onChange={(e) => upsertProcedureGroup(group.id, { equipmentCount: Math.max(1, Number(e.target.value) || 1) } as any)}
+                          placeholder="장비 수"
                         />
                         <Button variant="outline" onClick={() => removeProcedureGroup(group.id)}>
                           <Trash2 className="h-4 w-4" />

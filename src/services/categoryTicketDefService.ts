@@ -5,6 +5,7 @@ export interface CategoryTicketDefResponse {
     branchId: number;
     name: string;
     keyword: string;
+    equipmentCount: number;
     creator: string;
     createTime: string;
     modifier: string;
@@ -14,11 +15,13 @@ export interface CategoryTicketDefResponse {
 export interface CreateCategoryTicketDefRequest {
     name: string;
     keyword: string;
+    equipmentCount?: number;
 }
 
 export interface UpdateCategoryTicketDefRequest {
     name?: string | null;
     keyword?: string | null;
+    equipmentCount?: number | null;
 }
 
 export interface CategoryTicketDefFilterParams {

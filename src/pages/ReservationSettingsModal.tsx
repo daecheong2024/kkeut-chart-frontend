@@ -22,6 +22,8 @@ for (let h = 0; h < 24; h++) {
 }
 
 const WEEKDAYS_KO = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A0'] as const;
+const WEEKDAY_DAYS_R = ['\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08'] as const;
+const WEEKEND_DAYS_R = ['\uD1A0', '\uC77C'] as const;
 
 export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> = ({
     isOpen,
@@ -245,26 +247,8 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                         )}
                                     </div>
 
-                                    {/* Partner Toggle */}
-                                    <div className="pt-4 border-t border-[#C5CAE9]">
-                                        <label className="flex items-center gap-3 cursor-pointer">
-                                            <div
-                                                className={`w-11 h-6 rounded-full p-1 cursor-pointer transition-colors ${editForm.isPartner ? 'bg-[#3F51B5]' : 'bg-[#C5CAE9]'}`}
-                                                onClick={() => setEditForm(prev => ({ ...prev, isPartner: !prev.isPartner }))}
-                                            >
-                                                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${editForm.isPartner ? 'translate-x-5' : 'translate-x-0'}`} />
-                                            </div>
-                                            <span className="text-sm text-[#242424] font-medium">파트너사 연동</span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                {/* Divider */}
-                                <div className="w-[1px] bg-[#F0F0F0] my-2" />
-
-                                {/* Right Column: Settings */}
-                                <div className="flex-1 space-y-8">
-                                    <h3 className="text-base font-semibold text-[#242424] mb-6">설정</h3>
+                                    {/* 설정 영역 (왼쪽 하단) */}
+                                    <div className="pt-4 border-t border-[#C5CAE9] space-y-6">
 
                                     <div className="space-y-4" ref={dropdownRef}>
                                         <label className="block text-xs font-bold text-[#616161]">방문목적*</label>
@@ -400,13 +384,30 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                             )}
                                         </div>
                                     </div>
+                                    </div>
+                                </div>
 
+                                {/* Divider */}
+                                <div className="w-[1px] bg-[#F0F0F0] my-2" />
 
-
+                                {/* Right Column: 파트너사 + 오픈요일 + 시간 설정 */}
+                                <div className="flex-1 space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-base font-semibold text-[#242424]">운영 설정</h3>
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <div
+                                                className={`w-11 h-6 rounded-full p-1 cursor-pointer transition-colors ${editForm.isPartner ? 'bg-[#3F51B5]' : 'bg-[#C5CAE9]'}`}
+                                                onClick={() => setEditForm(prev => ({ ...prev, isPartner: !prev.isPartner }))}
+                                            >
+                                                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${editForm.isPartner ? 'translate-x-5' : 'translate-x-0'}`} />
+                                            </div>
+                                            <span className="text-sm text-[#242424] font-medium">홈페이지 연동</span>
+                                        </label>
+                                    </div>
 
                                     {editForm.isPartner && (
                                         <>
-                                            <div className="space-y-4">
+                                            <div className="space-y-3">
                                                 <label className="block text-xs font-bold text-[#616161]">오픈요일</label>
                                                 <div className="flex flex-wrap gap-2">
                                                     {WEEKDAYS_KO.map((day) => (
@@ -433,11 +434,60 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                 </div>
                                             </div>
 
-                                            {/* Advanced Time Configuration */}
+                                            {/* 평일/주말 일괄 + 시간 설정 */}
                                             <div className="pt-6 border-t border-[#C5CAE9]">
+                                                <div className="flex gap-2 mb-4">
+                                                    {[
+                                                        { label: "평일 일괄", days: WEEKDAY_DAYS_R },
+                                                        { label: "주말 일괄", days: WEEKEND_DAYS_R },
+                                                    ].map(({ label, days }) => {
+                                                        const refDay = days[0];
+                                                        const refHours = editForm.operatingHours?.[refDay] || '09:00~18:00';
+                                                        const [rs, re] = refHours.split('~');
+                                                        return (
+                                                            <div key={label} className="flex items-center gap-1.5 rounded-lg border border-[#C5CAE9] bg-white px-3 py-1.5">
+                                                                <span className="text-xs font-bold text-[#3F51B5]">{label}</span>
+                                                                <select
+                                                                    className="rounded border border-slate-200 bg-white px-1.5 py-1 text-xs font-semibold text-slate-700 outline-none cursor-pointer"
+                                                                    value={rs || '09:00'}
+                                                                    onChange={(e) => {
+                                                                        const newStart = e.target.value;
+                                                                        setEditForm(prev => {
+                                                                            const hours = { ...(prev.operatingHours || {}) };
+                                                                            days.forEach(d => {
+                                                                                const [, oldEnd] = (hours[d] || '09:00~18:00').split('~');
+                                                                                hours[d] = `${newStart}~${newStart > (oldEnd || '18:00') ? newStart : oldEnd || '18:00'}`;
+                                                                            });
+                                                                            return { ...prev, operatingHours: hours };
+                                                                        });
+                                                                    }}
+                                                                >
+                                                                    {PROCESS_TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                </select>
+                                                                <span className="text-xs text-gray-400">~</span>
+                                                                <select
+                                                                    className="rounded border border-slate-200 bg-white px-1.5 py-1 text-xs font-semibold text-slate-700 outline-none cursor-pointer"
+                                                                    value={re || '18:00'}
+                                                                    onChange={(e) => {
+                                                                        const newEnd = e.target.value;
+                                                                        setEditForm(prev => {
+                                                                            const hours = { ...(prev.operatingHours || {}) };
+                                                                            days.forEach(d => {
+                                                                                const [oldStart] = (hours[d] || '09:00~18:00').split('~');
+                                                                                hours[d] = `${newEnd < (oldStart || '09:00') ? newEnd : oldStart || '09:00'}~${newEnd}`;
+                                                                            });
+                                                                            return { ...prev, operatingHours: hours };
+                                                                        });
+                                                                    }}
+                                                                >
+                                                                    {PROCESS_TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                </select>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
 
-
-                                                <div className="space-y-3 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar" ref={timeSelectRef}>
+                                                <div className="space-y-3 max-h-[360px] overflow-y-auto pr-2 custom-scrollbar" ref={timeSelectRef}>
                                                     {WEEKDAYS_KO.map((day) => {
                                                         const currentHours = editForm.operatingHours?.[day] || '09:00~18:00';
                                                         const [rawStart, rawEnd] = currentHours.split('~');

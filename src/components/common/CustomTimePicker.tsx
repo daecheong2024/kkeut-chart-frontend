@@ -7,6 +7,7 @@ interface CustomTimePickerProps {
     className?: string;
     align?: "left" | "right";
     allowedTimes?: string[]; // Optional whitelist
+    minTime?: string; // HH:mm - 이 시간 이전은 비활성화
     disabled?: boolean;
     placeholder?: string;
 }
@@ -51,6 +52,7 @@ export function CustomTimePicker({
     className,
     align = "left",
     allowedTimes,
+    minTime,
     disabled = false,
     placeholder = "시간 선택",
 }: CustomTimePickerProps) {
@@ -84,12 +86,21 @@ export function CustomTimePicker({
         ? parsedDisplay.meridiem
         : (meridiemOptions[0] || parsedDisplay.meridiem);
 
+    const minTimeMinutes = minTime ? toMinutes(minTime) : 0;
+
     const entriesForMeridiem = hasRestriction
         ? allowedEntries.filter((entry) => entry.meridiem === currentMeridiem)
         : [];
-    const hourOptions = hasRestriction
+    const allHours = hasRestriction
         ? uniqueNumbers(entriesForMeridiem.map((entry) => entry.hour))
         : Array.from({ length: 12 }, (_, i) => i + 1);
+    const hourOptions = minTime
+        ? allHours.filter((h) => {
+            const h24 = currentMeridiem === PM && h !== 12 ? h + 12 : currentMeridiem === AM && h === 12 ? 0 : h;
+            const maxMinForHour = h24 * 60 + 55;
+            return maxMinForHour >= minTimeMinutes;
+        })
+        : allHours;
     const currentHour = hourOptions.includes(parsedDisplay.hour)
         ? parsedDisplay.hour
         : (hourOptions[0] || parsedDisplay.hour);
@@ -97,9 +108,15 @@ export function CustomTimePicker({
     const entriesForHour = hasRestriction
         ? entriesForMeridiem.filter((entry) => entry.hour === currentHour)
         : [];
-    const minuteOptions = hasRestriction
+    const allMinutes = hasRestriction
         ? uniqueNumbers(entriesForHour.map((entry) => entry.minute))
         : Array.from({ length: 12 }, (_, i) => i * 5);
+    const minuteOptions = minTime
+        ? allMinutes.filter((m) => {
+            const h24 = currentMeridiem === PM && currentHour !== 12 ? currentHour + 12 : currentMeridiem === AM && currentHour === 12 ? 0 : currentHour;
+            return h24 * 60 + m >= minTimeMinutes;
+        })
+        : allMinutes;
     const currentMinute = minuteOptions.includes(parsedDisplay.minute)
         ? parsedDisplay.minute
         : (minuteOptions[0] || parsedDisplay.minute);

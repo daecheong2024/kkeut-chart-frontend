@@ -35,6 +35,8 @@ import {
     type ProcedureQueueSummary,
 } from "../../utils/todoQueue";
 import type { CartItem } from "../../services/cartService";
+import { categoryTicketDefService } from "../../services/categoryTicketDefService";
+import { normalizeQueueProcedureKey } from "../../utils/todoQueue";
 
 function toStringArray(value: any): string[] {
     if (!value) return [];
@@ -483,9 +485,19 @@ export function IntegratedView() {
             }
             setChartTodosByPatient(byPatient);
             const procedureDurationOverrides = buildProcedureDurationOverrideMap(settings.tickets?.items || []);
+            let capacityMap: Record<string, number> = {};
+            try {
+                const cats = await categoryTicketDefService.getAll();
+                cats.forEach(c => {
+                    if (c.equipmentCount > 1) {
+                        capacityMap[normalizeQueueProcedureKey(c.name)] = c.equipmentCount;
+                    }
+                });
+            } catch {}
             setQuickQueueByProcedure(
                 buildProcedureQueueMap(todoStats?.byProcedure || [], {
                     averageByProcedureKey: procedureDurationOverrides,
+                    capacityByProcedureKey: capacityMap,
                 })
             );
 

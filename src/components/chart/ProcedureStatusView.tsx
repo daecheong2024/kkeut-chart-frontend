@@ -203,7 +203,7 @@ export function ProcedureStatusView() {
                 <section className="rounded-[12px] overflow-hidden" style={{ border: "1px solid #C5CAE9" }}>
                     <div className="px-4 py-2.5 flex items-center gap-2" style={{ backgroundColor: "#F8F9FD", borderBottom: "1px solid #E8EAF6" }}>
                         <Activity className="h-4 w-4" style={{ color: "#3F51B5" }} />
-                        <h3 className="text-[13px] font-bold" style={{ color: "#1A237E" }}>중분류별 예상 대기 시간</h3>
+                        <h3 className="text-[13px] font-bold" style={{ color: "#1A237E" }}>시술 그룹별 예상 대기 시간</h3>
                     </div>
 
                     <div className="p-3" style={{ backgroundColor: "#FFFFFF" }}>

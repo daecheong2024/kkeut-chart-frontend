@@ -433,37 +433,43 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
           const installmentMap: Record<string, string> = { "일시불": "00", "2개월": "02", "3개월": "03", "4개월": "04", "5개월": "05", "6개월": "06" };
           const installment = installmentMap[line.installment || ""] || "00";
 
+          let terminalSuccess = false;
           try {
             const connected = await kisTerminalService.connect();
-            if (!connected) throw new Error("KIS 단말기 연결 실패");
+            if (connected) {
+              const result = await kisTerminalService.requestPayment({
+                tradeType,
+                amount: line.amount,
+                installment,
+                merchantTel,
+              });
 
-            const result = await kisTerminalService.requestPayment({
-              tradeType,
-              amount: line.amount,
-              installment,
-              merchantTel,
-            });
-
-            if (!result.success) {
-              throw new Error(result.displayMsg || `단말기 결제 실패 (${result.replyCode})`);
+              if (result.success) {
+                terminalLines.push({
+                  ...line,
+                  approvalNumber: result.authNo,
+                  cardCompany: result.issuerName || line.cardCompany,
+                  terminalAuthNo: result.authNo,
+                  terminalAuthDate: result.replyDate,
+                  terminalCardNo: result.cardNo,
+                  terminalIssuerName: result.issuerName,
+                  terminalAccepterName: result.accepterName,
+                  terminalTranNo: result.tranNo,
+                  terminalVanKey: result.vanKey,
+                  terminalCatId: result.catId,
+                  terminalMerchantRegNo: result.merchantRegNo,
+                });
+                terminalSuccess = true;
+              }
             }
+          } catch {}
 
+          if (!terminalSuccess) {
             terminalLines.push({
               ...line,
-              approvalNumber: result.authNo,
-              cardCompany: result.issuerName || line.cardCompany,
-              terminalAuthNo: result.authNo,
-              terminalAuthDate: result.replyDate,
-              terminalCardNo: result.cardNo,
-              terminalIssuerName: result.issuerName,
-              terminalAccepterName: result.accepterName,
-              terminalTranNo: result.tranNo,
-              terminalVanKey: result.vanKey,
-              terminalCatId: result.catId,
-              terminalMerchantRegNo: result.merchantRegNo,
+              approvalNumber: line.approvalNumber || "",
+              terminalVanKey: line.terminalVanKey || "",
             });
-          } catch (e: any) {
-            throw new Error(`단말기 결제 실패: ${e.message}`);
           }
         } else {
           terminalLines.push(line);
@@ -783,9 +789,8 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                     <input
                       value={approvalNumber}
                       onChange={(e) => setApprovalNumber(e.target.value)}
-                      disabled={category === "card" && subMethod === "card_general"}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
-                      placeholder={category === "card" && subMethod === "card_general" ? "단말기 자동입력" : "승인번호를 입력하세요"}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                      placeholder="단말기 자동입력 또는 수기 입력"
                     />
                   </div>
                   <div>
@@ -793,9 +798,8 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                     <input
                       value={vanKeyInput}
                       onChange={(e) => setVanKeyInput(e.target.value)}
-                      disabled={category === "card" && subMethod === "card_general"}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
-                      placeholder={category === "card" && subMethod === "card_general" ? "단말기 자동입력" : "VANKEY를 입력하세요"}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                      placeholder="단말기 자동입력 또는 수기 입력"
                     />
                   </div>
                 </div>

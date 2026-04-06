@@ -11,6 +11,8 @@ export default function TerminalTestPage() {
     }, [settings.hospital]);
     const [connected, setConnected] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [verified, setVerified] = useState(() => localStorage.getItem("kkeut_terminal_verified") === "true");
+    const [lastVerifiedAt, setLastVerifiedAt] = useState(() => localStorage.getItem("kkeut_terminal_verified_at") || "");
     const [logs, setLogs] = useState<{ time: string; type: string; data: string }[]>([]);
     const [payAmount, setPayAmount] = useState("1004");
     const [payInstallment, setPayInstallment] = useState("00");
@@ -107,6 +109,59 @@ export default function TerminalTestPage() {
                             연결 해제
                         </button>
                     )}
+                </div>
+            </div>
+
+            <div className="rounded-xl border border-[#C5CAE9] overflow-hidden">
+                <div className="px-4 py-3 bg-[#F8F9FD] border-b border-[#C5CAE9]">
+                    <div className="text-[14px] font-semibold text-[#1A237E]">연동 상태</div>
+                </div>
+                <div className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-4 h-4 rounded-full ${verified ? "bg-green-500" : "bg-slate-300"}`} />
+                        <div>
+                            <div className="text-sm font-medium text-slate-800">
+                                {verified ? "단말기 연동 완료" : "단말기 미연동"}
+                            </div>
+                            {lastVerifiedAt && (
+                                <div className="text-xs text-slate-400 mt-0.5">마지막 확인: {lastVerifiedAt}</div>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {verified ? (
+                            <button
+                                onClick={() => { setVerified(false); setLastVerifiedAt(""); localStorage.removeItem("kkeut_terminal_verified"); localStorage.removeItem("kkeut_terminal_verified_at"); }}
+                                className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-50 transition-all"
+                            >
+                                연동 해제
+                            </button>
+                        ) : (
+                            <button
+                                onClick={async () => {
+                                    setLoading(true);
+                                    kisTerminalService.setSendLogger((json) => addLog("SEND", json));
+                                    const ok = await kisTerminalService.connect();
+                                    if (ok) {
+                                        const now = new Date().toLocaleString("ko-KR");
+                                        setVerified(true);
+                                        setLastVerifiedAt(now);
+                                        setConnected(true);
+                                        localStorage.setItem("kkeut_terminal_verified", "true");
+                                        localStorage.setItem("kkeut_terminal_verified_at", now);
+                                        addLog("OK", "단말기 연동 확인 완료");
+                                    } else {
+                                        addLog("ERR", "단말기 연결 실패 - 에이전트가 실행 중인지 확인하세요");
+                                    }
+                                    setLoading(false);
+                                }}
+                                disabled={loading}
+                                className="rounded-lg bg-[#3F51B5] px-4 py-2 text-sm font-medium text-white hover:bg-[#303F9F] disabled:opacity-50 transition-all"
+                            >
+                                {loading ? "확인 중..." : "연동 확인"}
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 

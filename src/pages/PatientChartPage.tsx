@@ -36,6 +36,7 @@ import { visitService, ReservationChangeHistoryItem } from '../services/visitSer
 import { chartConfigService } from '../services/chartConfigService';
 import { paymentService, PaymentItem, PaymentRecord, PaymentUsageSummaryItem, PaymentDetailBreakdown } from '../services/paymentService';
 import { memberConfigService } from '../services/memberConfigService';
+import { categoryTicketDefService } from '../services/categoryTicketDefService';
 import { membershipService, PatientMembership, MembershipBalance, MembershipHistory } from '../services/membershipService';
 import { cartService, CartItem, CartPreview } from '../services/cartService';
 import { todoService, TodoItem } from '../services/todoService';
@@ -350,6 +351,7 @@ import {
     buildProcedureDurationOverrideMap,
     buildProcedureQueueMap,
     resolveProcedureQueueSummary,
+    normalizeQueueProcedureKey,
     type ProcedureQueueSummary,
 } from "../utils/todoQueue";
 
@@ -1125,9 +1127,19 @@ export default function PatientChartPage() {
             if (results[7].status === "fulfilled") {
                 const ticketDefs = useSettingsStore.getState().settings.tickets?.items || [];
                 const procedureDurationOverrides = buildProcedureDurationOverrideMap(ticketDefs);
+                let capacityMap: Record<string, number> = {};
+                try {
+                    const cats = await categoryTicketDefService.getAll();
+                    cats.forEach(c => {
+                        if (c.equipmentCount > 1) {
+                            capacityMap[normalizeQueueProcedureKey(c.name)] = c.equipmentCount;
+                        }
+                    });
+                } catch {}
                 setTicketQueueByProcedure(
                     buildProcedureQueueMap(results[7].value?.byProcedure || [], {
                         averageByProcedureKey: procedureDurationOverrides,
+                        capacityByProcedureKey: capacityMap,
                     })
                 );
             } else {

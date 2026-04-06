@@ -1057,6 +1057,15 @@ const ReservationDetailPanel: React.FC<ReservationDetailPanelProps> = ({ isOpen,
                                     onChange={setApptTime}
                                     align="right"
                                     allowedTimes={allowedTimes}
+                                    minTime={(() => {
+                                        const now = new Date();
+                                        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                                        const selected = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate());
+                                        if (selected.getTime() === today.getTime()) {
+                                            return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                                        }
+                                        return undefined;
+                                    })()}
                                     disabled={allowedTimes.length === 0}
                                     placeholder={categoryId ? '가능 시간 선택' : '운영시간 내 선택'}
                                 />

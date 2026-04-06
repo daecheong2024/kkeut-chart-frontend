@@ -299,7 +299,7 @@ export interface TicketItem {
   eventPrice?: number | null;
   reservCategoryId?: number;
   reservCategoryName?: string;
-  queueCategoryName?: string; // 중분류(대기 계산 집계 기준)
+  queueCategoryName?: string; // 시술 그룹(대기 계산 집계 기준)
   queueDurationMinutes?: number; // 시술 소요시간(분)
   packageType?: string;
   enabled: boolean;
