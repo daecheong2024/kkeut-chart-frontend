@@ -146,7 +146,8 @@ export default function TicketsSettingsPage() {
           id: String(c.id),
           name: c.name,
           keywords: apiStringToKeywords(c.keyword),
-        }))
+          equipmentCount: c.equipmentCount ?? 1,
+        } as any))
       );
       return list;
     } catch (e) {
@@ -543,6 +544,7 @@ export default function TicketsSettingsPage() {
         const updated = await categoryTicketDefService.update(numId, {
           name: patch.name ?? null,
           keyword: patch.keywords ? keywordsToApiString(patch.keywords) : null,
+          equipmentCount: (patch as any).equipmentCount ?? null,
         });
         if (updated.id !== numId) {
           setProcedureGroups((prev) =>
@@ -576,12 +578,13 @@ export default function TicketsSettingsPage() {
     const keywords = parseProcedureKeywords(keywordInput);
     const keywordStr = keywordsToApiString(keywords.length > 0 ? keywords : [name]);
     try {
-      const created = await categoryTicketDefService.create({ name, keyword: keywordStr });
+      const created = await categoryTicketDefService.create({ name, keyword: keywordStr, equipmentCount: newProcedureGroupEquipCount || 1 });
       const next: ProcedureTodoStatsProcedureGroupRule = {
         id: String(created.id),
         name: created.name,
         keywords: apiStringToKeywords(created.keyword),
-      };
+        equipmentCount: created.equipmentCount,
+      } as any;
       setProcedureGroups((prev) =>
         [...prev, next].sort((a, b) => a.name.localeCompare(b.name, "ko"))
       );
@@ -951,7 +954,7 @@ export default function TicketsSettingsPage() {
               <div className="w-full max-w-6xl rounded-2xl bg-white shadow-xl animate-in zoom-in-95">
                 <div className="flex max-h-[92vh] flex-col overflow-hidden p-5 sm:p-6">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-lg font-bold">티켓 정보 수정</h3>
+                <h3 className="text-lg font-bold">{editingItem.id ? '티켓 정보 수정' : '티켓 등록'}</h3>
                 <button
                   onClick={() => setEditingItem(null)}
                   className="text-gray-400 hover:text-gray-600"
@@ -961,10 +964,13 @@ export default function TicketsSettingsPage() {
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,1fr)]">
-                  <div className="space-y-4">
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,1fr)]">
+                  <div className="space-y-5">
+                    {/* 기본 정보 섹션 */}
+                    <div className="rounded-xl border border-[rgb(var(--kkeut-border))] p-4">
+                      <div className="mb-3 text-sm font-bold text-[#1A237E]">기본 정보</div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="mb-1 block text-xs font-bold text-gray-500">티켓명</label>
                     <Input
                       value={editingItem.name}
@@ -992,7 +998,11 @@ export default function TicketsSettingsPage() {
                     />
                   </div>
                 </div>
+                    </div>
 
+                    {/* 분류 및 시술 설정 */}
+                    <div className="rounded-xl border border-[rgb(var(--kkeut-border))] p-4">
+                      <div className="mb-3 text-sm font-bold text-[#1A237E]">분류 및 시술</div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <div className="mb-1 flex items-center justify-between">
@@ -1061,7 +1071,11 @@ export default function TicketsSettingsPage() {
                     </p>
                   </div>
                 </div>
+                    </div>
 
+                    {/* 판매 및 유형 */}
+                    <div className="rounded-xl border border-[rgb(var(--kkeut-border))] p-4">
+                      <div className="mb-3 text-sm font-bold text-[#1A237E]">판매 및 유형</div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-bold text-gray-500">판매 시작일</label>
@@ -1276,9 +1290,10 @@ export default function TicketsSettingsPage() {
                     )}
                   </div>
                 </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     {/* Usage Restrictions */}
                 <div className="rounded-xl border border-[rgb(var(--kkeut-border))] bg-white p-4">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -1545,10 +1560,7 @@ export default function TicketsSettingsPage() {
             <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl animate-in zoom-in-95">
               <div className="mb-5 flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold">시술 그룹 관리</h3>
-                  <p className="mt-1 text-xs text-gray-500">
-                    시술 그룹(대기/통계 집계 기준) 이름을 추가/수정/삭제할 수 있습니다.
-                  </p>
+                  <h3 className="text-lg font-bold">시술 그룹 관리</h3>            
                 </div>
                 <button
                   onClick={() => setIsProcedureGroupMgrOpen(false)}
@@ -1558,24 +1570,29 @@ export default function TicketsSettingsPage() {
                 </button>
               </div>
 
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className="grid gap-2 md:grid-cols-[1fr_1fr_80px_auto] mb-2">
+                  <div className="text-xs font-bold text-slate-500">그룹명</div>
+                  <div className="text-xs font-bold text-slate-500">키워드</div>
+                  <div className="text-xs font-bold text-slate-500">장비 수</div>
+                  <div></div>
+                </div>
                 <div className="grid gap-2 md:grid-cols-[1fr_1fr_80px_auto]">
                   <Input
                     value={newProcedureGroupName}
                     onChange={(e) => setNewProcedureGroupName(e.target.value)}
-                    placeholder="분류명 (예: 제모)"
+                    placeholder="예: 슈링크"
                   />
                   <Input
                     value={newProcedureGroupKeywords}
                     onChange={(e) => setNewProcedureGroupKeywords(e.target.value)}
-                    placeholder="키워드(콤마 구분)"
+                    placeholder="예: 슈링크, 유니버스"
                   />
                   <Input
                     type="number"
                     min={1}
                     value={newProcedureGroupEquipCount ?? 1}
                     onChange={(e) => setNewProcedureGroupEquipCount(Math.max(1, Number(e.target.value) || 1))}
-                    placeholder="장비 수"
                   />
                   <Button
                     variant="primary"
@@ -1584,6 +1601,11 @@ export default function TicketsSettingsPage() {
                     <Plus className="mr-1 h-4 w-4" />
                     추가
                   </Button>
+                </div>
+                <div className="mt-3 rounded-lg bg-white border border-slate-200 px-3 py-2.5 text-xs text-slate-500 space-y-1">
+                  <div><span className="font-bold text-slate-600">그룹명</span> — 대기열과 통계에 표시되는 시술 분류 이름</div>
+                  <div><span className="font-bold text-slate-600">키워드</span> — 티켓명에 포함된 단어로 자동 분류 (콤마로 구분, 예: 슈링크, 유니버스)</div>
+                  <div><span className="font-bold text-slate-600">장비 수</span> — 동시 시술 가능한 장비 수. 대기시간 계산에 반영 (대기시간 ÷ 장비 수)</div>
                 </div>
               </div>
 
