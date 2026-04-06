@@ -225,6 +225,7 @@ export default function SignupPage() {
                             <Input
                                 name="birthDate"
                                 type="date"
+                                max="9999-12-31"
                                 value={formData.birthDate}
                                 onChange={handleChange}
                             />

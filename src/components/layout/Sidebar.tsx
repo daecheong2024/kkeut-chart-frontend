@@ -36,12 +36,12 @@ export function Sidebar({ onNavigate, collapsed = false }: { onNavigate?: () => 
   const location = useLocation();
   const navigate = useNavigate();
   const shell = useAppShell();
-  const [isCrmOpen, setIsCrmOpen] = useState(false);
-  const [isStatsOpen, setIsStatsOpen] = useState(false);
   const isCrmActive = location.pathname.startsWith('/app/crm');
   const isStatsActive = location.pathname.startsWith('/app/stats');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const isSettingsActive = location.pathname.startsWith('/app/settings');
+  const [isCrmOpen, setIsCrmOpen] = useState(isCrmActive);
+  const [isStatsOpen, setIsStatsOpen] = useState(isStatsActive);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsActive);
   const activeBranchId = useSettingsStore((s) => s.settings.activeBranchId);
   const { permissions } = useCurrentUserPermissions(activeBranchId);
   const canManageBranches = !!permissions["settings.branches"];

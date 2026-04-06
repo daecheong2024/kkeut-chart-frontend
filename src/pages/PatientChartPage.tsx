@@ -1380,9 +1380,16 @@ export default function PatientChartPage() {
         const handleBeforeUnload = () => {
             flushDirtyFieldsRef.current();
             if (!chartLockCleanupRef.current && isLockedByMeRef.current) {
-                navigator.sendBeacon(
-                    `${(import.meta.env.VITE_API_BASE_URL as string || '').replace(/\/+$/, '')}/charts/customer/${pId}/chartlock`,
-                );
+                const baseUrl = (import.meta.env.VITE_API_BASE_URL as string || '').replace(/\/+$/, '');
+                const token = sessionStorage.getItem('auth_token');
+                fetch(`${baseUrl}/charts/customer/${pId}/chartlock`, {
+                    method: 'DELETE',
+                    keepalive: true,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'X-Branch-Id': String(pId),
+                    },
+                }).catch(() => {});
             }
         };
         window.addEventListener('beforeunload', handleBeforeUnload);

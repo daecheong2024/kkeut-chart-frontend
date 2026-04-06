@@ -8,6 +8,8 @@ import { useCurrentUserPermissions } from "../../hooks/useCurrentUserPermissions
 import { NoPermissionOverlay } from "../../components/common/NoPermissionOverlay";
 
 const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"] as const;
+const WEEKDAY_DAYS = ["월", "화", "수", "목", "금"] as const;
+const WEEKEND_DAYS = ["토", "일"] as const;
 
 const TIME_OPTIONS: string[] = [];
 for (let h = 0; h < 24; h++) {
@@ -93,7 +95,7 @@ function ImageField({
       <div className="mt-3 flex items-center gap-4">
         <div className="h-24 w-24 overflow-hidden rounded-xl border border-[#C5CAE9] bg-gray-50">
           {value ? (
-            <img src={value} alt={label} className="h-full w-full object-contain" />
+            <img src={value.startsWith("http") ? value : `${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, "") || ""}${value}`} alt={label} className="h-full w-full object-contain" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">미등록</div>
           )}
@@ -196,6 +198,14 @@ export default function HospitalSettingsPage() {
     }));
   };
 
+  const applyBulkHours = (days: readonly string[], value: string) => {
+    setDraft((prev) => {
+      const hours = { ...(prev.operatingHours || {}) };
+      days.forEach((d) => { hours[d] = value; });
+      return { ...prev, operatingHours: hours };
+    });
+  };
+
   const save = async () => {
     const branchId = String(activeBranchId || "").trim();
     if (!branchId) {
@@ -284,7 +294,39 @@ export default function HospitalSettingsPage() {
             <div className="mt-1 text-xs text-gray-500">
               요일별 운영시간을 설정합니다. 시작/종료 시간을 선택하세요.
             </div>
-            <div className="mt-4 space-y-2">
+            <div className="mt-3 flex items-center gap-2">
+              {[
+                { label: "평일 일괄", days: WEEKDAY_DAYS },
+                { label: "주말 일괄", days: WEEKEND_DAYS },
+              ].map(({ label, days }) => {
+                const refDay = days[0];
+                const refVal = draft.operatingHours?.[refDay] || "";
+                const [s, e] = refVal.includes("~") ? refVal.split("~").map((v) => v.trim()) : ["", ""];
+                return (
+                  <div key={label} className="flex items-center gap-1.5 rounded-lg border border-[#C5CAE9] bg-white px-3 py-1.5">
+                    <span className="text-xs font-bold text-[#3F51B5]">{label}</span>
+                    <select
+                      className="rounded border border-slate-200 bg-white px-1.5 py-1 text-xs font-semibold text-slate-700 outline-none cursor-pointer"
+                      value={s}
+                      onChange={(ev) => applyBulkHours(days, `${ev.target.value}~${e}`)}
+                    >
+                      <option value="">시작</option>
+                      {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <span className="text-xs text-gray-400">~</span>
+                    <select
+                      className="rounded border border-slate-200 bg-white px-1.5 py-1 text-xs font-semibold text-slate-700 outline-none cursor-pointer"
+                      value={e}
+                      onChange={(ev) => applyBulkHours(days, `${s}~${ev.target.value}`)}
+                    >
+                      <option value="">종료</option>
+                      {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-3 space-y-2">
               {WEEKDAYS_KO.map((day) => {
                 const raw = draft.operatingHours?.[day] || "";
                 const [startVal, endVal] = raw.includes("~") ? raw.split("~").map((s) => s.trim()) : ["", ""];
@@ -388,6 +430,7 @@ export default function HospitalSettingsPage() {
                 <Input
                   autoFocus
                   type={editor.inputType}
+                  max={editor.inputType === "date" ? "9999-12-31" : undefined}
                   value={editor.value}
                   placeholder={editor.placeholder}
                   onChange={(event) => {
