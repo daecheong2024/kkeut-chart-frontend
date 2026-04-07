@@ -166,9 +166,13 @@ export function WaitCard({
   const isAlertTriggered = (() => {
     const status = String(patient.status || "").toLowerCase();
     if (status === "done" || status === "completed") return false;
-    const statusSetting = dynamicStatuses.find((s) => s.id === patient.status) ?? dynamicStatuses.find((s) => s.label === patient.status);
-    if (!statusSetting?.alertEnabled || !patient.lastMovedAt) return false;
+    const statusSetting = dynamicStatuses.find((s) => String(s.id) === String(patient.status)) ?? dynamicStatuses.find((s) => s.label === patient.status);
+    if (!statusSetting?.alertEnabled || !patient.lastMovedAt) {
+      if (patient.name === "홍찬기") console.log("[ALERT DEBUG]", patient.name, { status: patient.status, statusSetting: statusSetting?.id, alertEnabled: statusSetting?.alertEnabled, lastMovedAt: patient.lastMovedAt, dynamicIds: dynamicStatuses.map(s => s.id + '(' + typeof s.id + ')'), patientStatus: patient.status + '(' + typeof patient.status + ')' });
+      return false;
+    }
     const threshold = sanitizeAlertMinutes(patient.statusAlertMinutes ?? statusSetting.alertAfterMinutes);
+    if (patient.name === "홍찬기") console.log("[ALERT DEBUG]", patient.name, { waitTime, threshold, triggered: waitTime >= threshold });
     return waitTime >= threshold;
   })();
 

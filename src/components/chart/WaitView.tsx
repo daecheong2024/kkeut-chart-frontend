@@ -46,7 +46,7 @@ function isStatusAlertTriggered(patient: Patient, statuses: StatusItem[], now: D
     if (status === "done" || status === "completed") return false;
 
     const statusSetting =
-        statuses.find((s) => s.id === patient.status) ??
+        statuses.find((s) => String(s.id) === String(patient.status)) ??
         statuses.find((s) => s.label === patient.status);
 
     if (!statusSetting?.alertEnabled) return false;

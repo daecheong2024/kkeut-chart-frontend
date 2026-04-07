@@ -38,6 +38,7 @@ import { paymentService, PaymentItem, PaymentRecord, PaymentUsageSummaryItem, Pa
 import { memberConfigService } from '../services/memberConfigService';
 import { categoryTicketDefService } from '../services/categoryTicketDefService';
 import { membershipService, PatientMembership, MembershipBalance, MembershipHistory } from '../services/membershipService';
+import { ReservationChangeHistoryModal } from '../components/reservation/ReservationChangeHistoryModal';
 import { cartService, CartItem, CartPreview } from '../services/cartService';
 import { todoService, TodoItem } from '../services/todoService';
 import { procedureTodoStatsService } from '../services/procedureTodoStatsService';
@@ -400,6 +401,7 @@ export default function PatientChartPage() {
     const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([]);
     const [memberships, setMemberships] = useState<PatientMembership[]>([]);
     const [customerReservations, setCustomerReservations] = useState<any[]>([]);
+    const [changeHistoryReservId, setChangeHistoryReservId] = useState<number | null>(null);
     const [dailyUsageSummary, setDailyUsageSummary] = useState<PaymentUsageSummaryItem[]>([]);
 
     // Cart preview and membership selection states
@@ -4275,6 +4277,12 @@ export default function PatientChartPage() {
                                                                 {rsv.reservationMemo}
                                                             </div>
                                                         )}
+                                                        <button
+                                                            onClick={() => setChangeHistoryReservId(rsv.id)}
+                                                            className="mt-1.5 text-[10px] font-medium text-[#3F51B5] hover:underline"
+                                                        >
+                                                            수정이력 보기
+                                                        </button>
                                                     </div>
                                                 </div>
                                             );
@@ -4998,6 +5006,12 @@ export default function PatientChartPage() {
                     />
                 )
             }
+
+            <ReservationChangeHistoryModal
+                isOpen={changeHistoryReservId !== null}
+                reservationId={changeHistoryReservId ?? 0}
+                onClose={() => setChangeHistoryReservId(null)}
+            />
 
             {patient && (
                 <ConsentSendModal
