@@ -722,6 +722,7 @@ export default function TicketsSettingsPage() {
                     <th className="px-4 py-3 text-center font-medium whitespace-nowrap">가격</th>
                     <th className="px-4 py-3 text-center font-medium whitespace-nowrap">이벤트가</th>
                     <th className="px-4 py-3 text-center font-medium whitespace-nowrap">시술 그룹/소요</th>
+                    <th className="px-4 py-3 text-center font-medium whitespace-nowrap">주기</th>
                     <th className="px-4 py-3 text-center font-medium whitespace-nowrap">예약카테고리</th>
                     <th className="px-4 py-3 text-center font-medium whitespace-nowrap">요일권</th>
                     <th className="px-4 py-3 text-center font-medium whitespace-nowrap">자동할일</th>
@@ -795,6 +796,9 @@ export default function TicketsSettingsPage() {
                               </div>
                             );
                           })()}
+                        </td>
+                        <td className="px-4 py-3 text-center whitespace-nowrap text-xs text-gray-600">
+                          {item.minIntervalDays ? `${item.minIntervalDays}일` : <span className="text-gray-300">-</span>}
                         </td>
                         <td className="px-4 py-3 text-center whitespace-nowrap text-xs text-gray-700">
                           {item.reservCategoryName || <span className="text-gray-300">-</span>}
