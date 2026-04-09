@@ -27,6 +27,7 @@ import {
     Printer,
     Lock,
     Unlock,
+    ClipboardList,
 } from "lucide-react";
 import { format, formatDistanceToNow, differenceInYears } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -1750,27 +1751,51 @@ export default function PatientChartPage() {
 
         const isPeriod = ticketDef?.usageUnit === "period";
         let allowCycleOverride = false;
+        let allowDayTimeOverride = false;
 
-        if (isPeriod && ticketDef) {
-            // A. Day of Week Check
+        if (ticketDef) {
+            const now = new Date();
+
+            // 1. Day of Week Check (회수권/기간권 공통)
             if (ticketDef.allowedDays && ticketDef.allowedDays.length > 0) {
-                const today = new Date().getDay(); // 0=Sun
-                if (!ticketDef.allowedDays.includes(today)) {
-                    showAlert({ message: "오늘은 사용 가능한 요일이 아닙니다.", type: "warning" });
-                    return;
+                if (!ticketDef.allowedDays.includes(now.getDay())) {
+                    const allow = await showConfirm({
+                        message: `오늘은 사용 가능한 요일이 아닙니다.\n그래도 사용하시겠습니까?`,
+                        type: "warning",
+                        confirmText: "사용",
+                        cancelText: "취소",
+                    });
+                    if (!allow) return;
+                    allowDayTimeOverride = true;
                 }
             }
 
-            // B. Max Count Check
-            if (ticketDef.maxTotalCount && ticketDef.maxTotalCount > 0) {
-                const currentUsage = ticket.usageCount || 0;
-                if (currentUsage >= ticketDef.maxTotalCount) {
-                    showAlert({ message: `최대 사용 횟수(${ticketDef.maxTotalCount}회)를 초과하여 사용할 수 없습니다.`, type: "warning" });
-                    return;
+            // 2. Time Range Check (회수권/기간권 공통)
+            if (ticketDef.allowedTimeRange && (ticketDef.allowedTimeRange.start || ticketDef.allowedTimeRange.end)) {
+                const toMinutes = (s?: string) => {
+                    if (!s) return null;
+                    const [h, m] = s.split(":").map(Number);
+                    if (!Number.isFinite(h)) return null;
+                    return h * 60 + (Number.isFinite(m) ? m : 0);
+                };
+                const startMin = toMinutes(ticketDef.allowedTimeRange.start) ?? 0;
+                const endMin = toMinutes(ticketDef.allowedTimeRange.end) ?? (24 * 60);
+                const currentMin = now.getHours() * 60 + now.getMinutes();
+                if (currentMin < startMin || currentMin >= endMin) {
+                    const startLabel = ticketDef.allowedTimeRange.start ?? "00:00";
+                    const endLabel = ticketDef.allowedTimeRange.end ?? "24:00";
+                    const allow = await showConfirm({
+                        message: `사용 가능한 시간대가 아닙니다.\n허용: ${startLabel} ~ ${endLabel}\n그래도 사용하시겠습니까?`,
+                        type: "warning",
+                        confirmText: "사용",
+                        cancelText: "취소",
+                    });
+                    if (!allow) return;
+                    allowDayTimeOverride = true;
                 }
             }
 
-            // C. Minimum Interval Check
+            // 3. Minimum Interval Check (회수권/기간권 공통)
             if (ticketDef.minIntervalDays && ticketDef.minIntervalDays > 0 && ticket.lastUsedAt) {
                 const lastUsed = new Date(ticket.lastUsedAt);
                 const diffTime = Math.abs(Date.now() - lastUsed.getTime());
@@ -1785,6 +1810,15 @@ export default function PatientChartPage() {
                     });
                     if (!allow) return;
                     allowCycleOverride = true;
+                }
+            }
+
+            // 4. Max Count Check (기간권 전용 — 회수권은 remainingCount 로 자동 차단)
+            if (isPeriod && ticketDef.maxTotalCount && ticketDef.maxTotalCount > 0) {
+                const currentUsage = ticket.usageCount || 0;
+                if (currentUsage >= ticketDef.maxTotalCount) {
+                    showAlert({ message: `최대 사용 횟수(${ticketDef.maxTotalCount}회)를 초과하여 사용할 수 없습니다.`, type: "warning" });
+                    return;
                 }
             }
         }
@@ -1806,6 +1840,7 @@ export default function PatientChartPage() {
                 usedRound: nextRound,
                 usedTreatments,
                 allowCycleOverride,
+                allowDayTimeOverride,
                 visitId: selectedVisit?.id,
             });
 
@@ -1907,9 +1942,18 @@ export default function PatientChartPage() {
             showAlert({ message: "티켓이 사용되었습니다.", type: "success" });
         } catch (e: any) {
             const errMsg = e?.response?.data?.message || e?.message || "Unknown Error";
-            if (errMsg.startsWith("CYCLE_WARN|")) {
-                const warnMessage = errMsg.replace("CYCLE_WARN|", "");
-                const allow = await showConfirm({ message: warnMessage, type: "warning", confirmText: "사용", cancelText: "취소" });
+            const warnPrefix = errMsg.startsWith("CYCLE_WARN|")
+                ? "CYCLE_WARN|"
+                : (errMsg.startsWith("DAYTIME_WARN|") ? "DAYTIME_WARN|" : null);
+
+            if (warnPrefix) {
+                const warnMessage = errMsg.replace(warnPrefix, "");
+                const allow = await showConfirm({
+                    message: `${warnMessage}\n그래도 사용하시겠습니까?`,
+                    type: "warning",
+                    confirmText: "사용",
+                    cancelText: "취소",
+                });
                 if (allow) {
                     try {
                         const isPeriodRetry = ticketDef?.usageUnit === "period";
@@ -1918,7 +1962,8 @@ export default function PatientChartPage() {
                         const nextRoundRetry = isPackageRetry ? Math.max(1, usageCountNow + 1) : undefined;
                         await ticketService.useTicket(ticket.id, isPeriodRetry, {
                             usedRound: nextRoundRetry,
-                            allowCycleOverride: true,
+                            allowCycleOverride: warnPrefix === "CYCLE_WARN|" ? true : allowCycleOverride,
+                            allowDayTimeOverride: warnPrefix === "DAYTIME_WARN|" ? true : allowDayTimeOverride,
                             visitId: selectedVisit?.id,
                         });
                         setTickets((prev) =>
@@ -4841,24 +4886,29 @@ export default function PatientChartPage() {
                     style={{ boxShadow: "0 -4px 14px rgba(226,107,124,0.10)" }}
                 >
                     {([
-                        { key: "visits" as const, label: "내원이력", icon: "📋" },
-                        { key: "chart" as const, label: "차트", icon: "📝" },
-                        { key: "ticket" as const, label: "티켓", icon: "🎫" },
-                        { key: "sidebar" as const, label: "환자기록", icon: "👤" },
+                        { key: "visits" as const, label: "내원이력", Icon: ClipboardList },
+                        { key: "chart" as const, label: "차트", Icon: FileText },
+                        { key: "ticket" as const, label: "티켓", Icon: TicketIcon },
+                        { key: "sidebar" as const, label: "환자기록", Icon: User },
                     ]).map((tab) => {
                         const active = activeMobileColumn === tab.key;
+                        const IconComp = tab.Icon;
                         return (
                             <button
                                 key={tab.key}
                                 type="button"
                                 onClick={() => setActiveMobileColumn(tab.key)}
-                                className="flex flex-col items-center justify-center gap-0.5 py-2 transition-all"
+                                className="flex flex-col items-center justify-center gap-1 py-2 transition-all"
                                 style={{
                                     background: active ? "linear-gradient(180deg, #FCEBEF 0%, #FFFFFF 100%)" : "transparent",
                                     borderTop: active ? "2px solid #E26B7C" : "2px solid transparent",
                                 }}
                             >
-                                <span className="text-[16px]" style={{ filter: active ? "none" : "grayscale(0.4)" }}>{tab.icon}</span>
+                                <IconComp
+                                    className="w-5 h-5"
+                                    strokeWidth={active ? 2.4 : 1.8}
+                                    style={{ color: active ? "#E26B7C" : "#7C6066" }}
+                                />
                                 <span
                                     className="text-[10px] font-bold tracking-[0.1px]"
                                     style={{ color: active ? "#99354E" : "#7C6066" }}

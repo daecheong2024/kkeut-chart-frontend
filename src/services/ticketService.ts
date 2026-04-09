@@ -53,6 +53,9 @@ export const ticketService = {
         if (metadata?.allowCycleOverride) {
             params.set("allowCycleOverride", "true");
         }
+        if (metadata?.allowDayTimeOverride) {
+            params.set("allowDayTimeOverride", "true");
+        }
         if (typeof metadata?.usedRound === "number" && Number.isFinite(metadata.usedRound) && metadata.usedRound > 0) {
             params.set("usedRound", String(Math.trunc(metadata.usedRound)));
         }
@@ -85,6 +88,7 @@ export interface TicketUseMetadata {
     usedRound?: number;
     usedTreatments?: string[];
     allowCycleOverride?: boolean;
+    allowDayTimeOverride?: boolean;
     visitId?: number;
 }
 
