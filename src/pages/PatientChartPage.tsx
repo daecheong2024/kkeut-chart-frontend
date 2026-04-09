@@ -149,11 +149,11 @@ const USAGE_SUMMARY_SOURCE_STYLES: Record<string, string> = {
 };
 
 const RIGHT_SIDEBAR_TAB_COLORS: Record<string, { bg: string; color: string; activeBg: string; border: string }> = {
-    record: { bg: "#E8EAF6", color: "#3F51B5", activeBg: "#3F51B5", border: "#C5CAE9" },
+    record: { bg: "#FCEBEF", color: "#E26B7C", activeBg: "#E26B7C", border: "#F8DCE2" },
     reservation: { bg: "#E0F7FA", color: "#00838F", activeBg: "#00838F", border: "#80DEEA" },
     membership: { bg: "#EDE7F6", color: "#6A1B9A", activeBg: "#6A1B9A", border: "#CE93D8" },
     ticket: { bg: "#E0F2F1", color: "#00695C", activeBg: "#00695C", border: "#80CBC4" },
-    consent: { bg: "#E8EAF6", color: "#283593", activeBg: "#283593", border: "#9FA8DA" },
+    consent: { bg: "#FCEBEF", color: "#7A2E3D", activeBg: "#7A2E3D", border: "#E5B5C0" },
     refund: { bg: "#FCE4EC", color: "#C62828", activeBg: "#C62828", border: "#EF9A9A" },
 };
 
@@ -2739,7 +2739,7 @@ export default function PatientChartPage() {
                 <div className="text-xs text-gray-400 bg-gray-100 p-2 rounded max-w-md break-all">{debugLog}</div>
                 <button
                     onClick={refreshChartData}
-                    className="px-4 py-2 bg-[#3F51B5] text-white rounded-lg hover:bg-[#303F9F] shadow-sm"
+                    className="px-4 py-2 bg-[#E26B7C] text-white rounded-lg hover:bg-[#99354E] shadow-sm"
                 >
                     다시 시도
                 </button>
@@ -2779,29 +2779,89 @@ export default function PatientChartPage() {
     const refundModalPreviewAmount = Math.max(0, refundModalSourceAmount - refundModalUsedAmount - refundModalPenaltyAmount);
 
     return (
-        <div className="flex flex-col h-screen bg-[#F5F7FA] overflow-hidden text-sm" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
+        <div className="flex flex-col h-screen bg-[#FAF3F5] overflow-hidden text-sm" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
             {/* 1. Header */}
-            <div className="h-14 bg-[#3F51B5] flex items-center justify-between px-5 shrink-0 z-20 shadow-[0_4px_16px_rgba(63,81,181,0.18)]">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                        <User className="w-4 h-4 text-white" />
+            <div
+                className="h-16 flex items-center justify-between px-6 shrink-0 z-20"
+                style={{
+                    background: "linear-gradient(135deg, #FFFFFF 0%, #FCF7F8 50%, #FCEBEF 100%)",
+                    borderBottom: "1px solid #F8DCE2",
+                    boxShadow: "0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 18px rgba(226, 107, 124, 0.08)",
+                }}
+            >
+                <div className="flex items-center gap-4">
+                    <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                        style={{
+                            background: "linear-gradient(135deg, #FCEBEF 0%, #F8DCE2 100%)",
+                            border: "1px solid #F5C7D1",
+                            boxShadow: "0 2px 6px rgba(226, 107, 124, 0.12), inset 0 1px 0 rgba(255,255,255,0.7)",
+                        }}
+                    >
+                        <User className="w-[18px] h-[18px]" style={{ color: "#99354E" }} />
                     </div>
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-indigo-200 text-sm font-mono">{patient.id}</span>
-                        <span className="text-lg font-bold text-white tracking-tight">{patient.name}</span>
-                        <span className="text-indigo-200">
-                            {patient.sex === "M" ? "남" : "여"}, {age}세({(patient.birthDate || "").replace(/-/g, ".")})
+
+                    <div className="flex items-baseline gap-3">
+                        <span
+                            className="text-[11px] font-mono font-semibold tracking-wider px-2 py-0.5 rounded-md"
+                            style={{
+                                color: "#99354E",
+                                background: "rgba(244, 158, 175, 0.14)",
+                                border: "1px solid rgba(244, 158, 175, 0.28)",
+                            }}
+                        >
+                            #{patient.id}
+                        </span>
+                        <span
+                            className="text-[19px] font-bold tracking-[-0.3px] leading-none"
+                            style={{ color: "#2A1F22" }}
+                        >
+                            {patient.name}
+                        </span>
+                        <span className="text-[13px] font-medium" style={{ color: "#7C6066" }}>
+                            {patient.sex === "M" ? "남" : "여"} · {age}세 · {(patient.birthDate || "").replace(/-/g, ".")}
                         </span>
                     </div>
 
-                    <div className="flex gap-2 ml-4">
+                    <div className="flex items-center gap-2 ml-3">
                         {remaining > 0 ? (
-                            <span className="bg-red-400/90 text-white px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm">미수납</span>
+                            <span
+                                className="px-3 py-1 rounded-full text-[11px] font-bold tracking-[0.2px] inline-flex items-center gap-1.5"
+                                style={{
+                                    background: "linear-gradient(135deg, #FFF1F0 0%, #FFE4E1 100%)",
+                                    color: "#C53030",
+                                    border: "1px solid #FCC8C2",
+                                    boxShadow: "0 1px 2px rgba(197, 48, 48, 0.08)",
+                                }}
+                            >
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#C53030]" />
+                                미수납
+                            </span>
                         ) : (
-                            <span className="bg-emerald-400/90 text-white px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm">수납완료</span>
+                            <span
+                                className="px-3 py-1 rounded-full text-[11px] font-bold tracking-[0.2px] inline-flex items-center gap-1.5"
+                                style={{
+                                    background: "linear-gradient(135deg, #F0FAF4 0%, #DDF4E4 100%)",
+                                    color: "#1F7A3D",
+                                    border: "1px solid #B6E0C0",
+                                    boxShadow: "0 1px 2px rgba(31, 122, 61, 0.08)",
+                                }}
+                            >
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#1F7A3D]" />
+                                수납완료
+                            </span>
                         )}
-                        <span className="bg-white/20 text-white px-2.5 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
-                            <CreditCard className="w-3 h-3" /> 누적 {Math.floor(totalPayment / 10000).toLocaleString()}만원
+                        <span
+                            className="px-3 py-1 rounded-full text-[11px] font-bold tracking-[0.2px] inline-flex items-center gap-1.5"
+                            style={{
+                                background: "linear-gradient(135deg, #FFFFFF 0%, #FCF7F8 100%)",
+                                color: "#5C2A35",
+                                border: "1px solid #F5C7D1",
+                                boxShadow: "0 1px 3px rgba(226, 107, 124, 0.10)",
+                            }}
+                        >
+                            <CreditCard className="w-3 h-3" style={{ color: "#E26B7C" }} />
+                            누적 {Math.floor(totalPayment / 10000).toLocaleString()}만원
                         </span>
                     </div>
                 </div>
@@ -2812,13 +2872,26 @@ export default function PatientChartPage() {
             {/* Main Grid */}
             <div ref={gridRef} className="flex flex-1 overflow-hidden">
                 {/* [Column 1] Left: Visits */}
-                <div className="bg-white border-r border-[#C5CAE9] flex flex-col shrink-0" style={{ width: colWidths[0] ?? 280 }}>
-                    <div className="flex items-center justify-between px-4 h-11 border-b border-[#C5CAE9] bg-[#F8F9FD]">
-                        <div className="font-semibold text-[#1A237E] flex items-center gap-2 text-[13px]">
-                            내원이력 <span className="bg-[#3F51B5]/10 text-[#3F51B5] text-[11px] font-bold px-1.5 py-0.5 rounded-full">{chartVisits.length}</span>
+                <div className="bg-white border-r border-[#F8DCE2] flex flex-col shrink-0" style={{ width: colWidths[0] ?? 280 }}>
+                    <div
+                        className="flex items-center justify-between px-4 h-12 border-b border-[#F8DCE2]"
+                        style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FCF7F8 100%)" }}
+                    >
+                        <div className="flex items-center gap-2">
+                            <span className="w-1 h-4 rounded-full" style={{ background: "linear-gradient(180deg, #E26B7C 0%, #F49EAF 100%)" }} />
+                            <span className="font-bold text-[13px] tracking-[-0.2px]" style={{ color: "#5C2A35" }}>내원이력</span>
+                            <span
+                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
+                                style={{
+                                    color: "#99354E",
+                                    background: "rgba(244, 158, 175, 0.14)",
+                                    border: "1px solid rgba(244, 158, 175, 0.28)",
+                                }}
+                            >
+                                {chartVisits.length}
+                            </span>
                         </div>
-                        <div className="flex gap-1.5">
-                        </div>
+                        <div className="flex gap-1.5"></div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto">
@@ -2834,11 +2907,17 @@ export default function PatientChartPage() {
                                     onClick={() => setSelectedVisitId(v.id)}
                                     className={`cursor-pointer transition-all duration-200 ease-in-out relative group flex flex-col mx-2 my-1 rounded-xl ${
                                         selectedVisitId === v.id
-                                            ? "bg-[#E8EAF6] border border-[#3F51B5]/30 shadow-[0_4px_12px_rgba(63,81,181,0.08)]"
-                                            : "hover:bg-[#E8EAF6] hover:shadow-[0_4px_12px_rgba(63,81,181,0.08)] border border-transparent"
+                                            ? "border border-[#F5C7D1] shadow-[0_6px_18px_rgba(226,107,124,0.12)]"
+                                            : "hover:bg-[#FCF7F8] hover:shadow-[0_4px_12px_rgba(226,107,124,0.06)] border border-transparent"
                                     }`}
+                                    style={selectedVisitId === v.id ? { background: "linear-gradient(135deg, #FFFFFF 0%, #FCEBEF 100%)" } : undefined}
                                 >
-                                    {selectedVisitId === v.id && <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-[#3F51B5]" />}
+                                    {selectedVisitId === v.id && (
+                                        <div
+                                            className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
+                                            style={{ background: "linear-gradient(180deg, #E26B7C 0%, #F49EAF 100%)" }}
+                                        />
+                                    )}
 
                                     <div
                                         className="p-3 flex items-center gap-2"
@@ -2851,7 +2930,7 @@ export default function PatientChartPage() {
                                         <ChevronRight
                                             className={`w-3 h-3 text-[#616161] transition-transform ${isExpanded ? "rotate-90" : ""}`}
                                         />
-                                        <div className="font-semibold text-[#1A237E] text-sm flex items-center gap-2">
+                                        <div className="font-semibold text-[#5C2A35] text-sm flex items-center gap-2">
                                             {format(date, "yyyy-MM-dd", { locale: ko })}
                                             <span className="text-xs font-normal text-[#616161]">
                                                 {formatDistanceToNow(date, { addSuffix: true, locale: ko })}
@@ -2894,8 +2973,8 @@ export default function PatientChartPage() {
                                                 );
                                             })}
 
-                                            <div className="rounded-lg border border-[#3F51B5]/20 bg-[#3F51B5]/5">
-                                                <div className="px-2 py-1.5 text-xs font-semibold text-[#3F51B5] border-b border-[#3F51B5]/20 flex items-center gap-1">
+                                            <div className="rounded-lg border border-[#E26B7C]/20 bg-[#E26B7C]/5">
+                                                <div className="px-2 py-1.5 text-xs font-semibold text-[#E26B7C] border-b border-[#E26B7C]/20 flex items-center gap-1">
                                                     <FileText className="w-3 h-3" />
                                                     진료기록
                                                 </div>
@@ -2937,9 +3016,32 @@ export default function PatientChartPage() {
                         })}
                     </div>
 
-                    <div className="p-2.5 border-t border-[#C5CAE9] bg-[#F8F9FD]">
+                    <div
+                        className="p-2.5 border-t border-[#F8DCE2]"
+                        style={{ background: "linear-gradient(180deg, #FCF7F8 0%, #FFFFFF 100%)" }}
+                    >
                         <button
-                            className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors ${isReadOnly ? "bg-gray-300 cursor-not-allowed" : "bg-[#3F51B5] hover:bg-[#303F9F]"}`}
+                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-white text-[12px] font-bold tracking-[0.2px] rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                                background: isReadOnly
+                                    ? "linear-gradient(135deg, #E5B5C0 0%, #D4A5B0 100%)"
+                                    : "linear-gradient(135deg, #E26B7C 0%, #C9485B 100%)",
+                                boxShadow: isReadOnly
+                                    ? "none"
+                                    : "0 4px 14px rgba(226, 107, 124, 0.28), inset 0 1px 0 rgba(255,255,255,0.18)",
+                            }}
+                            onMouseEnter={(e) => {
+                                if (!isReadOnly) {
+                                    e.currentTarget.style.boxShadow = "0 6px 20px rgba(226, 107, 124, 0.38), inset 0 1px 0 rgba(255,255,255,0.22)";
+                                    e.currentTarget.style.transform = "translateY(-1px)";
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!isReadOnly) {
+                                    e.currentTarget.style.boxShadow = "0 4px 14px rgba(226, 107, 124, 0.28), inset 0 1px 0 rgba(255,255,255,0.18)";
+                                    e.currentTarget.style.transform = "translateY(0)";
+                                }
+                            }}
                             onClick={() => !isReadOnly && setShowVisitCreationModal(true)}
                             disabled={isReadOnly}
                         >
@@ -2950,18 +3052,22 @@ export default function PatientChartPage() {
 
                 {/* Separator 0-1 */}
                 <div
-                    className="w-1 shrink-0 cursor-col-resize hover:bg-[#3F51B5]/30 active:bg-[#3F51B5]/50 transition-colors"
+                    className="w-1 shrink-0 cursor-col-resize hover:bg-[#E26B7C]/30 active:bg-[#E26B7C]/50 transition-colors"
                     onMouseDown={(e) => onSepMouseDown(0, e)}
                 />
 
                 {/* [Column 2] Center Left: Charting */}
-                <div className="flex flex-col border-r border-[#C5CAE9] bg-white overflow-visible" style={{ width: colWidths[1] ?? '40%' }}>
+                <div className="flex flex-col border-r border-[#F8DCE2] bg-white overflow-visible" style={{ width: colWidths[1] ?? '40%' }}>
                     {selectedVisit ? (
                         <>
                             {/* Visit Header */}
-                            <div className="h-11 border-b border-[#C5CAE9] flex items-center justify-between px-4 bg-[#F8F9FD] overflow-visible">
+                            <div
+                                className="h-12 border-b border-[#F8DCE2] flex items-center justify-between px-4 overflow-visible"
+                                style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FCF7F8 100%)" }}
+                            >
                                 <div className="flex items-center gap-2 text-sm font-semibold min-w-0">
-                                    <span className="text-base whitespace-nowrap text-[#242424]">
+                                    <span className="w-1 h-4 rounded-full shrink-0" style={{ background: "linear-gradient(180deg, #E26B7C 0%, #F49EAF 100%)" }} />
+                                    <span className="text-[15px] whitespace-nowrap font-bold tracking-[-0.2px]" style={{ color: "#2A1F22" }}>
                                         {(() => {
                                             const d2 = parseScheduledAtLocal(selectedVisit.scheduledAt);
                                             return format(d2, "yyyy.MM.dd (E)", { locale: ko });
@@ -2980,7 +3086,7 @@ export default function PatientChartPage() {
                                             <button
                                                 type="button"
                                                 disabled={isReadOnly}
-                                                className={`inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#C5CAE9] bg-white px-2.5 text-xs font-semibold text-[#242424] shadow-sm transition whitespace-nowrap ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:border-[#3F51B5]/30 hover:bg-[#3F51B5]/5"}`}
+                                                className={`inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#F8DCE2] bg-white px-2.5 text-xs font-semibold text-[#242424] shadow-sm transition whitespace-nowrap ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:border-[#E26B7C]/30 hover:bg-[#E26B7C]/5"}`}
                                                 onClick={() => {
                                                     if (isReadOnly) return;
                                                     setIsDoctorDropdownOpen(false);
@@ -2996,13 +3102,13 @@ export default function PatientChartPage() {
                                                 />
                                             </button>
                                             {isCounselorDropdownOpen && (
-                                                <div className="absolute left-0 top-[calc(100%+6px)] z-40 min-w-[170px] rounded-xl border border-[#C5CAE9] bg-white p-1 shadow-lg">
+                                                <div className="absolute left-0 top-[calc(100%+6px)] z-40 min-w-[170px] rounded-xl border border-[#F8DCE2] bg-white p-1 shadow-lg">
                                                     <button
                                                         type="button"
                                                         className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition ${
                                                             !selectedCounselorId
-                                                                ? "bg-[#3F51B5]/10 text-[#3F51B5]"
-                                                                : "text-[#616161] hover:bg-[#F8F9FD]"
+                                                                ? "bg-[#E26B7C]/10 text-[#E26B7C]"
+                                                                : "text-[#616161] hover:bg-[#FCF7F8]"
                                                         }`}
                                                         onClick={() => {
                                                             void handleSaveConsultation("counselorId", "");
@@ -3020,8 +3126,8 @@ export default function PatientChartPage() {
                                                                 type="button"
                                                                 className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition ${
                                                                     isSelected
-                                                                        ? "bg-[#3F51B5]/10 text-[#3F51B5]"
-                                                                        : "text-[#616161] hover:bg-[#F8F9FD]"
+                                                                        ? "bg-[#E26B7C]/10 text-[#E26B7C]"
+                                                                        : "text-[#616161] hover:bg-[#FCF7F8]"
                                                                 }`}
                                                                 onClick={() => {
                                                                     void handleSaveConsultation("counselorId", member.id);
@@ -3041,7 +3147,7 @@ export default function PatientChartPage() {
                                             <button
                                                 type="button"
                                                 disabled={isReadOnly}
-                                                className={`inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#C5CAE9] bg-white px-2.5 text-xs font-semibold text-[#242424] shadow-sm transition whitespace-nowrap ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:border-[#3F51B5]/30 hover:bg-[#3F51B5]/5"}`}
+                                                className={`inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#F8DCE2] bg-white px-2.5 text-xs font-semibold text-[#242424] shadow-sm transition whitespace-nowrap ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:border-[#E26B7C]/30 hover:bg-[#E26B7C]/5"}`}
                                                 onClick={() => {
                                                     if (isReadOnly) return;
                                                     setIsCounselorDropdownOpen(false);
@@ -3057,13 +3163,13 @@ export default function PatientChartPage() {
                                                 />
                                             </button>
                                             {isDoctorDropdownOpen && (
-                                                <div className="absolute left-0 top-[calc(100%+6px)] z-40 min-w-[170px] rounded-xl border border-[#C5CAE9] bg-white p-1 shadow-lg">
+                                                <div className="absolute left-0 top-[calc(100%+6px)] z-40 min-w-[170px] rounded-xl border border-[#F8DCE2] bg-white p-1 shadow-lg">
                                                     <button
                                                         type="button"
                                                         className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition ${
                                                             !selectedDoctorCounselorId
-                                                                ? "bg-[#3F51B5]/10 text-[#3F51B5]"
-                                                                : "text-[#616161] hover:bg-[#F8F9FD]"
+                                                                ? "bg-[#E26B7C]/10 text-[#E26B7C]"
+                                                                : "text-[#616161] hover:bg-[#FCF7F8]"
                                                         }`}
                                                         onClick={() => {
                                                             void handleSaveConsultation("doctorCounselorId", "");
@@ -3081,8 +3187,8 @@ export default function PatientChartPage() {
                                                                 type="button"
                                                                 className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition ${
                                                                     isSelected
-                                                                        ? "bg-[#3F51B5]/10 text-[#3F51B5]"
-                                                                        : "text-[#616161] hover:bg-[#F8F9FD]"
+                                                                        ? "bg-[#E26B7C]/10 text-[#E26B7C]"
+                                                                        : "text-[#616161] hover:bg-[#FCF7F8]"
                                                                 }`}
                                                                 onClick={() => {
                                                                     void handleSaveConsultation("doctorCounselorId", member.id);
@@ -3116,12 +3222,12 @@ export default function PatientChartPage() {
 
                             <div className="flex-1 overflow-y-auto p-4">
                                 {/* Print Preview Card */}
-                                <div className="mb-4 border border-[#C5CAE9] rounded-2xl bg-[#F8F9FD] overflow-hidden">
+                                <div className="mb-4 border border-[#F8DCE2] rounded-2xl bg-[#FCF7F8] overflow-hidden">
                                     <div
-                                        className="px-4 py-2 border-b border-[#C5CAE9] bg-[#F8F9FD] flex items-center justify-between cursor-pointer select-none hover:bg-[#E8EAF6]/60 transition-colors"
+                                        className="px-4 py-2 border-b border-[#F8DCE2] bg-[#FCF7F8] flex items-center justify-between cursor-pointer select-none hover:bg-[#FCEBEF]/60 transition-colors"
                                         onClick={() => setIsPrintPreviewCollapsed(prev => !prev)}
                                     >
-                                        <span className="text-xs font-semibold text-[#1A237E] flex items-center gap-1">
+                                        <span className="text-xs font-semibold text-[#5C2A35] flex items-center gap-1">
                                             {isPrintPreviewCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                             인쇄 미리보기
                                         </span>
@@ -3145,7 +3251,7 @@ export default function PatientChartPage() {
                                                 setPrintConfigDraft(draft);
                                                 setIsPrintSettingsOpen(true);
                                             }}
-                                            className="rounded-lg p-1 text-[#616161] hover:text-[#1A237E] hover:bg-[#E8EAF6] transition-all duration-200"
+                                            className="rounded-lg p-1 text-[#616161] hover:text-[#5C2A35] hover:bg-[#FCEBEF] transition-all duration-200"
                                             title="인쇄 설정"
                                         >
                                             <Settings className="w-3.5 h-3.5" />
@@ -3184,7 +3290,7 @@ export default function PatientChartPage() {
                                                     <div className="font-bold">{patient.name} {formattedDate}</div>
                                                     {staffParts.length > 0 && <div className="text-[#616161]">{staffParts.join("  ")}</div>}
                                                     {chartLines.length > 0 ? (
-                                                        <div className="mt-2 border-t border-[#E8EAF6] pt-2">{chartLines.join("\n")}</div>
+                                                        <div className="mt-2 border-t border-[#FCEBEF] pt-2">{chartLines.join("\n")}</div>
                                                     ) : (
                                                         <div className="mt-2 text-[#9E9E9E] italic">차트 내용이 없습니다.</div>
                                                     )}
@@ -3196,10 +3302,10 @@ export default function PatientChartPage() {
                                 </div>
 
                                 {/* Consultation 3-Col Grid */}
-                                <div className="grid grid-cols-3 border border-[#C5CAE9] rounded-2xl min-h-[300px] mb-4 divide-x divide-[#C5CAE9] bg-white overflow-hidden">
+                                <div className="grid grid-cols-3 border border-[#F8DCE2] rounded-2xl min-h-[300px] mb-4 divide-x divide-[#F8DCE2] bg-white overflow-hidden">
                                     {memoSections.map((section, idx) => (
                                         <div key={`${selectedVisit.id}-${section.id}`} className="flex flex-col">
-                                            <div className="h-9 px-3 border-b border-[#C5CAE9] bg-[#F8F9FD] flex items-center justify-between font-semibold text-[#1A237E] text-sm">
+                                            <div className="h-9 px-3 border-b border-[#F8DCE2] bg-[#FCF7F8] flex items-center justify-between font-semibold text-[#5C2A35] text-sm">
                                                 <span>{section.label}</span>
                                                 {idx === memoSections.length - 1 && (
                                                     <button
@@ -3230,12 +3336,12 @@ export default function PatientChartPage() {
                                 </div>
 
                                 {/* Medical Record */}
-                                <div className="border border-[#C5CAE9] rounded-2xl min-h-[350px] flex flex-col bg-white overflow-hidden">
-                                    <div className="h-9 px-3 border-b border-[#C5CAE9] bg-[#F8F9FD] flex items-center justify-between font-semibold text-[#1A237E] text-sm">
+                                <div className="border border-[#F8DCE2] rounded-2xl min-h-[350px] flex flex-col bg-white overflow-hidden">
+                                    <div className="h-9 px-3 border-b border-[#F8DCE2] bg-[#FCF7F8] flex items-center justify-between font-semibold text-[#5C2A35] text-sm">
                                         <div className="flex items-center gap-2">
                                             진료기록
                                         </div>
-                                        <ImageIcon className="w-4 h-4 text-[#616161] hover:text-[#3F51B5] cursor-pointer transition-colors" />
+                                        <ImageIcon className="w-4 h-4 text-[#616161] hover:text-[#E26B7C] cursor-pointer transition-colors" />
                                     </div>
                                     {canViewMedicalRecord ? (
                                     <SmartTextarea
@@ -3252,14 +3358,14 @@ export default function PatientChartPage() {
                                     )}
                                 </div>
 
-                                <div className="mt-4 border border-[#C5CAE9] rounded-2xl p-3 bg-white">
+                                <div className="mt-4 border border-[#F8DCE2] rounded-2xl p-3 bg-white">
                                     <div className="flex justify-between items-center mb-2">
-                                        <span className="font-semibold text-sm text-[#1A237E]">문서발급</span>
+                                        <span className="font-semibold text-sm text-[#5C2A35]">문서발급</span>
                                     </div>
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => setIsDocumentModalOpen(true)}
-                                            className="flex-1 py-2 border border-[#C5CAE9] rounded-lg text-xs font-semibold text-[#242424] bg-white hover:bg-[#3F51B5]/5 hover:border-[#3F51B5]/30 flex items-center justify-center gap-1.5 transition-colors"
+                                            className="flex-1 py-2 border border-[#F8DCE2] rounded-lg text-xs font-semibold text-[#242424] bg-white hover:bg-[#E26B7C]/5 hover:border-[#E26B7C]/30 flex items-center justify-center gap-1.5 transition-colors"
                                         >
                                             <FileText className="w-3.5 h-3.5" /> 서류 발급
                                         </button>
@@ -3269,7 +3375,7 @@ export default function PatientChartPage() {
                             </div>
 
                             {/* Center Footer - Action Bar */}
-                            <div className="border-t border-[#C5CAE9] bg-[#F8F9FD] px-4 py-2 flex items-center gap-2">
+                            <div className="border-t border-[#F8DCE2] bg-[#FCF7F8] px-4 py-2 flex items-center gap-2">
                                 <div className="flex-1 flex items-center gap-2">
                                     {isLockedByMe && (
                                         <button
@@ -3315,7 +3421,7 @@ export default function PatientChartPage() {
                                     <button
                                         onClick={() => !isReadOnly && setIsLocationDropdownOpen(!isLocationDropdownOpen)}
                                         disabled={isReadOnly}
-                                        className={`px-4 min-h-[40px] py-2 border border-[#C5CAE9] rounded-lg text-xs font-medium text-[#242424] bg-white flex items-center gap-1.5 transition-all duration-200 ease-in-out ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:bg-[#3F51B5]/5 hover:border-[#3F51B5]/30"}`}
+                                        className={`px-4 min-h-[40px] py-2 border border-[#F8DCE2] rounded-lg text-xs font-medium text-[#242424] bg-white flex items-center gap-1.5 transition-all duration-200 ease-in-out ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:bg-[#E26B7C]/5 hover:border-[#E26B7C]/30"}`}
                                     >
                                         {selectedVisit?.room
                                             ? waitLocations.find((l) => l.id === selectedVisit.room)?.label || selectedVisit.room
@@ -3323,15 +3429,15 @@ export default function PatientChartPage() {
                                         <ChevronDown className="w-3.5 h-3.5" />
                                     </button>
                                     {isLocationDropdownOpen && !isReadOnly && (
-                                        <div className="absolute bottom-full mb-1 left-0 w-48 bg-white border border-[#C5CAE9] rounded-xl shadow-lg z-50 py-1 max-h-60 overflow-y-auto">
+                                        <div className="absolute bottom-full mb-1 left-0 w-48 bg-white border border-[#F8DCE2] rounded-xl shadow-lg z-50 py-1 max-h-60 overflow-y-auto">
                                             {waitLocations.map((loc) => (
                                                 <button
                                                     key={loc.id}
                                                     onClick={() => handleUpdateVisitRoom(loc.id)}
-                                                    className="w-full text-left px-4 py-2 text-xs hover:bg-[#3F51B5]/5 text-[#242424] flex justify-between items-center transition-colors"
+                                                    className="w-full text-left px-4 py-2 text-xs hover:bg-[#E26B7C]/5 text-[#242424] flex justify-between items-center transition-colors"
                                                 >
                                                     {loc.label}
-                                                    {selectedVisit?.room === loc.id && <Check className="w-3 h-3 text-[#3F51B5]" />}
+                                                    {selectedVisit?.room === loc.id && <Check className="w-3 h-3 text-[#E26B7C]" />}
                                                 </button>
                                             ))}
                                         </div>
@@ -3341,7 +3447,25 @@ export default function PatientChartPage() {
                                 <button
                                     onClick={handleManualSave}
                                     disabled={isReadOnly}
-                                    className={`px-4 min-h-[40px] py-2 font-medium rounded-lg text-xs flex items-center gap-1.5 transition-all duration-200 ease-in-out ${isReadOnly ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-[#3F51B5] hover:bg-[#303F9F] text-white shadow-[0_4px_12px_rgba(63,81,181,0.18)] hover:shadow-[0_6px_16px_rgba(63,81,181,0.25)]"}`}
+                                    className="px-5 min-h-[40px] py-2 font-bold rounded-xl text-[12px] tracking-[0.2px] flex items-center gap-1.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-white"
+                                    style={{
+                                        background: isReadOnly
+                                            ? "linear-gradient(135deg, #E5B5C0 0%, #D4A5B0 100%)"
+                                            : "linear-gradient(135deg, #E26B7C 0%, #C9485B 100%)",
+                                        boxShadow: isReadOnly ? "none" : "0 4px 14px rgba(226, 107, 124, 0.28), inset 0 1px 0 rgba(255,255,255,0.18)",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!isReadOnly) {
+                                            e.currentTarget.style.boxShadow = "0 6px 20px rgba(226, 107, 124, 0.38), inset 0 1px 0 rgba(255,255,255,0.22)";
+                                            e.currentTarget.style.transform = "translateY(-1px)";
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (!isReadOnly) {
+                                            e.currentTarget.style.boxShadow = "0 4px 14px rgba(226, 107, 124, 0.28), inset 0 1px 0 rgba(255,255,255,0.18)";
+                                            e.currentTarget.style.transform = "translateY(0)";
+                                        }
+                                    }}
                                 >
                                     <Save className="w-3.5 h-3.5" /> 저장하기
                                 </button>
@@ -3353,7 +3477,7 @@ export default function PatientChartPage() {
                             {chartVisits.length === 0 && (
                                 <button
                                     onClick={() => setShowReceptionModal(true)}
-                                    className="px-5 py-2.5 bg-[#3F51B5] text-white rounded-lg font-semibold hover:bg-[#303F9F] transition-colors shadow-md"
+                                    className="px-5 py-2.5 bg-[#E26B7C] text-white rounded-lg font-semibold hover:bg-[#99354E] transition-colors shadow-md"
                                 >
                                     오늘의 차트 작성하기
                                 </button>
@@ -3364,44 +3488,63 @@ export default function PatientChartPage() {
 
                 {/* Separator 1-2 */}
                 <div
-                    className="w-1 shrink-0 cursor-col-resize hover:bg-[#3F51B5]/30 active:bg-[#3F51B5]/50 transition-colors"
+                    className="w-1 shrink-0 cursor-col-resize hover:bg-[#E26B7C]/30 active:bg-[#E26B7C]/50 transition-colors"
                     onMouseDown={(e) => onSepMouseDown(1, e)}
                 />
 
                 {/* [Column 3] Center Right: Orders/Payment */}
-                <div className="flex flex-col border-r border-[#C5CAE9] bg-white overflow-hidden" style={{ width: colWidths[2] ?? '30%' }}>
-                    <div className="h-11 border-b border-[#C5CAE9] flex items-center justify-between px-4 bg-[#F8F9FD]">
-                        <div className="font-semibold text-[#1A237E] text-[14px]">티켓 구매</div>
+                <div className="flex flex-col border-r border-[#F8DCE2] bg-white overflow-hidden" style={{ width: colWidths[2] ?? '30%' }}>
+                    <div
+                        className="h-12 border-b border-[#F8DCE2] flex items-center justify-between px-4"
+                        style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FCF7F8 100%)" }}
+                    >
+                        <div className="flex items-center gap-2">
+                            <span className="w-1 h-4 rounded-full" style={{ background: "linear-gradient(180deg, #E26B7C 0%, #F49EAF 100%)" }} />
+                            <span className="font-bold text-[14px] tracking-[-0.2px]" style={{ color: "#5C2A35" }}>티켓 구매</span>
+                        </div>
                     </div>
 
                     <div className="flex-1 flex flex-col justify-start overflow-y-auto p-3 bg-white">
                         {/* Search */}
                         <div className="relative mb-3 group shrink-0" ref={searchRef}>
                             <input
-                                className="w-full h-10 px-3 bg-[#E8EAF6]/60 rounded-t-lg border-b-2 border-[#C5CAE9] outline-none text-[15px] placeholder-[#9E9E9E] focus:border-[#536DFE] group-hover:border-[#3F51B5]/50 transition-all duration-200"
+                                className="w-full h-11 px-4 rounded-xl border outline-none text-[14px] placeholder-[#B89BA0] transition-all duration-200"
+                                style={{
+                                    background: "linear-gradient(180deg, #FCF7F8 0%, #FFFFFF 100%)",
+                                    borderColor: "#F8DCE2",
+                                    boxShadow: "inset 0 1px 2px rgba(226, 107, 124, 0.04)",
+                                }}
                                 placeholder="오더 검색 (Ctrl+Shift+5)"
                                 value={searchQuery}
                                 onChange={(e) => {
                                     setSearchQuery(e.target.value);
                                     setIsSearchOpen(true);
                                 }}
-                                onFocus={() => setIsSearchOpen(true)}
+                                onFocus={(e) => {
+                                    e.currentTarget.style.borderColor = "#E26B7C";
+                                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(244, 158, 175, 0.18), inset 0 1px 2px rgba(226, 107, 124, 0.04)";
+                                    setIsSearchOpen(true);
+                                }}
+                                onBlur={(e) => {
+                                    e.currentTarget.style.borderColor = "#F8DCE2";
+                                    e.currentTarget.style.boxShadow = "inset 0 1px 2px rgba(226, 107, 124, 0.04)";
+                                }}
                             />
                             <div className="absolute right-0 top-2 flex gap-1.5">
-                                <button className="p-1 rounded-lg hover:bg-[#3F51B5]/10 text-[#9E9E9E] hover:text-[#3F51B5] transition-colors">
+                                <button className="p-1 rounded-lg hover:bg-[#E26B7C]/10 text-[#9E9E9E] hover:text-[#E26B7C] transition-colors">
                                     <Gift className="w-4 h-4" />
                                 </button>
-                                <button className="p-1 rounded-lg hover:bg-[#3F51B5]/10 text-[#9E9E9E] hover:text-[#3F51B5] transition-colors">
+                                <button className="p-1 rounded-lg hover:bg-[#E26B7C]/10 text-[#9E9E9E] hover:text-[#E26B7C] transition-colors">
                                     <CreditCard className="w-4 h-4" />
                                 </button>
-                                <button className="p-1 rounded-lg hover:bg-[#3F51B5]/10 text-[#9E9E9E] hover:text-[#3F51B5] transition-colors">
+                                <button className="p-1 rounded-lg hover:bg-[#E26B7C]/10 text-[#9E9E9E] hover:text-[#E26B7C] transition-colors">
                                     <Plus className="w-4 h-4" />
                                 </button>
                             </div>
 
                             {(isSearchOpen || searchQuery) && (
-                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#C5CAE9] rounded-xl shadow-lg z-20 max-h-[400px] flex flex-col overflow-hidden">
-                                    <div className="bg-[#F8F9FD] flex border-b border-[#C5CAE9] justify-between items-center">
+                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#F8DCE2] rounded-xl shadow-lg z-20 max-h-[400px] flex flex-col overflow-hidden">
+                                    <div className="bg-[#FCF7F8] flex border-b border-[#F8DCE2] justify-between items-center">
                                         <div className="flex overflow-x-auto no-scrollbar">
                                             {[
                                                 { id: "all", label: "전체" },
@@ -3413,7 +3556,7 @@ export default function PatientChartPage() {
                                                     <div
                                                         key={tab.id}
                                                         onClick={() => setSearchTab(tab.id as any)}
-                                                        className={`px-3 py-2 text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${active ? "text-[#3F51B5] border-b-2 border-[#3F51B5]" : "text-[#616161] hover:text-[#3F51B5] hover:bg-[#3F51B5]/5"
+                                                        className={`px-3 py-2 text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${active ? "text-[#E26B7C] border-b-2 border-[#E26B7C]" : "text-[#616161] hover:text-[#E26B7C] hover:bg-[#E26B7C]/5"
                                                             }`}
                                                     >
                                                         {tab.label}
@@ -3431,13 +3574,17 @@ export default function PatientChartPage() {
 
                                     <div className="overflow-y-auto max-h-[300px] p-2">
                                         {/* Tickets */}
-                                        {(searchTab === "all" || searchTab === "ticket") && (
+                                        {(searchTab === "all" || searchTab === "ticket") && (() => {
+                                            const TICKET_DROPDOWN_LIMIT = 50;
+                                            const visibleTickets = ticketSearchItems.slice(0, TICKET_DROPDOWN_LIMIT);
+                                            const overflowCount = Math.max(0, ticketSearchItems.length - TICKET_DROPDOWN_LIMIT);
+                                            return (
                                             <div className="mb-2">
                                                 <div className="text-[12px] items-center text-gray-400 mb-1 px-2 flex gap-1">
                                                     <MessageSquare className="w-3 h-3" /> 티켓 명칭으로 검색해보세요
                                                 </div>
 
-                                                {ticketSearchItems.map((t: any) => {
+                                                {visibleTickets.map((t: any) => {
                                                     const queueWaitClass =
                                                         t.queueWaitMinutes >= 70
                                                             ? "border-rose-200 bg-rose-50 text-rose-700"
@@ -3448,30 +3595,18 @@ export default function PatientChartPage() {
                                                     return (
                                                         <div
                                                             key={t.id}
-                                                            className="rounded-lg p-2.5 text-[13px] transition-colors hover:bg-[#3F51B5]/5 cursor-pointer group"
+                                                            className="rounded-lg p-2.5 text-[13px] transition-colors hover:bg-[#E26B7C]/5 cursor-pointer group"
                                                             onClick={() => !isReadOnly && handleAddTicket(t)}
                                                             style={isReadOnly ? { pointerEvents: "none", opacity: 0.5 } : undefined}
                                                         >
-                                                            <div className="flex justify-between items-center gap-2">
-                                                                <div className="flex min-w-0 items-center gap-2">
-                                                                    <Gift className="w-3 h-3 text-[#3F51B5] shrink-0" />
-                                                                    <span className="font-semibold text-[#242424] truncate">{t.name}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-2 shrink-0">
-                                                                    <span className="bg-[#3F51B5]/10 text-[#3F51B5] px-1.5 rounded-md text-[12px] font-semibold">
-                                                                        {t.usageUnit === "session" ? "횟수권" : "기간권"}
-                                                                    </span>
-                                                                    {t.eventPrice != null && t.eventPrice < (t.originalPrice || t.price) ? (
-                                                                        <div className="flex items-center gap-1.5">
-                                                                            <span className="text-[#9E9E9E] line-through text-[12px]">{(t.originalPrice || t.price || 0).toLocaleString()}</span>
-                                                                            <span className="font-bold text-[#E74856]">{(t.eventPrice || 0).toLocaleString()}원</span>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <span className="font-bold text-[#3F51B5]">{(t.originalPrice || t.price || 0).toLocaleString()}원</span>
-                                                                    )}
-                                                                </div>
+                                                            <div className="flex min-w-0 items-center gap-1.5">
+                                                                <Gift className="w-3 h-3 text-[#E26B7C] shrink-0" />
+                                                                <span className="font-semibold text-[#242424] truncate flex-1 min-w-0">{t.name}</span>
                                                             </div>
                                                             <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px] font-semibold">
+                                                                <span className="bg-[#E26B7C]/10 text-[#E26B7C] px-1.5 rounded-md font-semibold">
+                                                                    {t.usageUnit === "session" ? "횟수권" : "기간권"}
+                                                                </span>
                                                                 <span className="rounded-full border border-cyan-200 bg-cyan-50 px-1.5 py-0.5 text-cyan-700">
                                                                     대기 {t.queueTodoCount}건
                                                                 </span>
@@ -3480,6 +3615,16 @@ export default function PatientChartPage() {
                                                                 </span>
                                                                 <span className={`rounded-full border px-1.5 py-0.5 ${queueWaitClass}`}>
                                                                     예상 {t.queueWaitMinutes}분
+                                                                </span>
+                                                                <span className="ml-auto flex items-center gap-1.5">
+                                                                    {t.eventPrice != null && t.eventPrice < (t.originalPrice || t.price) ? (
+                                                                        <>
+                                                                            <span className="text-[#9E9E9E] line-through text-[11px]">{(t.originalPrice || t.price || 0).toLocaleString()}</span>
+                                                                            <span className="font-bold text-[#E74856]">{(t.eventPrice || 0).toLocaleString()}원</span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <span className="font-bold text-[#E26B7C]">{(t.originalPrice || t.price || 0).toLocaleString()}원</span>
+                                                                    )}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -3490,8 +3635,14 @@ export default function PatientChartPage() {
                                                         조건에 맞는 티켓이 없습니다.
                                                     </div>
                                                 )}
+                                                {overflowCount > 0 && (
+                                                    <div className="mt-1 px-2 py-2 text-center text-[11px] font-medium" style={{ color: "#99354E", background: "rgba(244, 158, 175, 0.10)", border: "1px dashed rgba(244, 158, 175, 0.35)", borderRadius: 8 }}>
+                                                        +{overflowCount.toLocaleString()}개 더 있음 — 검색어를 입력해 좁혀주세요
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
+                                            );
+                                        })()}
 
                                         {/* Memberships */}
                                         {(searchTab === "all" || searchTab === "membership") && (
@@ -3543,9 +3694,9 @@ export default function PatientChartPage() {
                                 return (
                                     <div
                                         key={item.id}
-                                        className="flex items-center gap-2 text-[12px] p-2.5 bg-white hover:bg-[#F8F9FD] rounded-lg border border-[#C5CAE9] shadow-sm group transition-colors"
+                                        className="flex items-center gap-2 text-[12px] p-2.5 bg-white hover:bg-[#FCF7F8] rounded-lg border border-[#F8DCE2] shadow-sm group transition-colors"
                                     >
-                                        <span className={`font-bold px-1.5 py-0.5 rounded-md text-[12px] shrink-0 ${item.itemType === "membership" ? "bg-violet-100 text-violet-700" : "bg-[#3F51B5]/10 text-[#3F51B5]"}`}>
+                                        <span className={`font-bold px-1.5 py-0.5 rounded-md text-[12px] shrink-0 ${item.itemType === "membership" ? "bg-violet-100 text-violet-700" : "bg-[#E26B7C]/10 text-[#E26B7C]"}`}>
                                             {item.itemType === "membership" ? "회원권" : "티켓"}
                                         </span>
 
@@ -3568,14 +3719,14 @@ export default function PatientChartPage() {
                                                 <button
                                                     onClick={() => handleUpdateQuantity(item, -1)}
                                                     disabled={item.quantity <= 1}
-                                                    className="w-6 h-6 flex items-center justify-center rounded border border-[#C5CAE9] text-[#616161] hover:bg-[#E8EAF6] disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold transition-colors"
+                                                    className="w-6 h-6 flex items-center justify-center rounded border border-[#F8DCE2] text-[#616161] hover:bg-[#FCEBEF] disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold transition-colors"
                                                 >
                                                     −
                                                 </button>
                                                 <span className="w-6 text-center text-xs font-bold text-[#242424]">{item.quantity}</span>
                                                 <button
                                                     onClick={() => handleUpdateQuantity(item, 1)}
-                                                    className="w-6 h-6 flex items-center justify-center rounded border border-[#C5CAE9] text-[#616161] hover:bg-[#E8EAF6] text-xs font-bold transition-colors"
+                                                    className="w-6 h-6 flex items-center justify-center rounded border border-[#F8DCE2] text-[#616161] hover:bg-[#FCEBEF] text-xs font-bold transition-colors"
                                                 >
                                                     +
                                                 </button>
@@ -3589,9 +3740,9 @@ export default function PatientChartPage() {
                         </div>
 
                         {/* Todo */}
-                        <div className="border border-[#C5CAE9] rounded-2xl p-3 bg-white mb-4">
-                            <div className="font-semibold text-[15px] mb-2 text-[#1A237E]">할일</div>
-                            <div className="bg-[#F8F9FD] rounded-lg p-2 mb-2 border border-[#E8EAF6]">
+                        <div className="border border-[#F8DCE2] rounded-2xl p-3 bg-white mb-4">
+                            <div className="font-semibold text-[15px] mb-2 text-[#5C2A35]">할일</div>
+                            <div className="bg-[#FCF7F8] rounded-lg p-2 mb-2 border border-[#FCEBEF]">
                                 <input
                                     className="w-full bg-transparent text-[13px] outline-none placeholder-[#9E9E9E]"
                                     placeholder="할일 메모 (Shift+Enter: 줄바꿈)"
@@ -3616,9 +3767,9 @@ export default function PatientChartPage() {
                                             onClick={() => handleToggleTodo(todo)}
                                             title={todoStatus === "todo" ? "시작" : todoStatus === "doing" ? "완료" : "초기화"}
                                         >
-                                            <circle cx="8" cy="8" r="7" fill="none" stroke={todoStatus === "todo" ? "#D1D5DB" : todoStatus === "doing" ? "#3F51B5" : "#10B981"} strokeWidth="1.5" />
+                                            <circle cx="8" cy="8" r="7" fill="none" stroke={todoStatus === "todo" ? "#D1D5DB" : todoStatus === "doing" ? "#E26B7C" : "#10B981"} strokeWidth="1.5" />
                                             {todoStatus === "doing" && (
-                                                <path d="M8 1 A7 7 0 0 1 8 15 Z" fill="#3F51B5" />
+                                                <path d="M8 1 A7 7 0 0 1 8 15 Z" fill="#E26B7C" />
                                             )}
                                             {todoStatus === "done" && (
                                                 <circle cx="8" cy="8" r="5.5" fill="#10B981" />
@@ -3626,7 +3777,7 @@ export default function PatientChartPage() {
                                         </svg>
                                         <span className={`flex-1 min-w-0 truncate ${todoStatus === "done" ? "line-through text-gray-400" : ""}`}>{todo.content}</span>
                                         {todoStatus === "doing" && (todo as any).startedAt && (
-                                            <span className="text-[11px] text-[#3F51B5] flex-shrink-0">{format(new Date((todo as any).startedAt), "HH:mm:ss")} ~</span>
+                                            <span className="text-[11px] text-[#E26B7C] flex-shrink-0">{format(new Date((todo as any).startedAt), "HH:mm:ss")} ~</span>
                                         )}
                                         {todoStatus === "done" && (todo as any).startedAt && (todo as any).completedAt && (
                                             <span className="text-[11px] text-emerald-600 flex-shrink-0">
@@ -3638,7 +3789,7 @@ export default function PatientChartPage() {
                                                 data-assign-todo={todo.id}
                                                 onClick={() => setAssigningTodoId(assigningTodoId === todo.id ? null : todo.id)}
                                                 className={`w-5 h-5 flex items-center justify-center rounded-full transition-colors ${
-                                                    todo.assignee ? "bg-[#3F51B5]/15 text-[#3F51B5]" : "text-gray-300 hover:text-[#3F51B5] hover:bg-[#3F51B5]/10"
+                                                    todo.assignee ? "bg-[#E26B7C]/15 text-[#E26B7C]" : "text-gray-300 hover:text-[#E26B7C] hover:bg-[#E26B7C]/10"
                                                 }`}
                                                 title={todo.assignee || "담당자 지정"}
                                             >
@@ -3648,7 +3799,7 @@ export default function PatientChartPage() {
                                                 <>
                                                 <div className="fixed inset-0 z-[9998]" onClick={() => setAssigningTodoId(null)} />
                                                 <div
-                                                    className="fixed z-[9999] w-48 max-h-52 overflow-y-auto bg-white border border-[#C5CAE9] rounded-lg shadow-lg py-1"
+                                                    className="fixed z-[9999] w-48 max-h-52 overflow-y-auto bg-white border border-[#F8DCE2] rounded-lg shadow-lg py-1"
                                                     style={{
                                                         top: (() => {
                                                             const btn = document.querySelector(`[data-assign-todo="${todo.id}"]`);
@@ -3666,12 +3817,12 @@ export default function PatientChartPage() {
                                                 >
                                                     {departmentUserGroups.map((group) => (
                                                         <div key={group.deptName}>
-                                                            <div className="px-3 py-1 text-[11px] font-bold text-[#1A237E] bg-[#F8F9FD]">{group.deptName}</div>
+                                                            <div className="px-3 py-1 text-[11px] font-bold text-[#5C2A35] bg-[#FCF7F8]">{group.deptName}</div>
                                                             {group.users.map((u) => (
                                                                 <button
                                                                     key={u.id}
-                                                                    className={`w-full px-3 py-1.5 text-left text-[12px] hover:bg-[#3F51B5]/10 transition-colors ${
-                                                                        todo.assigneeUserId === u.id ? "text-[#3F51B5] font-bold bg-[#3F51B5]/5" : "text-gray-700"
+                                                                    className={`w-full px-3 py-1.5 text-left text-[12px] hover:bg-[#E26B7C]/10 transition-colors ${
+                                                                        todo.assigneeUserId === u.id ? "text-[#E26B7C] font-bold bg-[#E26B7C]/5" : "text-gray-700"
                                                                     }`}
                                                                     onClick={() => handleAssignTodoUser(todo.id, u.id, u.name)}
                                                                 >
@@ -3685,7 +3836,7 @@ export default function PatientChartPage() {
                                             )}
                                         </div>
                                         {todo.assignee && (
-                                            <span className="text-[11px] text-[#3F51B5] font-semibold flex-shrink-0">{todo.assignee}</span>
+                                            <span className="text-[11px] text-[#E26B7C] font-semibold flex-shrink-0">{todo.assignee}</span>
                                         )}
                                         <Trash
                                             className="w-3 h-3 text-gray-300 cursor-pointer hover:text-red-500 opacity-0 group-hover:opacity-100 flex-shrink-0"
@@ -3695,15 +3846,15 @@ export default function PatientChartPage() {
                                     );
                                 })}
                             </div>
-                            <button onClick={handleAddTodo} className="w-full mt-2 py-1.5 bg-[#3F51B5]/10 hover:bg-[#3F51B5]/20 text-[13px] text-[#3F51B5] font-semibold rounded-lg transition-colors">
+                            <button onClick={handleAddTodo} className="w-full mt-2 py-1.5 bg-[#E26B7C]/10 hover:bg-[#E26B7C]/20 text-[13px] text-[#E26B7C] font-semibold rounded-lg transition-colors">
                                 등록
                             </button>
                         </div>
 
                         {/* Payment Summary */}
-                        <div className="mt-auto border-t border-[#C5CAE9] bg-[#F8F9FD] p-3 space-y-2.5">
+                        <div className="mt-auto border-t border-[#F8DCE2] bg-[#FCF7F8] p-3 space-y-2.5">
                             <div className="flex justify-between items-center">
-                                <span className="text-[14px] font-semibold text-[#1A237E]">수납내역</span>
+                                <span className="text-[14px] font-semibold text-[#5C2A35]">수납내역</span>
                                 {remaining > 0 ? (
                                     <span className="bg-[#E74856] text-white px-2.5 py-0.5 rounded-full text-[12px] font-bold shadow-sm">미수납</span>
                                 ) : (
@@ -3721,7 +3872,7 @@ export default function PatientChartPage() {
                                         </span>
                                     </div>
                                     <select
-                                        className="w-full text-[13px] border border-violet-200 rounded-lg px-2.5 py-2 bg-white focus:ring-2 focus:ring-[#3F51B5]/30 focus:border-[#3F51B5] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full text-[13px] border border-violet-200 rounded-lg px-2.5 py-2 bg-white focus:ring-2 focus:ring-[#E26B7C]/30 focus:border-[#E26B7C] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={isReadOnly}
                                         value={selectedMembershipId ?? ""}
                                         onChange={(e) => {
@@ -3817,10 +3968,10 @@ export default function PatientChartPage() {
                             )}
 
                             {/* === 상품합계 카드 === */}
-                            <div className="rounded-2xl border border-[#C5CAE9] bg-white overflow-hidden">
-                                <div className="flex justify-between items-center px-3 py-2.5 bg-[#F8F9FD] border-b border-[#C5CAE9]">
-                                    <span className="text-[13px] font-semibold text-[#1A237E]">상품합계</span>
-                                    <span className="text-[13px] font-bold text-[#1A237E]">{(cartPreview?.treatmentTotal || totalAmount || 0).toLocaleString()}원</span>
+                            <div className="rounded-2xl border border-[#F8DCE2] bg-white overflow-hidden">
+                                <div className="flex justify-between items-center px-3 py-2.5 bg-[#FCF7F8] border-b border-[#F8DCE2]">
+                                    <span className="text-[13px] font-semibold text-[#5C2A35]">상품합계</span>
+                                    <span className="text-[13px] font-bold text-[#5C2A35]">{(cartPreview?.treatmentTotal || totalAmount || 0).toLocaleString()}원</span>
                                 </div>
                                 {cartPreview?.treatmentItems && cartPreview.treatmentItems.length > 0 && (
                                     <div className="px-3 py-1.5 divide-y divide-[#eeeeee]">
@@ -3889,25 +4040,25 @@ export default function PatientChartPage() {
 
                             {/* === 최종결제금액 === */}
                             <div
-                                className="rounded-2xl border-2 border-[#3F51B5] bg-[#E8EAF6] px-3 py-3 cursor-pointer select-none transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(63,81,181,0.08)]"
+                                className="rounded-2xl border-2 border-[#E26B7C] bg-[#FCEBEF] px-3 py-3 cursor-pointer select-none transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)]"
                                 onClick={() => setIsFinalAmountExpanded(prev => !prev)}
                             >
                                 <div className="flex justify-between items-center">
-                                    <span className="text-[15px] font-bold text-[#3F51B5] flex items-center gap-1">
+                                    <span className="text-[15px] font-bold text-[#E26B7C] flex items-center gap-1">
                                         최종결제금액
                                         {isFinalAmountExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                                     </span>
-                                    <span className="text-[17px] font-extrabold text-[#1A237E] tabular-nums">{(cartPreview?.totalCashRequired ?? remaining ?? 0).toLocaleString()}원</span>
+                                    <span className="text-[17px] font-extrabold text-[#5C2A35] tabular-nums">{(cartPreview?.totalCashRequired ?? remaining ?? 0).toLocaleString()}원</span>
                                 </div>
                                 {isFinalAmountExpanded && (
-                                    <div className="mt-2 space-y-1.5 border-t border-[#3F51B5]/20 pt-2">
+                                    <div className="mt-2 space-y-1.5 border-t border-[#E26B7C]/20 pt-2">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[13px] font-medium text-[#3F51B5]">회원권차감금액</span>
-                                            <span className="text-[14px] font-bold text-[#3F51B5] tabular-nums">-{(cartPreview?.balanceDeduction ?? 0).toLocaleString()}원</span>
+                                            <span className="text-[13px] font-medium text-[#E26B7C]">회원권차감금액</span>
+                                            <span className="text-[14px] font-bold text-[#E26B7C] tabular-nums">-{(cartPreview?.balanceDeduction ?? 0).toLocaleString()}원</span>
                                         </div>
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[13px] font-medium text-[#1A237E]">결제금액</span>
-                                            <span className="text-[14px] font-bold text-[#1A237E] tabular-nums">{(cartPreview?.totalCashRequired ?? remaining ?? 0).toLocaleString()}원</span>
+                                            <span className="text-[13px] font-medium text-[#5C2A35]">결제금액</span>
+                                            <span className="text-[14px] font-bold text-[#5C2A35] tabular-nums">{(cartPreview?.totalCashRequired ?? remaining ?? 0).toLocaleString()}원</span>
                                         </div>
                                     </div>
                                 )}
@@ -3922,8 +4073,8 @@ export default function PatientChartPage() {
                             </div>
 
                             {/* === 당일 이력 카드 === */}
-                            <div className="rounded-2xl border border-[#C5CAE9] bg-white overflow-hidden">
-                                <div className="px-2 py-2 bg-[#F8F9FD] border-b border-[#C5CAE9]">
+                            <div className="rounded-2xl border border-[#F8DCE2] bg-white overflow-hidden">
+                                <div className="px-2 py-2 bg-[#FCF7F8] border-b border-[#F8DCE2]">
                                     <div className="flex gap-1">
                                         {([
                                             { key: "purchase" as const, label: "구매", items: dailyPurchaseItems },
@@ -3937,11 +4088,11 @@ export default function PatientChartPage() {
                                                     onClick={() => setDailySummaryTab(tab.key)}
                                                     className={`flex-1 rounded-lg px-2 py-1.5 text-[12px] font-medium transition-all duration-200 ${
                                                         active
-                                                            ? "bg-[#3F51B5] text-white shadow-[0_2px_8px_rgba(63,81,181,0.2)]"
-                                                            : "text-[#616161] hover:bg-[#E8EAF6]"
+                                                            ? "bg-[#E26B7C] text-white shadow-[0_2px_8px_rgba(226,107,124,0.2)]"
+                                                            : "text-[#616161] hover:bg-[#FCEBEF]"
                                                     }`}
                                                 >
-                                                    {tab.label} <span className={`font-bold ${active ? "text-indigo-200" : "text-[#3F51B5]"}`}>{tab.items.length}</span>
+                                                    {tab.label} <span className={`font-bold ${active ? "text-indigo-200" : "text-[#E26B7C]"}`}>{tab.items.length}</span>
                                                 </button>
                                             );
                                         })}
@@ -3968,7 +4119,7 @@ export default function PatientChartPage() {
                                                     return (
                                                         <div
                                                             key={item.id}
-                                                            className="rounded-lg border border-[#E8EAF6] bg-[#F8F9FD] px-2.5 py-1.5 hover:bg-[#E8EAF6]/50 transition-colors"
+                                                            className="rounded-lg border border-[#FCEBEF] bg-[#FCF7F8] px-2.5 py-1.5 hover:bg-[#FCEBEF]/50 transition-colors"
                                                         >
                                                             <div className="flex items-center justify-between gap-2">
                                                                 <div className="min-w-0 flex items-center gap-1.5">
@@ -3992,7 +4143,7 @@ export default function PatientChartPage() {
                                                                     </span>
                                                                 ))}
                                                                 {item.sourceType === "ticket_usage" && (
-                                                                    <span className="shrink-0 text-[11px] font-bold text-[#3F51B5] tabular-nums">
+                                                                    <span className="shrink-0 text-[11px] font-bold text-[#E26B7C] tabular-nums">
                                                                         {item.usedRound ?? item.quantity}회차{item.totalCount ? `/${item.totalCount}회` : ""}
                                                                     </span>
                                                                 )}
@@ -4008,7 +4159,7 @@ export default function PatientChartPage() {
                                                             {item.sourceType === "membership_new" && (
                                                                 <div className="mt-0.5 flex items-center gap-2 text-[10px]">
                                                                     {item.originalPrice != null && <span className="text-[#616161]">정가 {item.originalPrice.toLocaleString()}원</span>}
-                                                                    {(item.bonusPoint ?? 0) > 0 && <span className="text-[#3F51B5] font-bold">+{item.bonusPoint?.toLocaleString()}P 적립</span>}
+                                                                    {(item.bonusPoint ?? 0) > 0 && <span className="text-[#E26B7C] font-bold">+{item.bonusPoint?.toLocaleString()}P 적립</span>}
                                                                 </div>
                                                             )}
                                                             {item.sourceType === "ticket_usage" && (
@@ -4026,7 +4177,7 @@ export default function PatientChartPage() {
                                                                     <div className="text-[#616161]">차감금액: <span className="font-bold text-rose-600">{(item.usedCashAmount ?? 0).toLocaleString()}원</span></div>
                                                                     <div className="text-[#616161]">차감포인트: <span className="font-bold text-rose-600">{(item.usedPointAmount ?? 0).toLocaleString()}P</span></div>
                                                                     <div className="text-[#616161]">잔여금액: <span className="font-bold text-[#242424]">{(item.remainingCashAmount ?? 0).toLocaleString()}원</span></div>
-                                                                    <div className="text-[#616161]">잔여포인트: <span className="font-bold text-[#3F51B5]">{(item.remainingPointAmount ?? 0).toLocaleString()}P</span></div>
+                                                                    <div className="text-[#616161]">잔여포인트: <span className="font-bold text-[#E26B7C]">{(item.remainingPointAmount ?? 0).toLocaleString()}P</span></div>
                                                                 </div>
                                                             )}
                                                             {(item.sourceType === "refund" || item.sourceType === "ticket_refund") && (item as any).refundDetails?.length > 0 && (
@@ -4035,7 +4186,7 @@ export default function PatientChartPage() {
                                                                         type="button"
                                                                         onClick={(e) => { e.stopPropagation(); setExpandedRefundId(prev => prev === item.id ? null : item.id); }}
                                                                         className="text-[10px] font-bold transition-all duration-200"
-                                                                        style={{ color: "#3F51B5" }}
+                                                                        style={{ color: "#E26B7C" }}
                                                                     >
                                                                         {expandedRefundId === item.id ? "접기 ▲" : "상세펼치기 ▼"}
                                                                     </button>
@@ -4068,7 +4219,7 @@ export default function PatientChartPage() {
                                 disabled={cartItems.length === 0 || isReadOnly || !canEditPayment}
                                 className={`w-full min-h-[40px] py-2.5 font-medium rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition-all duration-200 ease-in-out ${cartItems.length === 0 || isReadOnly || !canEditPayment
                                     ? "bg-[#e0e0e0] text-[#616161] cursor-not-allowed"
-                                    : "bg-[#3F51B5] hover:bg-[#303F9F] active:bg-[#1A237E] text-white shadow-[0_4px_12px_rgba(63,81,181,0.18)] hover:shadow-[0_6px_16px_rgba(63,81,181,0.25)]"
+                                    : "bg-[#E26B7C] hover:bg-[#99354E] active:bg-[#5C2A35] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)] hover:shadow-[0_6px_16px_rgba(226,107,124,0.25)]"
                                     }`}
                             >
                                 <CreditCard className="w-3.5 h-3.5" /> 수납 추가
@@ -4080,29 +4231,26 @@ export default function PatientChartPage() {
 
                 {/* Separator 2-3 */}
                 <div
-                    className="w-1 shrink-0 cursor-col-resize hover:bg-[#3F51B5]/30 active:bg-[#3F51B5]/50 transition-colors"
+                    className="w-1 shrink-0 cursor-col-resize hover:bg-[#E26B7C]/30 active:bg-[#E26B7C]/50 transition-colors"
                     onMouseDown={(e) => onSepMouseDown(2, e)}
                 />
 
                 {/* [Column 4] Right Sidebar */}
-                <div className="border-l border-[#C5CAE9] bg-white flex flex-col shrink-0" style={{ width: colWidths[3] ?? 336 }}>
+                <div className="border-l border-[#F8DCE2] bg-white flex flex-col shrink-0" style={{ width: colWidths[3] ?? 336 }}>
                     {/* Tabs */}
-                    <div className="border-b border-[#C5CAE9] bg-[#F8F9FD] px-2 py-2">
+                    <div className="border-b border-[#F8DCE2] bg-[#FCF7F8] px-1.5 py-1.5">
                         {(() => {
                             const rightSidebarTabs = [
-                                { id: "record", label: "환자기록", count: patientRecords.length, description: "메모와 진료 기록" },
-                                { id: "reservation", label: "예약기록", count: customerReservations.length, description: "예약 이력 조회" },
-                                { id: "membership", label: "회원권", count: memberships.length, description: "잔액 및 차감 이력" },
-                                { id: "ticket", label: "티켓", count: tickets.length, description: "사용/차감 이력" },
-                                { id: "consent", label: "동의서", count: undefined, description: "서명 요청 현황" },
-                                { id: "refund", label: "결제/환불", count: paymentRecords.reduce((sum, r) => sum + (r.items || []).filter(it => { const s = String((it as any).status || r.status || "paid").trim().toLowerCase(); return s !== "refunded" && s !== "cancelled"; }).length, 0), description: "결제 조회 및 환불 처리" },
+                                { id: "record", label: "환자기록", count: patientRecords.length },
+                                { id: "reservation", label: "예약기록", count: customerReservations.length },
+                                { id: "membership", label: "회원권", count: memberships.length },
+                                { id: "ticket", label: "티켓", count: tickets.length },
+                                { id: "consent", label: "동의서", count: undefined },
+                                { id: "refund", label: "결제/환불", count: paymentRecords.reduce((sum, r) => sum + (r.items || []).filter(it => { const s = String((it as any).status || r.status || "paid").trim().toLowerCase(); return s !== "refunded" && s !== "cancelled"; }).length, 0) },
                             ];
-                            const activeSidebarTab =
-                                rightSidebarTabs.find((tab) => tab.id === activeRightSidebarTab) ?? rightSidebarTabs[0]!;
 
                             return (
-                                <>
-                        <div className="grid grid-cols-3 gap-1.5">
+                                <div className="grid grid-cols-3 gap-1">
                         {rightSidebarTabs.map((tab) => {
                             const active = activeRightSidebarTab === (tab.id as any);
                             const colors = RIGHT_SIDEBAR_TAB_COLORS[tab.id] || { bg: "#F5F5F5", color: "#616161", activeBg: "#616161", border: "#E0E0E0" };
@@ -4110,20 +4258,20 @@ export default function PatientChartPage() {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveRightSidebarTab(tab.id as any)}
-                                    className="group relative flex min-h-[40px] w-full items-center justify-between gap-1 rounded-[8px] px-2.5 py-2 text-left transition-all duration-200"
+                                    className="group relative flex min-h-[28px] w-full items-center justify-between gap-1 rounded-[6px] px-2 py-1 text-left transition-all duration-200"
                                     style={{
                                         backgroundColor: active ? colors.activeBg : "#FFFFFF",
-                                        border: `1px solid ${active ? colors.activeBg : "#E8EAF6"}`,
-                                        boxShadow: active ? "0 2px 8px rgba(63,81,181,0.12)" : "none",
+                                        border: `1px solid ${active ? colors.activeBg : "#FCEBEF"}`,
+                                        boxShadow: active ? "0 2px 8px rgba(226,107,124,0.12)" : "none",
                                     }}
                                     onMouseEnter={e => { if (!active) { e.currentTarget.style.backgroundColor = colors.bg; e.currentTarget.style.borderColor = colors.border; } }}
-                                    onMouseLeave={e => { if (!active) { e.currentTarget.style.backgroundColor = "#FFFFFF"; e.currentTarget.style.borderColor = "#E8EAF6"; } }}
+                                    onMouseLeave={e => { if (!active) { e.currentTarget.style.backgroundColor = "#FFFFFF"; e.currentTarget.style.borderColor = "#FCEBEF"; } }}
                                 >
-                                    <span className="text-[13px] font-bold tracking-[0.1px] truncate" style={{ color: active ? "#FFFFFF" : colors.color }}>
+                                    <span className="text-[12px] font-bold tracking-[0.1px] truncate" style={{ color: active ? "#FFFFFF" : colors.color }}>
                                         {tab.label}
                                     </span>
                                     {typeof tab.count === "number" && (
-                                        <span className="shrink-0 rounded-full px-1.5 py-px text-[12px] font-extrabold tabular-nums" style={{
+                                        <span className="shrink-0 rounded-full px-1.5 py-px text-[11px] font-extrabold tabular-nums" style={{
                                             backgroundColor: active ? "rgba(255,255,255,0.25)" : colors.bg,
                                             color: active ? "#FFFFFF" : colors.color,
                                         }}>
@@ -4133,19 +4281,7 @@ export default function PatientChartPage() {
                                 </button>
                             );
                         })}
-                        </div>
-                        <div className="mt-1.5 flex items-center gap-2 rounded-[8px] px-3 py-2" style={{ backgroundColor: "#F5F7FA", border: "1px solid #E8EAF6" }}>
-                            {(() => {
-                                const activeColors = RIGHT_SIDEBAR_TAB_COLORS[activeSidebarTab.id] || { bg: "#F5F5F5", color: "#616161", activeBg: "#616161", border: "#E0E0E0" };
-                                return (
-                                    <span className="inline-flex shrink-0 rounded-[6px] px-2 py-0.5 text-[12px] font-bold" style={{ backgroundColor: activeColors.bg, color: activeColors.color }}>
-                                        {activeSidebarTab.label}
-                                    </span>
-                                );
-                            })()}
-                            <span className="truncate text-[12px] font-medium" style={{ color: "#616161" }}>{activeSidebarTab.description}</span>
-                        </div>
-                                </>
+                                </div>
                             );
                         })()}
                     </div>
@@ -4160,7 +4296,7 @@ export default function PatientChartPage() {
                                 {canEditMemo && (
                                 <div className="flex items-center gap-2 mb-2">
                                     <input
-                                        className="flex-1 bg-[#F8F9FD] border border-[#C5CAE9] rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-[#3F51B5] focus:ring-1 focus:ring-[#3F51B5]/20 transition-all"
+                                        className="flex-1 bg-[#FCF7F8] border border-[#F8DCE2] rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-[#E26B7C] focus:ring-1 focus:ring-[#E26B7C]/20 transition-all"
                                         placeholder="메모 입력..."
                                         value={recordInput}
                                         onChange={(e) => setRecordInput(e.target.value)}
@@ -4171,7 +4307,7 @@ export default function PatientChartPage() {
                                             }
                                         }}
                                     />
-                                    <button onClick={handleAddRecord} className="p-1.5 bg-[#3F51B5] text-white rounded-lg hover:bg-[#303F9F] shadow-sm transition-colors">
+                                    <button onClick={handleAddRecord} className="p-1.5 bg-[#E26B7C] text-white rounded-lg hover:bg-[#99354E] shadow-sm transition-colors">
                                         <Plus className="w-3 h-3" />
                                     </button>
                                 </div>
@@ -4207,7 +4343,7 @@ export default function PatientChartPage() {
                                                         >
                                                             <Pin className="w-3 h-3" />
                                                         </button>
-                                                        <span className="text-[15px] font-bold text-[#3F51B5] bg-[#3F51B5]/10 px-1 rounded">
+                                                        <span className="text-[15px] font-bold text-[#E26B7C] bg-[#E26B7C]/10 px-1 rounded">
                                                             {rec.createdByName}
                                                         </span>
                                                         {!isReadOnly && (
@@ -4239,16 +4375,16 @@ export default function PatientChartPage() {
                                             const isCheckedIn = Boolean(rsv.isCheckedIn);
                                             const isFuture = rsvDate.getTime() > Date.now();
                                             return (
-                                                <div key={rsv.id} className="rounded-[12px] border overflow-hidden transition-all duration-200 hover:shadow-[0_4px_12px_rgba(63,81,181,0.08)]" style={{ borderColor: "#C5CAE9" }}>
-                                                    <div className="px-3 py-2.5 flex items-center justify-between" style={{ backgroundColor: "#F8F9FD", borderBottom: "1px solid #E8EAF6" }}>
+                                                <div key={rsv.id} className="rounded-[12px] border overflow-hidden transition-all duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)]" style={{ borderColor: "#F8DCE2" }}>
+                                                    <div className="px-3 py-2.5 flex items-center justify-between" style={{ backgroundColor: "#FCF7F8", borderBottom: "1px solid #FCEBEF" }}>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-[13px] font-bold" style={{ color: "#1A237E" }}>
+                                                            <span className="text-[13px] font-bold" style={{ color: "#5C2A35" }}>
                                                                 {format(rsvDate, "yyyy-MM-dd HH:mm", { locale: ko })}
                                                             </span>
                                                             <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{
-                                                                backgroundColor: isCheckedIn ? "#E8F5E9" : isFuture ? "#E8EAF6" : "#FFF8E1",
-                                                                color: isCheckedIn ? "#2E7D32" : isFuture ? "#3F51B5" : "#F57F17",
-                                                                border: `1px solid ${isCheckedIn ? "#A5D6A7" : isFuture ? "#C5CAE9" : "#FFE082"}`,
+                                                                backgroundColor: isCheckedIn ? "#E8F5E9" : isFuture ? "#FCEBEF" : "#FFF8E1",
+                                                                color: isCheckedIn ? "#2E7D32" : isFuture ? "#E26B7C" : "#F57F17",
+                                                                border: `1px solid ${isCheckedIn ? "#A5D6A7" : isFuture ? "#F8DCE2" : "#FFE082"}`,
                                                             }}>
                                                                 {isCheckedIn ? "접수완료" : isFuture ? "예약대기" : "미접수"}
                                                             </span>
@@ -4263,7 +4399,7 @@ export default function PatientChartPage() {
                                                     </div>
                                                     <div className="px-3 py-2 space-y-1" style={{ backgroundColor: "#FFFFFF" }}>
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="rounded-[6px] px-1.5 py-0.5 text-[11px] font-bold" style={{ backgroundColor: "#E8EAF6", color: "#3F51B5" }}>
+                                                            <span className="rounded-[6px] px-1.5 py-0.5 text-[11px] font-bold" style={{ backgroundColor: "#FCEBEF", color: "#E26B7C" }}>
                                                                 {rsv.reservCategoryName || "미분류"}
                                                             </span>
                                                         </div>
@@ -4273,13 +4409,13 @@ export default function PatientChartPage() {
                                                             </div>
                                                         )}
                                                         {rsv.reservationMemo && (
-                                                            <div className="text-[11px] rounded-[6px] px-2 py-1 mt-1" style={{ backgroundColor: "#F5F7FA", color: "#616161", border: "1px solid #E8EAF6" }}>
+                                                            <div className="text-[11px] rounded-[6px] px-2 py-1 mt-1" style={{ backgroundColor: "#FAF3F5", color: "#616161", border: "1px solid #FCEBEF" }}>
                                                                 {rsv.reservationMemo}
                                                             </div>
                                                         )}
                                                         <button
                                                             onClick={() => setChangeHistoryReservId(rsv.id)}
-                                                            className="mt-1.5 text-[10px] font-medium text-[#3F51B5] hover:underline"
+                                                            className="mt-1.5 text-[10px] font-medium text-[#E26B7C] hover:underline"
                                                         >
                                                             수정이력 보기
                                                         </button>
@@ -4322,15 +4458,15 @@ export default function PatientChartPage() {
                                     </div>
                                 )}
 
-                                <div className="flex border border-[#C5CAE9] rounded-xl mb-2 overflow-hidden">
+                                <div className="flex border border-[#F8DCE2] rounded-xl mb-2 overflow-hidden">
                                     <button
-                                        className={`flex-1 py-1.5 text-[13px] font-semibold transition-colors ${ticketTab === "active" ? "bg-[#3F51B5]/10 text-[#3F51B5]" : "text-[#616161] hover:bg-[#F8F9FD]"}`}
+                                        className={`flex-1 py-1.5 text-[13px] font-semibold transition-colors ${ticketTab === "active" ? "bg-[#E26B7C]/10 text-[#E26B7C]" : "text-[#616161] hover:bg-[#FCF7F8]"}`}
                                         onClick={() => setTicketTab("active")}
                                     >
                                         사용가능 ({tickets.filter((t) => (getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null).length})
                                     </button>
                                     <button
-                                        className={`flex-1 py-1.5 text-[13px] font-semibold transition-colors ${ticketTab === "completed" ? "bg-[#F8F9FD] text-[#242424]" : "text-[#616161] hover:bg-[#F8F9FD]"}`}
+                                        className={`flex-1 py-1.5 text-[13px] font-semibold transition-colors ${ticketTab === "completed" ? "bg-[#FCF7F8] text-[#242424]" : "text-[#616161] hover:bg-[#FCF7F8]"}`}
                                         onClick={() => setTicketTab("completed")}
                                     >
                                         사용완료 ({tickets.filter((t) => getTicketRemaining(t) === 0).length})
@@ -4350,10 +4486,10 @@ export default function PatientChartPage() {
                                             const statusClass =
                                                 remain === 0
                                                     ? "bg-gray-100 text-gray-600"
-                                                    : "bg-[#3F51B5]/15 text-[#3F51B5]";
+                                                    : "bg-[#E26B7C]/15 text-[#E26B7C]";
 
                                             return (
-                                                <div key={t.id} className="border border-[#C5CAE9] rounded-2xl bg-white p-2.5 text-[13px] hover:border-[#3F51B5]/30 hover:shadow-[0_4px_12px_rgba(63,81,181,0.08)] transition-all duration-200 ease-in-out group">
+                                                <div key={t.id} className="border border-[#F8DCE2] rounded-2xl bg-white p-2.5 text-[13px] hover:border-[#E26B7C]/30 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] transition-all duration-200 ease-in-out group">
                                                     <div className="flex justify-between items-start mb-1">
                                                         <span className="font-semibold text-[#242424]">{t.itemName}</span>
                                                         <span className={`px-1.5 py-0.5 rounded text-[15px] font-bold ${statusClass}`}>{statusText}</span>
@@ -4362,7 +4498,7 @@ export default function PatientChartPage() {
                                                     <div className="flex justify-between items-center text-gray-500 mb-1">
                                                         <span>
                                                             남은횟수:{" "}
-                                                            <span className="text-[#3F51B5] font-bold">
+                                                            <span className="text-[#E26B7C] font-bold">
                                                                 {remain !== null ? `${remain}회` : "무제한"}
                                                             </span>
                                                         </span>
@@ -4401,7 +4537,7 @@ export default function PatientChartPage() {
                                                         <div className="flex gap-1 mt-2">
                                                             <button
                                                                 onClick={() => handleUseTicket(t)}
-                                                                className="flex-1 bg-[#3F51B5] text-white rounded-lg py-1 hover:bg-[#303F9F] font-bold text-[15px]"
+                                                                className="flex-1 bg-[#E26B7C] text-white rounded-lg py-1 hover:bg-[#99354E] font-bold text-[15px]"
                                                             >
                                                                 사용하기
                                                             </button>
@@ -4410,7 +4546,7 @@ export default function PatientChartPage() {
 
                                                     <button
                                                         onClick={() => handleToggleTicketHistory(t.id)}
-                                                        className="mt-2 w-full rounded-lg border border-[#C5CAE9] bg-[#F8F9FD] py-1 text-[15px] font-semibold text-[#616161] hover:bg-[#3F51B5]/5 hover:border-[#3F51B5]/30 transition-colors"
+                                                        className="mt-2 w-full rounded-lg border border-[#F8DCE2] bg-[#FCF7F8] py-1 text-[15px] font-semibold text-[#616161] hover:bg-[#E26B7C]/5 hover:border-[#E26B7C]/30 transition-colors"
                                                     >
                                                         사용 이력 {isTicketHistoryOpen ? "접기" : "열기"}
                                                     </button>
@@ -4489,16 +4625,16 @@ export default function PatientChartPage() {
                         {/* Membership Logs */}
                         {activeRightSidebarTab === "membership" && (
                             <div className="space-y-3">
-                                <div className="flex items-center rounded-[8px] bg-[#F5F7FA] p-0.5 gap-0.5">
+                                <div className="flex items-center rounded-[8px] bg-[#FAF3F5] p-0.5 gap-0.5">
                                     <button
                                         onClick={() => { setMembershipFilter('active'); setExpandedMembershipId(null); }}
-                                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${membershipFilter === 'active' ? 'bg-white text-[#3F51B5] shadow-sm border border-[#C5CAE9]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
+                                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${membershipFilter === 'active' ? 'bg-white text-[#E26B7C] shadow-sm border border-[#F8DCE2]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
                                     >
                                         사용중 ({memberships.filter(m => m.status === 'active').length})
                                     </button>
                                     <button
                                         onClick={() => { setMembershipFilter('completed'); setExpandedMembershipId(null); }}
-                                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${membershipFilter === 'completed' ? 'bg-white text-[#3F51B5] shadow-sm border border-[#C5CAE9]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
+                                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${membershipFilter === 'completed' ? 'bg-white text-[#E26B7C] shadow-sm border border-[#F8DCE2]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
                                     >
                                         사용완료 ({memberships.filter(m => m.status !== 'active').length})
                                     </button>
@@ -4514,15 +4650,15 @@ export default function PatientChartPage() {
                                     return filtered.map((m) => (
                                         <div
                                             key={m.id}
-                                            className={`rounded-[12px] border bg-white overflow-hidden transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(63,81,181,0.08)] ${m.status === 'active' ? 'border-[#C5CAE9]' : 'border-[#E0E0E0]'}`}
+                                            className={`rounded-[12px] border bg-white overflow-hidden transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] ${m.status === 'active' ? 'border-[#F8DCE2]' : 'border-[#E0E0E0]'}`}
                                         >
                                             <div
-                                                className={`flex items-center justify-between gap-2 px-4 py-3 border-b cursor-pointer select-none ${m.status === 'active' ? 'bg-[#F8F9FD] border-[#C5CAE9]' : 'bg-[#FAFAFA] border-[#E0E0E0]'}`}
+                                                className={`flex items-center justify-between gap-2 px-4 py-3 border-b cursor-pointer select-none ${m.status === 'active' ? 'bg-[#FCF7F8] border-[#F8DCE2]' : 'bg-[#FAFAFA] border-[#E0E0E0]'}`}
                                                 onClick={() => handleToggleMembershipHistory(m.id)}
                                             >
                                                 <div className="flex items-center gap-2 min-w-0">
-                                                    <span className={`text-[15px] font-bold leading-[1.2] truncate ${m.status === 'active' ? 'text-[#1A237E]' : 'text-[#616161]'}`}>{m.membershipName}</span>
-                                                    <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium tracking-[0.1px] ${m.status === 'active' ? 'bg-[#E8EAF6] text-[#3F51B5]' : 'bg-[#F0F0F0] text-[#616161]'}`}>
+                                                    <span className={`text-[15px] font-bold leading-[1.2] truncate ${m.status === 'active' ? 'text-[#5C2A35]' : 'text-[#616161]'}`}>{m.membershipName}</span>
+                                                    <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium tracking-[0.1px] ${m.status === 'active' ? 'bg-[#FCEBEF] text-[#E26B7C]' : 'bg-[#F0F0F0] text-[#616161]'}`}>
                                                         {m.status === 'active' ? '사용중' : m.status === 'expired' ? '만료' : m.status === 'refunded' ? '환불' : '완료'}
                                                     </span>
                                                 </div>
@@ -4536,21 +4672,21 @@ export default function PatientChartPage() {
                                                     <span className="text-[13px] text-[#616161]">
                                                         {m.purchaseDate ? `${format(new Date(m.purchaseDate), "yyyy-MM-dd", { locale: ko })} 구매` : "구매일 미상"}
                                                     </span>
-                                                    <span className="inline-flex items-center rounded-[8px] border border-[#C5CAE9] bg-[#E8EAF6] px-2 py-0.5 text-[12px] font-medium text-[#3F51B5]">
+                                                    <span className="inline-flex items-center rounded-[8px] border border-[#F8DCE2] bg-[#FCEBEF] px-2 py-0.5 text-[12px] font-medium text-[#E26B7C]">
                                                         {m.discountPercent}% 할인
                                                     </span>
                                                 </div>
 
                                                 <div className="grid grid-cols-2 gap-2">
-                                                    <div className="rounded-[8px] bg-[#F5F7FA] px-3 py-2 border-l-[3px] border-l-[#1A237E]">
+                                                    <div className="rounded-[8px] bg-[#FAF3F5] px-3 py-2 border-l-[3px] border-l-[#5C2A35]">
                                                         <div className="text-[12px] font-medium text-[#616161] tracking-[0.1px] mb-0.5">현금 잔액</div>
-                                                        <div className="text-[16px] font-bold text-[#1A237E] tabular-nums leading-[1.2]">
+                                                        <div className="text-[16px] font-bold text-[#5C2A35] tabular-nums leading-[1.2]">
                                                             {((m as any).cashBalance ?? m.remainingBalance ?? m.amount).toLocaleString()}<span className="text-[13px] font-medium ml-0.5">원</span>
                                                         </div>
                                                     </div>
-                                                    <div className="rounded-[8px] bg-[#F5F7FA] px-3 py-2 border-l-[3px] border-l-[#536DFE]">
+                                                    <div className="rounded-[8px] bg-[#FAF3F5] px-3 py-2 border-l-[3px] border-l-[#F49EAF]">
                                                         <div className="text-[12px] font-medium text-[#616161] tracking-[0.1px] mb-0.5">포인트 잔액</div>
-                                                        <div className="text-[16px] font-bold text-[#536DFE] tabular-nums leading-[1.2]">
+                                                        <div className="text-[16px] font-bold text-[#F49EAF] tabular-nums leading-[1.2]">
                                                             {((m as any).pointBalance ?? 0).toLocaleString()}<span className="text-[13px] font-medium ml-0.5">P</span>
                                                         </div>
                                                     </div>
@@ -4564,8 +4700,8 @@ export default function PatientChartPage() {
                                             </div>
 
                                             {expandedMembershipId === m.id && (
-                                                <div className="border-t border-[#C5CAE9] bg-[#F5F7FA] px-4 py-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                    <div className="text-[15px] font-semibold text-[#1A237E] tracking-[0.1px] mb-2">사용/충전 이력</div>
+                                                <div className="border-t border-[#F8DCE2] bg-[#FAF3F5] px-4 py-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                    <div className="text-[15px] font-semibold text-[#5C2A35] tracking-[0.1px] mb-2">사용/충전 이력</div>
                                                     {membershipHistory.length === 0 ? (
                                                         <div className="py-2 text-[14px] text-[#616161]">이력이 없습니다.</div>
                                                     ) : (
@@ -4575,15 +4711,15 @@ export default function PatientChartPage() {
                                                                 const isUse = h.historyType === 'USE';
                                                                 const isRefund = h.historyType === 'REFUND' || h.historyType === '환불';
                                                                 const borderColor = h.isCancelled ? 'opacity-50 border-[#E0E0E0]'
-                                                                    : isCharge ? 'border-l-[3px] border-l-[#43A047] border-t-[#C5CAE9] border-r-[#C5CAE9] border-b-[#C5CAE9]'
-                                                                    : isRefund ? 'border-l-[3px] border-l-amber-400 border-t-[#C5CAE9] border-r-[#C5CAE9] border-b-[#C5CAE9]'
-                                                                    : 'border-l-[3px] border-l-rose-400 border-t-[#C5CAE9] border-r-[#C5CAE9] border-b-[#C5CAE9]';
+                                                                    : isCharge ? 'border-l-[3px] border-l-[#43A047] border-t-[#F8DCE2] border-r-[#F8DCE2] border-b-[#F8DCE2]'
+                                                                    : isRefund ? 'border-l-[3px] border-l-amber-400 border-t-[#F8DCE2] border-r-[#F8DCE2] border-b-[#F8DCE2]'
+                                                                    : 'border-l-[3px] border-l-rose-400 border-t-[#F8DCE2] border-r-[#F8DCE2] border-b-[#F8DCE2]';
                                                                 const badgeStyle = h.isCancelled ? 'bg-[#F0F0F0] text-[#616161]'
                                                                     : isCharge ? 'bg-emerald-50 text-emerald-700'
                                                                     : isRefund ? 'bg-amber-50 text-amber-700'
                                                                     : 'bg-rose-50 text-rose-600';
                                                                 return (
-                                                                    <div key={h.id} className={`rounded-[8px] border bg-white p-2.5 transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(63,81,181,0.08)] ${borderColor}`}>
+                                                                    <div key={h.id} className={`rounded-[8px] border bg-white p-2.5 transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] ${borderColor}`}>
                                                                         <div className="flex items-start justify-between gap-2">
                                                                             <div className="min-w-0">
                                                                                 <div className="flex items-center gap-1.5">
@@ -4612,14 +4748,14 @@ export default function PatientChartPage() {
                                                                                     </div>
                                                                                 )}
                                                                                 {(h.usedPointAmount ?? 0) > 0 && (
-                                                                                    <div className={`text-[14px] font-bold tabular-nums ${h.isCancelled ? 'text-[#616161] line-through' : isCharge ? 'text-emerald-700' : 'text-[#3F51B5]'}`}>
+                                                                                    <div className={`text-[14px] font-bold tabular-nums ${h.isCancelled ? 'text-[#616161] line-through' : isCharge ? 'text-emerald-700' : 'text-[#E26B7C]'}`}>
                                                                                         {isCharge ? '+' : '-'}{(h.usedPointAmount ?? 0).toLocaleString()}<span className="text-[12px] font-medium ml-0.5">P</span>
                                                                                     </div>
                                                                                 )}
                                                                                 <div className="flex items-center justify-end gap-1.5 text-[12px] tabular-nums mt-0.5">
-                                                                                    <span className="text-[#1A237E]">{(h.remainingCashBalance ?? h.remainingBalance).toLocaleString()}원</span>
-                                                                                    <span className="text-[#C5CAE9]">/</span>
-                                                                                    <span className="text-[#536DFE]">{(h.remainingPointBalance ?? 0).toLocaleString()}P</span>
+                                                                                    <span className="text-[#5C2A35]">{(h.remainingCashBalance ?? h.remainingBalance).toLocaleString()}원</span>
+                                                                                    <span className="text-[#F8DCE2]">/</span>
+                                                                                    <span className="text-[#F49EAF]">{(h.remainingPointBalance ?? 0).toLocaleString()}P</span>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -4639,14 +4775,14 @@ export default function PatientChartPage() {
                         {/* Consent */}
                         {activeRightSidebarTab === "consent" && (
                             <div className="space-y-4">
-                                <div className="rounded-xl border border-[#C5CAE9] bg-[#F8F9FD] overflow-hidden">
-                                    <div className="px-4 py-3 border-b border-[#C5CAE9]">
-                                        <div className="text-[13px] font-semibold text-[#1A237E]">동의서 발송</div>
+                                <div className="rounded-xl border border-[#F8DCE2] bg-[#FCF7F8] overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-[#F8DCE2]">
+                                        <div className="text-[13px] font-semibold text-[#5C2A35]">동의서 발송</div>
                                     </div>
                                     <div className="p-4">
                                         <button
                                             onClick={() => setIsConsentSendModalOpen(true)}
-                                            className="w-full py-2.5 bg-[#3F51B5] hover:bg-[#303F9F] text-white rounded-lg text-[13px] font-medium tracking-[0.1px] transition-all duration-200 flex items-center justify-center gap-1.5"
+                                            className="w-full py-2.5 bg-[#E26B7C] hover:bg-[#99354E] text-white rounded-lg text-[13px] font-medium tracking-[0.1px] transition-all duration-200 flex items-center justify-center gap-1.5"
                                         >
                                             <Plus className="w-4 h-4" />
                                             새 동의서 요청
@@ -4682,16 +4818,16 @@ export default function PatientChartPage() {
             {/* Modals */}
             {isMemoSectionSettingsOpen && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4">
-                    <div className="w-full max-w-3xl rounded-2xl border border-[#C5CAE9] bg-white shadow-[0_30px_80px_rgba(63,81,181,0.18)]">
-                        <div className="flex items-start justify-between px-7 pt-7 pb-4 border-b border-[#C5CAE9] bg-[#F8F9FD] rounded-t-2xl">
+                    <div className="w-full max-w-3xl rounded-2xl border border-[#F8DCE2] bg-white shadow-[0_30px_80px_rgba(226,107,124,0.18)]">
+                        <div className="flex items-start justify-between px-7 pt-7 pb-4 border-b border-[#F8DCE2] bg-[#FCF7F8] rounded-t-2xl">
                             <div>
-                                <div className="text-xl font-bold text-[#1A237E] leading-none">차트 메모 항목명 설정</div>
+                                <div className="text-xl font-bold text-[#5C2A35] leading-none">차트 메모 항목명 설정</div>
                                 <p className="mt-2 text-[12px] text-[#616161]">기본 3개 항목명을 병원에 맞게 변경하고 내원이력 노출 여부를 설정합니다.</p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setIsMemoSectionSettingsOpen(false)}
-                                className="mt-1 rounded-lg p-1.5 text-[#616161] hover:text-[#1A237E] hover:bg-[#E8EAF6] transition-all duration-200"
+                                className="mt-1 rounded-lg p-1.5 text-[#616161] hover:text-[#5C2A35] hover:bg-[#FCEBEF] transition-all duration-200"
                                 title="닫기"
                             >
                                 <X className="h-5 w-5" />
@@ -4702,7 +4838,7 @@ export default function PatientChartPage() {
                             {memoSections.map((section, idx) => (
                                 <div key={`memo-setting-${section.id}`} className="space-y-2">
                                     <div className="flex items-center justify-between">
-                                        <label className="text-base font-bold text-[#1A237E]">{idx + 1}열 항목명</label>
+                                        <label className="text-base font-bold text-[#5C2A35]">{idx + 1}열 항목명</label>
                                         <label className="inline-flex items-center gap-2 text-[12px] text-[#616161]">
                                             <input
                                                 type="checkbox"
@@ -4713,7 +4849,7 @@ export default function PatientChartPage() {
                                                         [section.id]: e.target.checked,
                                                     }))
                                                 }
-                                                className="h-4 w-4 rounded border-[#C5CAE9] text-[#3F51B5] focus:ring-[#E8EAF6]"
+                                                className="h-4 w-4 rounded border-[#F8DCE2] text-[#E26B7C] focus:ring-[#FCEBEF]"
                                             />
                                             내원이력 노출
                                         </label>
@@ -4726,21 +4862,21 @@ export default function PatientChartPage() {
                                                 [section.id]: e.target.value,
                                             }))
                                         }
-                                        className="w-full h-12 rounded-lg border border-[#C5CAE9] bg-[#E8EAF6]/30 px-4 text-base font-medium text-[#242424] outline-none focus:border-[#536DFE] focus:ring-2 focus:ring-[#E8EAF6] transition-all duration-200"
+                                        className="w-full h-12 rounded-lg border border-[#F8DCE2] bg-[#FCEBEF]/30 px-4 text-base font-medium text-[#242424] outline-none focus:border-[#F49EAF] focus:ring-2 focus:ring-[#FCEBEF] transition-all duration-200"
                                         placeholder={`${idx + 1}열 항목명을 입력하세요`}
                                     />
                                 </div>
                             ))}
-                            <div className="rounded-lg border border-[#C5CAE9] bg-[#E8EAF6]/50 px-4 py-3 text-[10px] text-[#3F51B5]">
+                            <div className="rounded-lg border border-[#F8DCE2] bg-[#FCEBEF]/50 px-4 py-3 text-[10px] text-[#E26B7C]">
                                 진료기록 카드는 항상 표시됩니다.
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 px-7 py-5 border-t border-[#C5CAE9]">
+                        <div className="flex items-center justify-end gap-2 px-7 py-5 border-t border-[#F8DCE2]">
                             <button
                                 type="button"
                                 onClick={() => setIsMemoSectionSettingsOpen(false)}
-                                className="min-h-[40px] rounded-lg border border-[#C5CAE9] bg-white px-6 text-[12px] font-medium text-[#616161] hover:bg-[#E8EAF6] transition-all duration-200"
+                                className="min-h-[40px] rounded-lg border border-[#F8DCE2] bg-white px-6 text-[12px] font-medium text-[#616161] hover:bg-[#FCEBEF] transition-all duration-200"
                                 disabled={memoSectionSaving}
                             >
                                 취소
@@ -4748,7 +4884,7 @@ export default function PatientChartPage() {
                             <button
                                 type="button"
                                 onClick={handleSaveMemoSectionSettings}
-                                className="min-h-[40px] rounded-lg bg-[#3F51B5] px-6 text-[12px] font-medium text-white hover:bg-[#303F9F] shadow-[0_4px_12px_rgba(63,81,181,0.18)] transition-all duration-200 disabled:opacity-50"
+                                className="min-h-[40px] rounded-lg bg-[#E26B7C] px-6 text-[12px] font-medium text-white hover:bg-[#99354E] shadow-[0_4px_12px_rgba(226,107,124,0.18)] transition-all duration-200 disabled:opacity-50"
                                 disabled={memoSectionSaving}
                             >
                                 {memoSectionSaving ? "저장중..." : "저장"}
@@ -4799,7 +4935,7 @@ export default function PatientChartPage() {
                                     <div key={item.id} className="rounded-xl border border-gray-200 bg-gray-50/40 p-4">
                                         <div className="flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-2">
-                                                <span className="rounded-full bg-[#3F51B5]/15 px-2 py-0.5 text-[10px] font-bold text-[#3F51B5]">
+                                                <span className="rounded-full bg-[#E26B7C]/15 px-2 py-0.5 text-[10px] font-bold text-[#E26B7C]">
                                                     {actionLabel}
                                                 </span>
                                                 {item.isNoShow ? (
@@ -4861,7 +4997,7 @@ export default function PatientChartPage() {
             {
                 showReceptionModal && patient && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[1500px] max-h-[85vh] flex flex-col overflow-hidden border border-[#C5CAE9]">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[1500px] max-h-[85vh] flex flex-col overflow-hidden border border-[#F8DCE2]">
                             <ReceptionForm
                                 patient={patient as any}
                                 onClose={() => setShowReceptionModal(false)}
@@ -4928,10 +5064,10 @@ export default function PatientChartPage() {
                                                 return { ...prev, _selectedIds: next };
                                             });
                                         }}
-                                        className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${disabled ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70" : selected ? "border-[#3F51B5] bg-[#E8EAF6] ring-1 ring-[#3F51B5]/30" : allowOverride ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                                        className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${disabled ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70" : selected ? "border-[#E26B7C] bg-[#FCEBEF] ring-1 ring-[#E26B7C]/30" : allowOverride ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
                                     >
                                         <div className="flex items-start justify-between gap-3">
-                                            <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${disabled ? "border-gray-300 bg-gray-200" : selected ? "border-[#3F51B5] bg-[#3F51B5] text-white" : "border-gray-300 bg-white"}`}>
+                                            <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${disabled ? "border-gray-300 bg-gray-200" : selected ? "border-[#E26B7C] bg-[#E26B7C] text-white" : "border-gray-300 bg-white"}`}>
                                                 {selected && <Check className="h-3 w-3" strokeWidth={3} />}
                                             </div>
                                             <div className="min-w-0 flex-1">
@@ -4979,7 +5115,7 @@ export default function PatientChartPage() {
                                         setQuickTicketBusy(false);
                                     }
                                 }}
-                                className="rounded-lg bg-[#3F51B5] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#303F9F] disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="rounded-lg bg-[#E26B7C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#99354E] disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 차감하기 ({quickTicketPickerData._selectedIds?.length || 0}건)
                             </button>
@@ -5041,12 +5177,12 @@ export default function PatientChartPage() {
             )}
 
             {refundModal && (
-                <div className="fixed inset-0 z-[140] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(26,35,126,0.18)" }}>
-                    <div className="flex w-full max-w-3xl flex-col overflow-hidden rounded-[16px] border bg-white" style={{ borderColor: "#C5CAE9", boxShadow: "0 30px 80px rgba(63,81,181,0.18)" }}>
-                        <div className="px-6 py-5 border-b" style={{ backgroundColor: "#F8F9FD", borderColor: "#E8EAF6" }}>
+                <div className="fixed inset-0 z-[140] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(92,42,53,0.18)" }}>
+                    <div className="flex w-full max-w-3xl flex-col overflow-hidden rounded-[16px] border bg-white" style={{ borderColor: "#F8DCE2", boxShadow: "0 30px 80px rgba(226,107,124,0.18)" }}>
+                        <div className="px-6 py-5 border-b" style={{ backgroundColor: "#FCF7F8", borderColor: "#FCEBEF" }}>
                             <div className="flex items-center justify-between gap-4">
                                 <div>
-                                    <h3 className="text-[18px] font-bold leading-[1.2]" style={{ color: "#1A237E" }}>
+                                    <h3 className="text-[18px] font-bold leading-[1.2]" style={{ color: "#5C2A35" }}>
                                         {refundModal.mode === "group" ? "묶음 환불 설정" : "개별 환불 설정"}
                                     </h3>
                                     {refundModal.mode === "group" && (
@@ -5061,7 +5197,7 @@ export default function PatientChartPage() {
                                     disabled={refundModal.isSubmitting}
                                     className="rounded-[8px] p-2 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40"
                                     style={{ color: "#616161" }}
-                                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#E8EAF6"; e.currentTarget.style.color = "#1A237E"; }}
+                                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#FCEBEF"; e.currentTarget.style.color = "#5C2A35"; }}
                                     onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#616161"; }}
                                     title="닫기"
                                 >
@@ -5073,7 +5209,7 @@ export default function PatientChartPage() {
                         <div className="grid gap-0 md:grid-cols-[1.15fr_0.85fr]">
                             <div className="space-y-5 px-6 py-5">
                                 <div>
-                                    <div className="mb-2 text-[13px] font-bold" style={{ color: "#1A237E" }}>환불 기준</div>
+                                    <div className="mb-2 text-[13px] font-bold" style={{ color: "#5C2A35" }}>환불 기준</div>
                                     <div className="grid gap-3 sm:grid-cols-2">
                                         {[
                                             {
@@ -5098,18 +5234,18 @@ export default function PatientChartPage() {
                                                     disabled={refundModal.isSubmitting}
                                                     className="rounded-[12px] border px-4 py-3 text-left transition-all duration-200"
                                                     style={{
-                                                        borderColor: active ? "#3F51B5" : "#C5CAE9",
-                                                        backgroundColor: active ? "#E8EAF6" : "#FFFFFF",
-                                                        boxShadow: active ? "0 0 0 2px rgba(63,81,181,0.15)" : "none",
+                                                        borderColor: active ? "#E26B7C" : "#F8DCE2",
+                                                        backgroundColor: active ? "#FCEBEF" : "#FFFFFF",
+                                                        boxShadow: active ? "0 0 0 2px rgba(226,107,124,0.15)" : "none",
                                                     }}
-                                                    onMouseEnter={e => { if (!active) { e.currentTarget.style.backgroundColor = "#F8F9FD"; e.currentTarget.style.borderColor = "#9FA8DA"; } }}
-                                                    onMouseLeave={e => { if (!active) { e.currentTarget.style.backgroundColor = "#FFFFFF"; e.currentTarget.style.borderColor = "#C5CAE9"; } }}
+                                                    onMouseEnter={e => { if (!active) { e.currentTarget.style.backgroundColor = "#FCF7F8"; e.currentTarget.style.borderColor = "#E5B5C0"; } }}
+                                                    onMouseLeave={e => { if (!active) { e.currentTarget.style.backgroundColor = "#FFFFFF"; e.currentTarget.style.borderColor = "#F8DCE2"; } }}
                                                 >
                                                     <div className="flex items-center justify-between gap-3">
                                                         <div className="text-[14px] font-bold" style={{ color: "#242424" }}>{option.title}</div>
                                                         <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border" style={{
-                                                            borderColor: active ? "#3F51B5" : "#C5CAE9",
-                                                            backgroundColor: active ? "#3F51B5" : "transparent",
+                                                            borderColor: active ? "#E26B7C" : "#F8DCE2",
+                                                            backgroundColor: active ? "#E26B7C" : "transparent",
                                                         }}>
                                                             {active ? <Check className="h-3.5 w-3.5" style={{ color: "#FFFFFF" }} /> : null}
                                                         </span>
@@ -5123,8 +5259,8 @@ export default function PatientChartPage() {
 
                                 {refundModal.mode === "single" && (
                                     <div>
-                                        <label className="mb-2 block text-[13px] font-bold" style={{ color: "#1A237E" }}>사용 차감액</label>
-                                        <div className="rounded-[12px] border px-4 py-3" style={{ borderColor: "#C5CAE9", backgroundColor: "#F5F7FA" }}>
+                                        <label className="mb-2 block text-[13px] font-bold" style={{ color: "#5C2A35" }}>사용 차감액</label>
+                                        <div className="rounded-[12px] border px-4 py-3" style={{ borderColor: "#F8DCE2", backgroundColor: "#FAF3F5" }}>
                                             <div className="mb-2 text-[11px] font-semibold" style={{ color: "#616161" }}>
                                                 자동 계산값 {(refundModalMatchedItem?.usedAmountAtOriginalPrice ?? refundModal.checks[0]?.autoUsedAmount ?? 0).toLocaleString()}원
                                             </div>
@@ -5138,9 +5274,9 @@ export default function PatientChartPage() {
                                                 disabled={refundModal.isSubmitting}
                                                 placeholder="자동 계산값 그대로 사용하려면 그대로 두세요"
                                                 className="h-[40px] w-full rounded-[8px] border px-4 text-[13px] font-semibold outline-none transition-all duration-200"
-                                                style={{ borderColor: "#C5CAE9", backgroundColor: "#FFFFFF", color: "#242424" }}
-                                                onFocus={e => { e.currentTarget.style.borderColor = "#536DFE"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(83,109,254,0.12)"; }}
-                                                onBlur={e => { e.currentTarget.style.borderColor = "#C5CAE9"; e.currentTarget.style.boxShadow = "none"; }}
+                                                style={{ borderColor: "#F8DCE2", backgroundColor: "#FFFFFF", color: "#242424" }}
+                                                onFocus={e => { e.currentTarget.style.borderColor = "#F49EAF"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(244,158,175,0.12)"; }}
+                                                onBlur={e => { e.currentTarget.style.borderColor = "#F8DCE2"; e.currentTarget.style.boxShadow = "none"; }}
                                             />
                                             <div className="mt-1.5 text-[10px] leading-relaxed" style={{ color: "#616161" }}>
                                                 {refundModalMatchedItem?.itemType === "membership"
@@ -5153,7 +5289,7 @@ export default function PatientChartPage() {
                                 )}
 
                                 <div>
-                                    <label className="mb-2 block text-[13px] font-bold" style={{ color: "#1A237E" }}>환불 사유</label>
+                                    <label className="mb-2 block text-[13px] font-bold" style={{ color: "#5C2A35" }}>환불 사유</label>
                                     <textarea
                                         value={refundModal.reason}
                                         onChange={(e) =>
@@ -5163,19 +5299,19 @@ export default function PatientChartPage() {
                                         rows={3}
                                         placeholder="환불 사유를 입력하세요. 비워둬도 진행은 가능합니다."
                                         className="w-full rounded-[12px] border px-4 py-3 text-[13px] outline-none transition-all duration-200"
-                                        style={{ borderColor: "#C5CAE9", backgroundColor: "#FFFFFF", color: "#242424" }}
-                                        onFocus={e => { e.currentTarget.style.borderColor = "#536DFE"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(83,109,254,0.12)"; }}
-                                        onBlur={e => { e.currentTarget.style.borderColor = "#C5CAE9"; e.currentTarget.style.boxShadow = "none"; }}
+                                        style={{ borderColor: "#F8DCE2", backgroundColor: "#FFFFFF", color: "#242424" }}
+                                        onFocus={e => { e.currentTarget.style.borderColor = "#F49EAF"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(244,158,175,0.12)"; }}
+                                        onBlur={e => { e.currentTarget.style.borderColor = "#F8DCE2"; e.currentTarget.style.boxShadow = "none"; }}
                                     />
                                 </div>
 
                                 <div>
-                                    <div className="mb-2 text-[13px] font-bold" style={{ color: "#1A237E" }}>
+                                    <div className="mb-2 text-[13px] font-bold" style={{ color: "#5C2A35" }}>
                                         환불 대상 결제건 {refundModal.records.length}건
                                     </div>
                                     <div className="max-h-[280px] space-y-2 overflow-y-auto pr-1">
                                         {refundModal.records.map((record) => (
-                                            <div key={`refund-modal-record-${record.id}`} className="rounded-[12px] border overflow-hidden" style={{ borderColor: "#C5CAE9" }}>
+                                            <div key={`refund-modal-record-${record.id}`} className="rounded-[12px] border overflow-hidden" style={{ borderColor: "#F8DCE2" }}>
                                                 {(record.items || []).filter(item => {
                                                     if (refundModal.refundPaymentDetailId) return (item as any).paymentDetailId === refundModal.refundPaymentDetailId;
                                                     if (refundModal.refundItemName) return item.itemName === refundModal.refundItemName;
@@ -5213,9 +5349,9 @@ export default function PatientChartPage() {
                                                     }
 
                                                     return (
-                                                        <div key={`refund-item-${record.id}-${itemIdx}`} className="px-3 py-2.5" style={{ borderBottom: itemIdx < (record.items || []).length - 1 ? "1px solid #E8EAF6" : "none" }}>
-                                                            <div className="text-[13px] font-bold" style={{ color: "#1A237E" }}>{item.itemName}</div>
-                                                            <div className="mt-1.5 rounded-[8px] px-2.5 py-1.5 space-y-0.5" style={{ backgroundColor: "#F5F7FA" }}>
+                                                        <div key={`refund-item-${record.id}-${itemIdx}`} className="px-3 py-2.5" style={{ borderBottom: itemIdx < (record.items || []).length - 1 ? "1px solid #FCEBEF" : "none" }}>
+                                                            <div className="text-[13px] font-bold" style={{ color: "#5C2A35" }}>{item.itemName}</div>
+                                                            <div className="mt-1.5 rounded-[8px] px-2.5 py-1.5 space-y-0.5" style={{ backgroundColor: "#FAF3F5" }}>
                                                                 {item.originalPrice != null && (
                                                                     <div className="flex justify-between text-[11px]">
                                                                         <span style={{ color: "#616161" }}>정가</span>
@@ -5248,9 +5384,9 @@ export default function PatientChartPage() {
                                                                     </div>
                                                                 </div>
                                                             )}
-                                                            <div className="flex justify-between items-center mt-1.5 pt-1.5" style={{ borderTop: "1px solid #E8EAF6" }}>
+                                                            <div className="flex justify-between items-center mt-1.5 pt-1.5" style={{ borderTop: "1px solid #FCEBEF" }}>
                                                                 <span className="text-[12px] font-semibold" style={{ color: "#242424" }}>최종구매가</span>
-                                                                <span className="text-[14px] font-extrabold tabular-nums" style={{ color: "#1A237E" }}>{(finalAmount ?? 0).toLocaleString()}원</span>
+                                                                <span className="text-[14px] font-extrabold tabular-nums" style={{ color: "#5C2A35" }}>{(finalAmount ?? 0).toLocaleString()}원</span>
                                                             </div>
                                                         </div>
                                                     );
@@ -5275,10 +5411,10 @@ export default function PatientChartPage() {
                                 )}
                             </div>
 
-                            <div className="border-t px-6 py-5 md:border-l md:border-t-0" style={{ borderColor: "#E8EAF6", backgroundColor: "#F5F7FA" }}>
-                                <div className="rounded-[12px] overflow-hidden" style={{ border: "1px solid #C5CAE9" }}>
-                                    <div className="px-4 py-2.5" style={{ backgroundColor: "#F8F9FD", borderBottom: "1px solid #E8EAF6" }}>
-                                        <div className="text-[13px] font-bold" style={{ color: "#1A237E" }}>환불 미리보기</div>
+                            <div className="border-t px-6 py-5 md:border-l md:border-t-0" style={{ borderColor: "#FCEBEF", backgroundColor: "#FAF3F5" }}>
+                                <div className="rounded-[12px] overflow-hidden" style={{ border: "1px solid #F8DCE2" }}>
+                                    <div className="px-4 py-2.5" style={{ backgroundColor: "#FCF7F8", borderBottom: "1px solid #FCEBEF" }}>
+                                        <div className="text-[13px] font-bold" style={{ color: "#5C2A35" }}>환불 미리보기</div>
                                     </div>
 
                                     <div className="px-4 py-3" style={{ backgroundColor: "#FFFFFF" }}>
@@ -5319,7 +5455,7 @@ export default function PatientChartPage() {
                                         </div>
 
                                         {refundModalMatchedItem && (
-                                            <div className="rounded-[8px] px-3 py-2 mt-3" style={{ backgroundColor: "#F5F7FA", border: "1px solid #E8EAF6" }}>
+                                            <div className="rounded-[8px] px-3 py-2 mt-3" style={{ backgroundColor: "#FAF3F5", border: "1px solid #FCEBEF" }}>
                                                 <div className="text-[10px]" style={{ color: "#9E9E9E" }}>
                                                     {refundModalMatchedItem.itemType === "membership"
                                                         ? "실결제금액 - 단품정가합계 - 위약금"
@@ -5341,7 +5477,7 @@ export default function PatientChartPage() {
                                     </div>
                                 </div>
 
-                                <div className="mt-3 rounded-[8px] px-3 py-2 text-[11px] leading-relaxed" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E8EAF6", color: "#616161" }}>
+                                <div className="mt-3 rounded-[8px] px-3 py-2 text-[11px] leading-relaxed" style={{ backgroundColor: "#FFFFFF", border: "1px solid #FCEBEF", color: "#616161" }}>
                                     {refundModal.responsibilityType === "customer"
                                         ? "소비자 귀책은 결제건별 10% 위약금이 적용됩니다."
                                         : "병원 귀책은 위약금 없이 사용분만 차감합니다."}
@@ -5394,9 +5530,9 @@ export default function PatientChartPage() {
                                     });
 
                                     return (
-                                        <div className="mt-3 rounded-[12px] overflow-hidden" style={{ border: "1px solid #C5CAE9" }}>
-                                            <div className="px-4 py-2" style={{ backgroundColor: "#F8F9FD", borderBottom: "1px solid #E8EAF6" }}>
-                                                <div className="text-[12px] font-bold" style={{ color: "#1A237E" }}>환불수단 및 금액</div>
+                                        <div className="mt-3 rounded-[12px] overflow-hidden" style={{ border: "1px solid #F8DCE2" }}>
+                                            <div className="px-4 py-2" style={{ backgroundColor: "#FCF7F8", borderBottom: "1px solid #FCEBEF" }}>
+                                                <div className="text-[12px] font-bold" style={{ color: "#5C2A35" }}>환불수단 및 금액</div>
                                             </div>
                                             <div className="px-4 py-3 space-y-1" style={{ backgroundColor: "#FFFFFF" }}>
                                                 {Array.from(refundByMethod.entries()).map(([key, { amount, label, color }]) => (
@@ -5414,14 +5550,14 @@ export default function PatientChartPage() {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 border-t px-6 py-4" style={{ borderColor: "#E8EAF6" }}>
+                        <div className="flex items-center justify-end gap-2 border-t px-6 py-4" style={{ borderColor: "#FCEBEF" }}>
                             <button
                                 type="button"
                                 onClick={closeRefundModal}
                                 disabled={refundModal.isSubmitting}
                                 className="h-[40px] rounded-[8px] border px-5 text-[13px] font-bold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
-                                style={{ borderColor: "#C5CAE9", backgroundColor: "#FFFFFF", color: "#616161" }}
-                                onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#F5F7FA"; }}
+                                style={{ borderColor: "#F8DCE2", backgroundColor: "#FFFFFF", color: "#616161" }}
+                                onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#FAF3F5"; }}
                                 onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#FFFFFF"; }}
                             >
                                 취소
@@ -5444,10 +5580,10 @@ export default function PatientChartPage() {
 
             {isPrintSettingsOpen && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4">
-                    <div className="w-full max-w-md rounded-2xl border border-[#C5CAE9] bg-white shadow-[0_30px_80px_rgba(63,81,181,0.18)]">
-                        <div className="flex items-center justify-between px-6 pt-6 pb-3 border-b border-[#C5CAE9] bg-[#F8F9FD] rounded-t-2xl">
-                            <div className="text-lg font-bold text-[#1A237E]">인쇄 설정</div>
-                            <button type="button" onClick={() => setIsPrintSettingsOpen(false)} className="rounded-lg p-1.5 text-[#616161] hover:text-[#1A237E] hover:bg-[#E8EAF6] transition-all duration-200">
+                    <div className="w-full max-w-md rounded-2xl border border-[#F8DCE2] bg-white shadow-[0_30px_80px_rgba(226,107,124,0.18)]">
+                        <div className="flex items-center justify-between px-6 pt-6 pb-3 border-b border-[#F8DCE2] bg-[#FCF7F8] rounded-t-2xl">
+                            <div className="text-lg font-bold text-[#5C2A35]">인쇄 설정</div>
+                            <button type="button" onClick={() => setIsPrintSettingsOpen(false)} className="rounded-lg p-1.5 text-[#616161] hover:text-[#5C2A35] hover:bg-[#FCEBEF] transition-all duration-200">
                                 <X className="h-5 w-5" />
                             </button>
                         </div>
@@ -5460,19 +5596,19 @@ export default function PatientChartPage() {
                                 ...memoSections.map((s) => ({ key: s.id, label: s.label })),
                                 { key: "todo", label: "할일" },
                             ].map((item) => (
-                                <label key={item.key} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#E8EAF6]/50 transition-colors cursor-pointer">
+                                <label key={item.key} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#FCEBEF]/50 transition-colors cursor-pointer">
                                     <input
                                         type="checkbox"
                                         checked={printConfigDraft[item.key] !== false}
                                         onChange={(e) => setPrintConfigDraft((prev) => ({ ...prev, [item.key]: e.target.checked }))}
-                                        className="h-4 w-4 rounded border-[#C5CAE9] text-[#3F51B5] focus:ring-[#E8EAF6]"
+                                        className="h-4 w-4 rounded border-[#F8DCE2] text-[#E26B7C] focus:ring-[#FCEBEF]"
                                     />
                                     <span className="text-[13px] font-medium text-[#242424]">{item.label}</span>
                                 </label>
                             ))}
                         </div>
-                        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#C5CAE9]">
-                            <button type="button" onClick={() => setIsPrintSettingsOpen(false)} className="min-h-[40px] rounded-lg border border-[#C5CAE9] bg-white px-5 text-[12px] font-medium text-[#616161] hover:bg-[#E8EAF6] transition-all duration-200" disabled={printConfigSaving}>취소</button>
+                        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#F8DCE2]">
+                            <button type="button" onClick={() => setIsPrintSettingsOpen(false)} className="min-h-[40px] rounded-lg border border-[#F8DCE2] bg-white px-5 text-[12px] font-medium text-[#616161] hover:bg-[#FCEBEF] transition-all duration-200" disabled={printConfigSaving}>취소</button>
                             <button
                                 type="button"
                                 disabled={printConfigSaving}
@@ -5491,7 +5627,7 @@ export default function PatientChartPage() {
                                         setPrintConfigSaving(false);
                                     }
                                 }}
-                                className="min-h-[40px] rounded-lg bg-[#3F51B5] px-5 text-[12px] font-medium text-white hover:bg-[#303F9F] shadow-[0_4px_12px_rgba(63,81,181,0.18)] transition-all duration-200 disabled:opacity-50"
+                                className="min-h-[40px] rounded-lg bg-[#E26B7C] px-5 text-[12px] font-medium text-white hover:bg-[#99354E] shadow-[0_4px_12px_rgba(226,107,124,0.18)] transition-all duration-200 disabled:opacity-50"
                             >
                                 {printConfigSaving ? "저장중..." : "저장"}
                             </button>
@@ -5533,9 +5669,9 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
 
     if (loading) return <div className="text-[12px] text-[#616161] text-center py-6">불러오는 중...</div>;
     if (items.length === 0) return (
-        <div className="rounded-xl border border-dashed border-[#C5CAE9] bg-[#F8F9FD] px-4 py-6 text-center">
+        <div className="rounded-xl border border-dashed border-[#F8DCE2] bg-[#FCF7F8] px-4 py-6 text-center">
             <div className="text-[12px] text-[#616161]">발송 이력이 없습니다.</div>
-            <div className="text-[11px] text-[#9FA8DA] mt-1">위 버튼으로 동의서를 요청해보세요.</div>
+            <div className="text-[11px] text-[#E5B5C0] mt-1">위 버튼으로 동의서를 요청해보세요.</div>
         </div>
     );
 
@@ -5544,7 +5680,7 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
         if (normalized === 'signed') return <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-[11px] font-semibold text-green-700 border border-green-200">서명완료</span>;
         if (normalized === 'cancelled') return <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600 border border-rose-200">취소됨</span>;
         if (normalized === 'expired') return <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-[#616161] border border-gray-300">만료</span>;
-        return <span className="inline-flex items-center rounded-md bg-[#E8EAF6] px-2 py-0.5 text-[11px] font-semibold text-[#3F51B5] border border-[#C5CAE9]">대기중</span>;
+        return <span className="inline-flex items-center rounded-md bg-[#FCEBEF] px-2 py-0.5 text-[11px] font-semibold text-[#E26B7C] border border-[#F8DCE2]">대기중</span>;
     };
 
     const getConsentUrl = async (item: any): Promise<string | null> => {
@@ -5656,12 +5792,12 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
 
     return (
         <>
-            <div className="rounded-xl border border-[#C5CAE9] overflow-hidden">
-                <div className="px-4 py-3 bg-[#F8F9FD] border-b border-[#C5CAE9] flex items-center justify-between">
-                    <div className="text-[13px] font-semibold text-[#1A237E]">발송 이력</div>
+            <div className="rounded-xl border border-[#F8DCE2] overflow-hidden">
+                <div className="px-4 py-3 bg-[#FCF7F8] border-b border-[#F8DCE2] flex items-center justify-between">
+                    <div className="text-[13px] font-semibold text-[#5C2A35]">발송 이력</div>
                     <span className="text-[11px] text-[#616161]">{items.length}건</span>
                 </div>
-                <div className="divide-y divide-[#E8EAF6]">
+                <div className="divide-y divide-[#FCEBEF]">
                     {items.map((item: any) => {
                         const status = String(item?.status || "");
                         const normalizedStatus = normalizeStatus(status);
@@ -5672,7 +5808,7 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
                         const isRunning = actionLoadingId === item.id;
 
                         return (
-                            <div key={item.id} className="px-4 py-3 bg-white hover:bg-[#E8EAF6]/30 transition-all duration-200">
+                            <div key={item.id} className="px-4 py-3 bg-white hover:bg-[#FCEBEF]/30 transition-all duration-200">
                                 <div className="flex justify-between items-start">
                                     <div className="flex-1 min-w-0">
                                         <div className="text-[13px] font-semibold text-[#242424] truncate">{item.formTitle}</div>
@@ -5692,7 +5828,7 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
                                     <div className="flex flex-wrap gap-1.5 mt-2">
                                         {canOpenCompleted && (
                                             <button type="button" disabled={isRunning}
-                                                className="rounded-lg border border-[#C5CAE9] bg-white px-2.5 py-1 text-[11px] font-medium text-[#3F51B5] hover:bg-[#E8EAF6] disabled:opacity-50 transition-all duration-200"
+                                                className="rounded-lg border border-[#F8DCE2] bg-white px-2.5 py-1 text-[11px] font-medium text-[#E26B7C] hover:bg-[#FCEBEF] disabled:opacity-50 transition-all duration-200"
                                                 onClick={() => void handleOpenCompleted(item)}>
                                                 완료본 보기
                                             </button>
@@ -5700,12 +5836,12 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
                                         {canOpenQr && (
                                             <>
                                                 <button type="button" disabled={isRunning}
-                                                    className="rounded-lg border border-[#C5CAE9] bg-white px-2.5 py-1 text-[11px] font-medium text-[#3F51B5] hover:bg-[#E8EAF6] disabled:opacity-50 transition-all duration-200"
+                                                    className="rounded-lg border border-[#F8DCE2] bg-white px-2.5 py-1 text-[11px] font-medium text-[#E26B7C] hover:bg-[#FCEBEF] disabled:opacity-50 transition-all duration-200"
                                                     onClick={() => void handleOpenConsentPage(item)}>
                                                     동의서 열기
                                                 </button>
                                                 <button type="button" disabled={isRunning}
-                                                    className="rounded-lg border border-[#C5CAE9] bg-white px-2.5 py-1 text-[11px] font-medium text-[#3F51B5] hover:bg-[#E8EAF6] disabled:opacity-50 transition-all duration-200"
+                                                    className="rounded-lg border border-[#F8DCE2] bg-white px-2.5 py-1 text-[11px] font-medium text-[#E26B7C] hover:bg-[#FCEBEF] disabled:opacity-50 transition-all duration-200"
                                                     onClick={() => void handleOpenQrCode(item)}>
                                                     QR 열기
                                                 </button>
@@ -5735,38 +5871,38 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
 
             {selectedDetail && (
                 <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4">
-                    <div className="w-full max-w-3xl max-h-[90vh] rounded-2xl bg-white shadow-xl border border-[#C5CAE9] flex flex-col overflow-hidden">
-                        <div className="flex items-center justify-between px-6 py-4 bg-[#F8F9FD] border-b border-[#C5CAE9]">
+                    <div className="w-full max-w-3xl max-h-[90vh] rounded-2xl bg-white shadow-xl border border-[#F8DCE2] flex flex-col overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 bg-[#FCF7F8] border-b border-[#F8DCE2]">
                             <div>
-                                <div className="text-[15px] font-bold text-[#1A237E]">{selectedDetail.formTitle || "동의서"}</div>
+                                <div className="text-[15px] font-bold text-[#5C2A35]">{selectedDetail.formTitle || "동의서"}</div>
                                 <div className="text-[12px] text-[#616161] mt-0.5">
                                     발송 {selectedDetail.createdAt ? new Date(selectedDetail.createdAt).toLocaleString("ko-KR") : "-"}
                                     {selectedDetail.signedAt ? ` · 서명 ${new Date(selectedDetail.signedAt).toLocaleString("ko-KR")}` : ""}
                                 </div>
                             </div>
                             <button type="button"
-                                className="rounded-lg border border-[#C5CAE9] bg-white px-3 py-1.5 text-[12px] font-medium text-[#616161] hover:bg-[#E8EAF6] transition-all duration-200"
+                                className="rounded-lg border border-[#F8DCE2] bg-white px-3 py-1.5 text-[12px] font-medium text-[#616161] hover:bg-[#FCEBEF] transition-all duration-200"
                                 onClick={() => setSelectedDetail(null)}>
                                 닫기
                             </button>
                         </div>
 
                         <div className="overflow-y-auto p-6 space-y-4">
-                            <div className="rounded-xl border border-[#C5CAE9] overflow-hidden">
-                                <div className="px-4 py-2.5 bg-[#F8F9FD] border-b border-[#C5CAE9]">
-                                    <div className="text-[12px] font-semibold text-[#1A237E]">동의서 본문</div>
+                            <div className="rounded-xl border border-[#F8DCE2] overflow-hidden">
+                                <div className="px-4 py-2.5 bg-[#FCF7F8] border-b border-[#F8DCE2]">
+                                    <div className="text-[12px] font-semibold text-[#5C2A35]">동의서 본문</div>
                                 </div>
                                 <div className="p-4 bg-white">{renderConsentBody(selectedDetail.formBody)}</div>
                             </div>
 
-                            <div className="rounded-xl border border-[#C5CAE9] overflow-hidden">
-                                <div className="px-4 py-2.5 bg-[#F8F9FD] border-b border-[#C5CAE9]">
-                                    <div className="text-[12px] font-semibold text-[#1A237E]">환자 서명</div>
+                            <div className="rounded-xl border border-[#F8DCE2] overflow-hidden">
+                                <div className="px-4 py-2.5 bg-[#FCF7F8] border-b border-[#F8DCE2]">
+                                    <div className="text-[12px] font-semibold text-[#5C2A35]">환자 서명</div>
                                 </div>
                                 <div className="p-4 bg-white flex items-center justify-center min-h-[120px]">
                                     {selectedDetail.signatureDataUrl ? (
                                         <img src={selectedDetail.signatureDataUrl} alt="환자 서명"
-                                            className="max-h-52 rounded-lg border border-[#E8EAF6] bg-white p-2" />
+                                            className="max-h-52 rounded-lg border border-[#FCEBEF] bg-white p-2" />
                                     ) : (
                                         <div className="text-[12px] text-[#616161]">서명 이미지가 없습니다.</div>
                                     )}
@@ -5779,11 +5915,11 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
 
             {consentPageUrl && (
                 <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4">
-                    <div className="w-full max-w-lg max-h-[90vh] rounded-2xl bg-white shadow-xl border border-[#C5CAE9] flex flex-col overflow-hidden">
-                        <div className="flex items-center justify-between px-6 py-4 bg-[#F8F9FD] border-b border-[#C5CAE9]">
-                            <div className="text-[15px] font-bold text-[#1A237E]">동의서 서명 페이지</div>
+                    <div className="w-full max-w-lg max-h-[90vh] rounded-2xl bg-white shadow-xl border border-[#F8DCE2] flex flex-col overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 bg-[#FCF7F8] border-b border-[#F8DCE2]">
+                            <div className="text-[15px] font-bold text-[#5C2A35]">동의서 서명 페이지</div>
                             <button type="button"
-                                className="rounded-lg border border-[#C5CAE9] bg-white px-3 py-1.5 text-[12px] font-medium text-[#616161] hover:bg-[#E8EAF6] transition-all duration-200"
+                                className="rounded-lg border border-[#F8DCE2] bg-white px-3 py-1.5 text-[12px] font-medium text-[#616161] hover:bg-[#FCEBEF] transition-all duration-200"
                                 onClick={() => setConsentPageUrl(null)}>
                                 닫기
                             </button>
@@ -5799,17 +5935,17 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
 
             {qrCodeUrl && (
                 <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4">
-                    <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl border border-[#C5CAE9] flex flex-col overflow-hidden">
-                        <div className="flex items-center justify-between px-6 py-4 bg-[#F8F9FD] border-b border-[#C5CAE9]">
-                            <div className="text-[15px] font-bold text-[#1A237E]">동의서 QR 코드</div>
+                    <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl border border-[#F8DCE2] flex flex-col overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 bg-[#FCF7F8] border-b border-[#F8DCE2]">
+                            <div className="text-[15px] font-bold text-[#5C2A35]">동의서 QR 코드</div>
                             <button type="button"
-                                className="rounded-lg border border-[#C5CAE9] bg-white px-3 py-1.5 text-[12px] font-medium text-[#616161] hover:bg-[#E8EAF6] transition-all duration-200"
+                                className="rounded-lg border border-[#F8DCE2] bg-white px-3 py-1.5 text-[12px] font-medium text-[#616161] hover:bg-[#FCEBEF] transition-all duration-200"
                                 onClick={() => setQrCodeUrl(null)}>
                                 닫기
                             </button>
                         </div>
                         <div className="p-8 flex flex-col items-center gap-4">
-                            <div className="bg-white p-4 rounded-xl border-2 border-dashed border-[#C5CAE9]">
+                            <div className="bg-white p-4 rounded-xl border-2 border-dashed border-[#F8DCE2]">
                                 <QRCodeSVG value={qrCodeUrl} size={200} />
                             </div>
                             <div className="text-center">
@@ -6341,7 +6477,7 @@ function RefundHistoryList({
 
     return (
         <div className="space-y-3">
-            <div className="flex items-center rounded-[8px] bg-[#F5F7FA] p-0.5 gap-0.5">
+            <div className="flex items-center rounded-[8px] bg-[#FAF3F5] p-0.5 gap-0.5">
                 {([
                     { key: 'all' as const, label: '전체', count: nonRefundedCards.length },
                     { key: 'ticket' as const, label: '티켓', count: ticketCardCount },
@@ -6350,7 +6486,7 @@ function RefundHistoryList({
                     <button
                         key={tab.key}
                         onClick={() => { setRefundFilterTab(tab.key); setExpandedGroupId(null); }}
-                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${refundFilterTab === tab.key ? 'bg-white text-[#3F51B5] shadow-sm border border-[#C5CAE9]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
+                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${refundFilterTab === tab.key ? 'bg-white text-[#E26B7C] shadow-sm border border-[#F8DCE2]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
                     >
                         {tab.label} ({tab.count})
                     </button>
@@ -6371,19 +6507,19 @@ function RefundHistoryList({
                     return (
                         <div
                             key={card.id}
-                            className={`rounded-[16px] border overflow-hidden transition-all duration-200 hover:shadow-[0_4px_12px_rgba(63,81,181,0.08)] ${isRefunded ? "border-red-200 bg-red-50/30" : "border-[#C5CAE9]"}`}
+                            className={`rounded-[16px] border overflow-hidden transition-all duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] ${isRefunded ? "border-red-200 bg-red-50/30" : "border-[#F8DCE2]"}`}
                         >
-                            <div className={`px-4 py-3 flex items-center justify-between gap-2 border-b ${isRefunded ? "bg-red-50 border-red-200" : "bg-[#F8F9FD] border-[#E8EAF6]"}`}>
+                            <div className={`px-4 py-3 flex items-center justify-between gap-2 border-b ${isRefunded ? "bg-red-50 border-red-200" : "bg-[#FCF7F8] border-[#FCEBEF]"}`}>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <span className={`inline-flex items-center rounded-[8px] px-2 py-0.5 text-[11px] font-bold tracking-[0.1px] leading-none ${isTicket ? "bg-[#E8EAF6] text-[#3F51B5]" : isMembership ? "bg-violet-100 text-violet-700" : "bg-[#F0F0F0] text-[#616161]"}`}>
+                                        <span className={`inline-flex items-center rounded-[8px] px-2 py-0.5 text-[11px] font-bold tracking-[0.1px] leading-none ${isTicket ? "bg-[#FCEBEF] text-[#E26B7C]" : isMembership ? "bg-violet-100 text-violet-700" : "bg-[#F0F0F0] text-[#616161]"}`}>
                                             {isTicket ? "티켓" : isMembership ? "회원권" : "결제"}
                                         </span>
                                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none ${isRefunded ? "bg-red-100 text-red-600" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
                                             {isRefunded ? "환불" : "정상"}
                                         </span>
                                     </div>
-                                    <div className={`mt-1.5 text-[14px] font-bold leading-[1.2] ${isRefunded ? "text-red-400 line-through" : "text-[#1A237E]"}`}>
+                                    <div className={`mt-1.5 text-[14px] font-bold leading-[1.2] ${isRefunded ? "text-red-400 line-through" : "text-[#5C2A35]"}`}>
                                         {card.itemName}{card.quantity > 1 ? ` x${card.quantity}` : ""}
                                     </div>
                                     <div className="text-[11px] text-[#616161] mt-1 font-medium tracking-[0.1px]">
@@ -6411,7 +6547,7 @@ function RefundHistoryList({
                             </div>
 
                             <div className="px-4 py-3 space-y-0">
-                                <div className="rounded-[8px] bg-[#F5F7FA] px-3 py-2 space-y-1">
+                                <div className="rounded-[8px] bg-[#FAF3F5] px-3 py-2 space-y-1">
                                     {card.originalPrice != null && (
                                         <div className="flex justify-between text-[12px]">
                                             <span className="text-[#616161]">정가</span>
@@ -6489,10 +6625,10 @@ function RefundHistoryList({
                                     );
 
                                     return (
-                                        <div className="border-t border-[#E8EAF6] pt-2 mt-2 space-y-1.5">
+                                        <div className="border-t border-[#FCEBEF] pt-2 mt-2 space-y-1.5">
                                             <div className="flex justify-between items-center">
                                                 <span className="text-[13px] font-semibold text-[#242424]">수납액</span>
-                                                <span className={`text-[15px] font-extrabold tabular-nums ${isRefunded ? "text-[#616161] line-through" : "text-[#1A237E]"}`}>
+                                                <span className={`text-[15px] font-extrabold tabular-nums ${isRefunded ? "text-[#616161] line-through" : "text-[#5C2A35]"}`}>
                                                     {(paidAmount ?? 0).toLocaleString()}원
                                                 </span>
                                             </div>
@@ -6505,15 +6641,44 @@ function RefundHistoryList({
                                                 </div>
                                             )}
                                             {!isRefunded && matchedItem && (() => {
+                                                const isMembershipItem = String(matchedItem.itemType || "").toLowerCase() === "membership";
+                                                const penaltyAmt = matchedItem.penaltyAmount;
+
+                                                if (isMembershipItem) {
+                                                    const netUsed = matchedItem.usedAmountAtOriginalPrice;
+                                                    const currentBalance = Math.max(0, matchedItem.paidAmount - netUsed);
+                                                    const estimated = Math.max(0, currentBalance - penaltyAmt);
+                                                    return (
+                                                        <div className="border-t border-dashed border-[#F8DCE2] pt-2 mt-2 space-y-2">
+                                                            <div className="rounded-lg bg-[#FAF3F5] px-3 py-2 space-y-0.5">
+                                                                <div className="text-[10px] text-[#9E9E9E]">
+                                                                    현재잔액(실결제 - 순사용) - 위약금
+                                                                </div>
+                                                                <div className="text-[11px] font-semibold tabular-nums text-[#616161]">
+                                                                    {currentBalance.toLocaleString()} - {penaltyAmt.toLocaleString()} = {estimated.toLocaleString()}원
+                                                                </div>
+                                                                <div className="text-[10px] text-[#9E9E9E] mt-0.5">
+                                                                    실결제 {matchedItem.paidAmount.toLocaleString()}원 / 순사용 {netUsed.toLocaleString()}원
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-[13px] font-semibold text-red-600">환불 예상액</span>
+                                                                <span className="text-[15px] font-extrabold tabular-nums text-red-600">
+                                                                    {estimated.toLocaleString()}원
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+
                                                 const rateStr = refundRateByCardId[card.id] ?? "";
                                                 const rateVal = rateStr ? parseFloat(rateStr) : 0;
                                                 const validRate = Number.isFinite(rateVal) && rateVal >= 0 && rateVal < 1 ? rateVal : 0;
                                                 const usedDeduction = Math.round(matchedItem.paidAmount * validRate * matchedItem.usedCount);
-                                                const penaltyAmt = matchedItem.penaltyAmount;
                                                 const estimated = Math.max(0, matchedItem.paidAmount - usedDeduction - penaltyAmt);
 
                                                 return (
-                                                    <div className="border-t border-dashed border-[#C5CAE9] pt-2 mt-2 space-y-2">
+                                                    <div className="border-t border-dashed border-[#F8DCE2] pt-2 mt-2 space-y-2">
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-[11px] text-[#616161] font-medium shrink-0">환불변수</span>
                                                             <input
@@ -6529,11 +6694,11 @@ function RefundHistoryList({
                                                                         setRefundRateByCardId(prev => ({ ...prev, [card.id]: v }));
                                                                     }
                                                                 }}
-                                                                className="w-20 rounded-lg border border-[#C5CAE9] bg-white px-2 py-1 text-[12px] text-center tabular-nums outline-none focus:border-[#536DFE] focus:ring-1 focus:ring-[#536DFE]/20 transition-all duration-200"
+                                                                className="w-20 rounded-lg border border-[#F8DCE2] bg-white px-2 py-1 text-[12px] text-center tabular-nums outline-none focus:border-[#F49EAF] focus:ring-1 focus:ring-[#F49EAF]/20 transition-all duration-200"
                                                             />
                                                             <span className="text-[10px] text-[#9E9E9E]">사용 {matchedItem.usedCount}회</span>
                                                         </div>
-                                                        <div className="rounded-lg bg-[#F5F7FA] px-3 py-2 space-y-0.5">
+                                                        <div className="rounded-lg bg-[#FAF3F5] px-3 py-2 space-y-0.5">
                                                             <div className="text-[10px] text-[#9E9E9E]">
                                                                 최종구매가 - (최종구매가×환불변수×사용) - 위약금
                                                             </div>
