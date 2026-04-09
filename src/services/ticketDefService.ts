@@ -28,6 +28,8 @@ export interface TicketDefResponse {
     isAutoTodo: boolean;
     originalPrice: number;
     eventPrice: number | null;
+    singleSessionPrice: number | null;
+    defaultPenaltyRate: number | null;
     isActive: boolean;
     minimumPeriod: number | null;
     maximumUseCount: number | null;
@@ -53,6 +55,8 @@ export interface CreateTicketDefRequest {
     isAutoTodo?: boolean;
     originalPrice?: number;
     eventPrice?: number | null;
+    singleSessionPrice?: number | null;
+    defaultPenaltyRate?: number | null;
     isActive?: boolean;
     minimumPeriod?: number | null;
     maximumUseCount?: number | null;
@@ -74,6 +78,8 @@ export interface UpdateTicketDefRequest {
     isAutoTodo?: boolean | null;
     originalPrice?: number | null;
     eventPrice?: number | null;
+    singleSessionPrice?: number | null;
+    defaultPenaltyRate?: number | null;
     isActive?: boolean | null;
     minimumPeriod?: number | null;
     maximumUseCount?: number | null;

@@ -345,6 +345,7 @@ import { useSettingsStore } from "../stores/useSettingsStore";
 import { ReceptionForm } from "../components/chart/ReceptionForm";
 import { PatientSearchModal } from "../components/common/PatientSearchModal";
 import AddPaymentModal from "../components/AddPaymentModal";
+import { RefundModal } from "../components/refund/RefundModal";
 import SmartTextarea from "../components/SmartTextarea";
 import { printService, PrintSection } from "../services/printService";
 import { useNavigate, useParams } from "react-router-dom";
@@ -4040,35 +4041,35 @@ export default function PatientChartPage() {
 
                             {/* === 최종결제금액 === */}
                             <div
-                                className="rounded-2xl border-2 border-[#E26B7C] bg-[#FCEBEF] px-3 py-3 cursor-pointer select-none transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)]"
+                                className="rounded-2xl border border-[#E26B7C] bg-[#FCEBEF] px-3 py-2 cursor-pointer select-none transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)]"
                                 onClick={() => setIsFinalAmountExpanded(prev => !prev)}
                             >
                                 <div className="flex justify-between items-center">
-                                    <span className="text-[15px] font-bold text-[#E26B7C] flex items-center gap-1">
+                                    <span className="text-[13px] font-bold text-[#E26B7C] flex items-center gap-1">
                                         최종결제금액
-                                        {isFinalAmountExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                        {isFinalAmountExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                                     </span>
-                                    <span className="text-[17px] font-extrabold text-[#5C2A35] tabular-nums">{(cartPreview?.totalCashRequired ?? remaining ?? 0).toLocaleString()}원</span>
+                                    <span className="text-[14px] font-extrabold text-[#5C2A35] tabular-nums">{(cartPreview?.totalCashRequired ?? remaining ?? 0).toLocaleString()}원</span>
                                 </div>
                                 {isFinalAmountExpanded && (
-                                    <div className="mt-2 space-y-1.5 border-t border-[#E26B7C]/20 pt-2">
+                                    <div className="mt-1.5 space-y-1 border-t border-[#E26B7C]/20 pt-1.5">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[13px] font-medium text-[#E26B7C]">회원권차감금액</span>
-                                            <span className="text-[14px] font-bold text-[#E26B7C] tabular-nums">-{(cartPreview?.balanceDeduction ?? 0).toLocaleString()}원</span>
+                                            <span className="text-[12px] font-medium text-[#E26B7C]">회원권차감금액</span>
+                                            <span className="text-[12px] font-bold text-[#E26B7C] tabular-nums">-{(cartPreview?.balanceDeduction ?? 0).toLocaleString()}원</span>
                                         </div>
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[13px] font-medium text-[#5C2A35]">결제금액</span>
-                                            <span className="text-[14px] font-bold text-[#5C2A35] tabular-nums">{(cartPreview?.totalCashRequired ?? remaining ?? 0).toLocaleString()}원</span>
+                                            <span className="text-[12px] font-medium text-[#5C2A35]">결제금액</span>
+                                            <span className="text-[12px] font-bold text-[#5C2A35] tabular-nums">{(cartPreview?.totalCashRequired ?? remaining ?? 0).toLocaleString()}원</span>
                                         </div>
                                     </div>
                                 )}
                             </div>
 
                             {/* === 수납완료 === */}
-                            <div className="rounded-2xl border border-[#92C353]/40 bg-[#92C353]/8 px-3 py-2.5">
+                            <div className="rounded-2xl border border-[#92C353]/40 bg-[#92C353]/8 px-3 py-2">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-[13px] font-semibold text-[#498205]">{selectedVisitDate ? "당일 수납완료" : "수납완료"}</span>
-                                    <span className="text-[13px] font-bold text-[#498205] tabular-nums">{(paidAmount || 0).toLocaleString()}원</span>
+                                    <span className="text-[12px] font-semibold text-[#498205]">{selectedVisitDate ? "당일 수납완료" : "수납완료"}</span>
+                                    <span className="text-[12px] font-bold text-[#498205] tabular-nums">{(paidAmount || 0).toLocaleString()}원</span>
                                 </div>
                             </div>
 
@@ -4807,6 +4808,7 @@ export default function PatientChartPage() {
                                 refundingPaymentId={refundingPaymentId}
                                 onRefund={canEditPayment ? handleRefundPaymentRecord : undefined}
                                 onRefundGroup={canEditPayment ? handleRefundPaymentGroup : undefined}
+                                onRefundCompleted={() => loadPersistenceData(Number(patientIdStr))}
                                 isReadOnly={isReadOnly || !canEditPayment}
                             />
                         )}
@@ -5968,6 +5970,7 @@ function RefundHistoryList({
     refundingPaymentId,
     onRefund,
     onRefundGroup,
+    onRefundCompleted,
     isReadOnly,
 }: {
     patientId: number;
@@ -5977,6 +5980,7 @@ function RefundHistoryList({
     refundingPaymentId: number | null;
     onRefund: (record: PaymentRecord, itemName?: string, refundRate?: number, paymentDetailId?: number) => Promise<void>;
     onRefundGroup: (records: PaymentRecord[]) => Promise<void>;
+    onRefundCompleted?: () => void | Promise<void>;
     isReadOnly?: boolean;
 }) {
     type RefundItemSummary = {
@@ -6018,6 +6022,7 @@ function RefundHistoryList({
     const [refundCheckByGroupId, setRefundCheckByGroupId] = useState<Record<string, RefundCheckRow>>({});
     const [refundRateByCardId, setRefundRateByCardId] = useState<Record<string, string>>({});
     const [ticketHistoryByTicketId, setTicketHistoryByTicketId] = useState<Record<number, TicketHistory[]>>({});
+    const [refundModalState, setRefundModalState] = useState<{ paymentMasterId: number; paymentDetailId: number; itemName: string; itemType: string } | null>(null);
 
     const normalizeItemKey = (value?: string) =>
         String(value || "")
@@ -6534,10 +6539,17 @@ function RefundHistoryList({
                                             className="rounded-full border border-red-300 bg-red-50 px-3 py-1 text-[11px] font-bold text-red-600 hover:bg-red-100 hover:border-red-400 transition-all duration-200 disabled:opacity-50 min-h-[28px]"
                                             disabled={refundingPaymentId === card.record.id}
                                             onClick={() => {
-                                                const rateStr = refundRateByCardId[card.id] ?? "";
-                                                const rateVal = rateStr ? parseFloat(rateStr) : 0;
                                                 const detailId = card.itemPaymentDetails[0]?.id;
-                                                void onRefund(card.record, card.itemName, Number.isFinite(rateVal) ? rateVal : 0, detailId);
+                                                if (!detailId) {
+                                                    void onRefund(card.record, card.itemName, 0);
+                                                    return;
+                                                }
+                                                setRefundModalState({
+                                                    paymentMasterId: card.record.paymentMasterId || card.record.id,
+                                                    paymentDetailId: detailId,
+                                                    itemName: card.itemName,
+                                                    itemType: card.itemType,
+                                                });
                                             }}
                                         >
                                             환불
@@ -6729,6 +6741,24 @@ function RefundHistoryList({
                     );
                 })}
             </div>
+            {refundModalState && (
+                <RefundModal
+                    open
+                    paymentMasterId={refundModalState.paymentMasterId}
+                    paymentDetailId={refundModalState.paymentDetailId}
+                    itemName={refundModalState.itemName}
+                    itemType={refundModalState.itemType}
+                    onClose={() => setRefundModalState(null)}
+                    onRefunded={() => {
+                        setRefundModalState(null);
+                        setRefundCheckByRecordId({});
+                        setRefundCheckByGroupId({});
+                        if (typeof onRefundCompleted === "function") {
+                            void onRefundCompleted();
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 }

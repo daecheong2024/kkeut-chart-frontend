@@ -174,6 +174,8 @@ export default function TicketsSettingsPage() {
       weekTicketId: r.weekTicketId ?? undefined,
       price: r.originalPrice,
       eventPrice: r.eventPrice,
+      singleSessionPrice: r.singleSessionPrice,
+      defaultPenaltyRate: r.defaultPenaltyRate,
       enabled: r.isActive,
       autoTodoEnabled: r.isAutoTodo,
       autoTodoTitleTemplate: r.todoTemplate ?? undefined,
@@ -215,6 +217,8 @@ export default function TicketsSettingsPage() {
       isAutoTodo: item.autoTodoEnabled ?? false,
       originalPrice: item.price ?? 0,
       eventPrice: item.eventPrice ?? null,
+      singleSessionPrice: item.singleSessionPrice ?? null,
+      defaultPenaltyRate: item.defaultPenaltyRate ?? null,
       isActive: item.enabled ?? true,
       minimumPeriod: item.minIntervalDays ?? null,
       maximumUseCount: item.usageUnit === "session" ? (item.totalCount ?? null) : (item.maxTotalCount ?? null),
@@ -241,6 +245,8 @@ export default function TicketsSettingsPage() {
       isAutoTodo: item.autoTodoEnabled ?? false,
       originalPrice: item.price ?? 0,
       eventPrice: item.eventPrice ?? null,
+      singleSessionPrice: item.singleSessionPrice ?? null,
+      defaultPenaltyRate: item.defaultPenaltyRate ?? null,
       isActive: item.enabled ?? true,
       minimumPeriod: item.minIntervalDays ?? null,
       maximumUseCount: item.usageUnit === "session" ? (item.totalCount ?? null) : (item.maxTotalCount ?? null),
@@ -990,7 +996,7 @@ export default function TicketsSettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-bold text-gray-500">가격</label>
+                    <label className="mb-1 block text-xs font-bold text-gray-500">정상가</label>
                     <Input
                       type="number"
                       value={editingItem.price ?? ""}
@@ -1000,12 +1006,66 @@ export default function TicketsSettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-bold text-gray-500">이벤트가</label>
+                    <label className="mb-1 block text-xs font-bold text-gray-500">이벤트가 (실결제가)</label>
                     <Input
                       type="number"
                       value={editingItem.eventPrice ?? ""}
-                      onChange={(e) => updateDraft({ eventPrice: e.target.value === "" ? null : Number(e.target.value) })}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const next = raw === "" ? null : Number(raw);
+                        const patch: Partial<TicketItem> = { eventPrice: next };
+                        if (next != null && next > 0 && (editingItem.price == null || editingItem.price === 0)) {
+                          patch.price = Math.round(next / 0.49 / 1000) * 1000;
+                        }
+                        updateDraft(patch);
+                      }}
                       placeholder="미입력 시 정상가 적용"
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <label className="block text-xs font-bold text-gray-500">1회 정상가 (환불 차감 기준)</label>
+                      <button
+                        type="button"
+                        className="rounded-md border border-[#F8DCE2] bg-white px-2 py-0.5 text-[10px] font-bold text-[#99354E] hover:bg-[#FCEBEF]"
+                        onClick={() => {
+                          const price = editingItem.price ?? 0;
+                          const total = editingItem.totalCount ?? editingItem.maxTotalCount ?? 1;
+                          const auto = total > 0 ? Math.round(price / total) : price;
+                          updateDraft({ singleSessionPrice: auto });
+                        }}
+                        title="정상가 ÷ 총 횟수로 자동 채우기"
+                      >
+                        자동 추천
+                      </button>
+                    </div>
+                    <Input
+                      type="number"
+                      value={editingItem.singleSessionPrice ?? ""}
+                      onChange={(e) => updateDraft({ singleSessionPrice: e.target.value === "" ? null : Number(e.target.value) })}
+                      placeholder="환불 시 1회당 차감 금액"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-gray-500">기본 위약률 (%)</label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="99"
+                      value={editingItem.defaultPenaltyRate != null ? (editingItem.defaultPenaltyRate * 100).toString() : ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "") {
+                          updateDraft({ defaultPenaltyRate: null });
+                        } else {
+                          const pct = Number(v);
+                          if (Number.isFinite(pct) && pct >= 0 && pct < 100) {
+                            updateDraft({ defaultPenaltyRate: pct / 100 });
+                          }
+                        }
+                      }}
+                      placeholder="미입력 시 10%"
                     />
                   </div>
                 </div>

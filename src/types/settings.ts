@@ -297,6 +297,8 @@ export interface TicketItem {
   validDays?: number;  // if period
   price?: number;
   eventPrice?: number | null;
+  singleSessionPrice?: number | null;
+  defaultPenaltyRate?: number | null;
   reservCategoryId?: number;
   reservCategoryName?: string;
   queueCategoryName?: string; // 시술 그룹(대기 계산 집계 기준)

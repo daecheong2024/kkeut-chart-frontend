@@ -158,6 +158,62 @@ export interface TicketRefundResponse {
     }>;
 }
 
+export type RefundType = "customer_change" | "hospital_fault" | "manual";
+
+export interface RefundCalculateRequest {
+    paymentMasterId: number;
+    paymentDetailId: number;
+    refundType: RefundType;
+    penaltyRate?: number;
+    manualAmount?: number;
+    reason?: string;
+}
+
+export interface RefundCalculateResult {
+    canRefund: boolean;
+    reason?: string;
+    itemName: string;
+    itemType: string;
+    refundType: string;
+    paidAmount: number;
+    penaltyRate: number;
+    penaltyAmount: number;
+    usageDeduction: number;
+    usedCount: number;
+    totalCount: number;
+    remainingCount: number;
+    singleSessionPrice: number | null;
+    estimatedRefund: number;
+    formula: string;
+}
+
+export interface RefundExecuteRequest {
+    paymentMasterId: number;
+    paymentDetailId: number;
+    refundType: RefundType;
+    penaltyRate?: number;
+    manualAmount?: number;
+    reason?: string;
+}
+
+export interface RefundExecuteResult {
+    success: boolean;
+    message: string;
+    refundType: string;
+    paidAmount: number;
+    penaltyAmount: number;
+    usageDeduction: number;
+    refundAmount: number;
+    formula: string;
+    details: Array<{
+        refundHistId: number;
+        paymentDetailId: number;
+        paymentType: string;
+        refundAmount: number;
+        membershipHistId?: number;
+    }>;
+}
+
 export const paymentService = {
     calcActualPaidAmount(record: Partial<PaymentRecord>): number {
         const methodPaid =
@@ -284,6 +340,44 @@ export const paymentService = {
     async processMembershipRefund(request: MembershipRefundRequest): Promise<TicketRefundResponse> {
         const response = await apiClient.post('/payments/membership-refund', request);
         return response.data;
+    },
+
+    async calculateRefund(request: RefundCalculateRequest): Promise<RefundCalculateResult> {
+        const response = await apiClient.post('/payments/refund/calculate', request);
+        const d = response?.data ?? {};
+        return {
+            canRefund: Boolean(d.canRefund),
+            reason: typeof d.reason === "string" ? d.reason : undefined,
+            itemName: String(d.itemName || ""),
+            itemType: String(d.itemType || ""),
+            refundType: String(d.refundType || ""),
+            paidAmount: Number(d.paidAmount || 0),
+            penaltyRate: Number(d.penaltyRate || 0),
+            penaltyAmount: Number(d.penaltyAmount || 0),
+            usageDeduction: Number(d.usageDeduction || 0),
+            usedCount: Number(d.usedCount || 0),
+            totalCount: Number(d.totalCount || 0),
+            remainingCount: Number(d.remainingCount || 0),
+            singleSessionPrice: d.singleSessionPrice == null ? null : Number(d.singleSessionPrice),
+            estimatedRefund: Number(d.estimatedRefund || 0),
+            formula: String(d.formula || ""),
+        };
+    },
+
+    async executeRefund(request: RefundExecuteRequest): Promise<RefundExecuteResult> {
+        const response = await apiClient.post('/payments/refund/execute', request);
+        const d = response?.data ?? {};
+        return {
+            success: Boolean(d.success),
+            message: String(d.message || ""),
+            refundType: String(d.refundType || ""),
+            paidAmount: Number(d.paidAmount || 0),
+            penaltyAmount: Number(d.penaltyAmount || 0),
+            usageDeduction: Number(d.usageDeduction || 0),
+            refundAmount: Number(d.refundAmount || 0),
+            formula: String(d.formula || ""),
+            details: Array.isArray(d.details) ? d.details : [],
+        };
     },
 
     async create(patientId: number, amount: number): Promise<PaymentItem> {
