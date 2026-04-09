@@ -15,8 +15,8 @@ export interface TabletReservation {
 }
 
 export const tabletService = {
-    async verifyPatient(branchId: string, phone: string): Promise<{ patients: KioskPatient[] }> {
-        return kioskService.verifyPatient({ branchId, phone });
+    async verifyPatient(branchId: string, name: string, phone: string): Promise<{ patients: KioskPatient[] }> {
+        return kioskService.verifyPatient({ branchId, name, phone });
     },
 
     async getVisitPurposes(branchId: string): Promise<TabletVisitPurpose[]> {

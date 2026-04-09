@@ -17,6 +17,7 @@ export default function TabletCheckinPage() {
     const [branchId] = useState(String(searchParams.get("branchId") || "1"));
 
     const [step, setStep] = useState<1 | 2 | 3>(1);
+    const [name, setName] = useState("");
     const [phone, setPhone] = useState("");
     const [showKeypad, setShowKeypad] = useState(true);
     const [loading, setLoading] = useState(false);
@@ -35,6 +36,7 @@ export default function TabletCheckinPage() {
 
     const resetFlow = () => {
         setStep(1);
+        setName("");
         setPhone("");
         setShowKeypad(true);
         setError("");
@@ -46,6 +48,10 @@ export default function TabletCheckinPage() {
     };
 
     const handleSearch = async () => {
+        if (!name.trim()) {
+            setError("이름을 입력해 주세요.");
+            return;
+        }
         if (!phone.trim()) {
             setError("휴대폰 번호를 입력해 주세요.");
             return;
@@ -53,7 +59,7 @@ export default function TabletCheckinPage() {
         setError("");
         setLoading(true);
         try {
-            const res = await tabletService.verifyPatient(branchId, phone.trim());
+            const res = await tabletService.verifyPatient(branchId, name.trim(), phone.trim());
             const list = res.patients || [];
             setPatients(list);
             if (list.length === 0) {
@@ -121,7 +127,7 @@ export default function TabletCheckinPage() {
 
                 <div className="text-center mb-2">
                     <h1 className="text-2xl font-bold text-[#5C2A35]">태블릿 접수</h1>
-                    <p className="text-sm text-[#616161] mt-1">휴대폰번호를 입력하여 접수를 진행해 주세요.</p>
+                    <p className="text-sm text-[#616161] mt-1">이름과 휴대폰번호를 입력하여 접수를 진행해 주세요.</p>
                 </div>
 
                 {error && (
@@ -132,9 +138,22 @@ export default function TabletCheckinPage() {
 
                 {step === 1 && (
                     <div className="rounded-2xl border border-[#F8DCE2] bg-white p-6 shadow-sm">
-                        <h2 className="text-lg font-bold text-[#242424] mb-4">휴대전화번호로 접수하기</h2>
-                        <p className="text-xs text-[#616161] mb-4">예약시 사용한 휴대전화번호 또는 접수받으실 환자분의 휴대전화번호를 입력해주세요.</p>
+                        <h2 className="text-lg font-bold text-[#242424] mb-4">이름과 휴대전화번호로 접수하기</h2>
+                        <p className="text-xs text-[#616161] mb-4">예약시 등록한 이름과 휴대전화번호를 함께 입력해 주세요.</p>
 
+                        <div className="mb-3">
+                            <label className="mb-1.5 block text-xs font-bold text-[#616161]">이름</label>
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="환자 이름"
+                                autoComplete="off"
+                                className="w-full h-12 rounded-xl border border-[#F8DCE2] bg-white px-4 text-base font-bold text-[#242424] outline-none focus:border-[#E26B7C] focus:ring-2 focus:ring-[#F49EAF]/20 transition-all"
+                            />
+                        </div>
+
+                        <label className="mb-1.5 block text-xs font-bold text-[#616161]">휴대전화번호</label>
                         <div className="rounded-xl bg-[#FCF7F8] border border-[#F8DCE2] px-4 py-3 text-center text-2xl font-black tracking-widest text-[#242424] min-h-[52px] mb-4">
                             {phone || <span className="text-[#F8DCE2]">010-0000-0000</span>}
                         </div>
@@ -180,7 +199,7 @@ export default function TabletCheckinPage() {
                             </button>
                             <button
                                 onClick={handleSearch}
-                                disabled={loading || !phone.trim()}
+                                disabled={loading || !name.trim() || !phone.trim()}
                                 className="flex-1 h-12 rounded-xl bg-[#E26B7C] text-sm font-bold text-white hover:bg-[#99354E] disabled:opacity-50 transition-all duration-200"
                             >
                                 {loading ? "조회 중..." : "다음"}

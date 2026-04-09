@@ -75,6 +75,7 @@ export default function KioskBookingPage() {
   );
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [memo, setMemo] = useState("");
 
@@ -150,6 +151,10 @@ export default function KioskBookingPage() {
   };
 
   const handleVerifyPatient = async () => {
+    if (!name.trim()) {
+      setError("이름을 입력해 주세요.");
+      return;
+    }
     if (!phone.trim()) {
       setError("휴대폰 번호를 입력해 주세요.");
       return;
@@ -165,6 +170,7 @@ export default function KioskBookingPage() {
     try {
       const response = await kioskService.verifyPatient({
         branchId,
+        name: name.trim(),
         phone: phone.trim(),
       });
       const nextPatients = response.patients || [];
@@ -242,6 +248,7 @@ export default function KioskBookingPage() {
 
   const handleResetFlow = () => {
     setStep(1);
+    setName("");
     setPhone("");
     setMemo("");
     setPatients([]);
@@ -444,8 +451,19 @@ export default function KioskBookingPage() {
 
           {step === 1 && (
             <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_16px_36px_rgba(15,23,42,0.08)] sm:p-8">
-              <div className="mb-4 text-[24px] font-black tracking-tight text-slate-900">1. 휴대폰 번호로 검색</div>
+              <div className="mb-4 text-[24px] font-black tracking-tight text-slate-900">1. 이름 + 휴대폰 번호로 검색</div>
+              <div className="mb-4">
+                <label className="mb-1.5 block text-sm font-bold text-slate-700">이름</label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="환자 이름을 입력해 주세요"
+                  className="h-14 rounded-2xl text-base"
+                  autoComplete="off"
+                />
+              </div>
               <div>
+                <label className="mb-1.5 block text-sm font-bold text-slate-700">휴대폰 번호</label>
                 <Input
                   value={phone}
                   readOnly
@@ -510,7 +528,7 @@ export default function KioskBookingPage() {
                 <Button
                   variant="primary"
                   onClick={handleVerifyPatient}
-                  disabled={loadingVerify || !branchId || !phone.trim()}
+                  disabled={loadingVerify || !branchId || !name.trim() || !phone.trim()}
                   className="h-12 rounded-2xl px-7 text-base font-black"
                 >
                   {loadingVerify ? "조회 중..." : "환자 조회"}
