@@ -3063,10 +3063,10 @@ export default function PatientChartPage() {
                         <>
                             {/* Visit Header */}
                             <div
-                                className="h-12 border-b border-[#F8DCE2] flex items-center justify-between px-4 overflow-visible"
+                                className="min-h-12 border-b border-[#F8DCE2] flex items-center justify-between flex-wrap gap-y-1.5 px-4 py-1.5 overflow-visible"
                                 style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FCF7F8 100%)" }}
                             >
-                                <div className="flex items-center gap-2 text-sm font-semibold min-w-0">
+                                <div className="flex items-center gap-2 text-sm font-semibold min-w-0 flex-wrap gap-y-1.5">
                                     <span className="w-1 h-4 rounded-full shrink-0" style={{ background: "linear-gradient(180deg, #E26B7C 0%, #F49EAF 100%)" }} />
                                     <span className="text-[15px] whitespace-nowrap font-bold tracking-[-0.2px]" style={{ color: "#2A1F22" }}>
                                         {(() => {
@@ -3082,7 +3082,7 @@ export default function PatientChartPage() {
                                     </span>
 
                                     {/* Counselor/Doctor Dropdowns */}
-                                    <div className="flex items-center gap-2 ml-2 shrink-0">
+                                    <div className="flex items-center gap-2 ml-2 flex-wrap gap-y-1.5">
                                         <div className="relative" ref={counselorDropdownRef}>
                                             <button
                                                 type="button"
@@ -3094,8 +3094,8 @@ export default function PatientChartPage() {
                                                     setIsCounselorDropdownOpen((prev) => !prev);
                                                 }}
                                             >
-                                                <span className="text-xs text-gray-500 font-normal">상담:</span>
-                                                <span className="max-w-[78px] truncate">{selectedCounselorLabel}</span>
+                                                <span className="text-[11px] text-gray-500 font-normal">상담</span>
+                                                <span className="max-w-[64px] truncate">{selectedCounselorLabel}</span>
                                                 <ChevronDown
                                                     className={`h-3.5 w-3.5 text-slate-400 transition-transform ${
                                                         isCounselorDropdownOpen ? "rotate-180" : ""
@@ -3155,8 +3155,8 @@ export default function PatientChartPage() {
                                                     setIsDoctorDropdownOpen((prev) => !prev);
                                                 }}
                                             >
-                                                <span className="text-xs text-gray-500 font-normal">원장상담:</span>
-                                                <span className="max-w-[78px] truncate">{selectedDoctorCounselorLabel}</span>
+                                                <span className="text-[11px] text-gray-500 font-normal">원장</span>
+                                                <span className="max-w-[64px] truncate">{selectedDoctorCounselorLabel}</span>
                                                 <ChevronDown
                                                     className={`h-3.5 w-3.5 text-slate-400 transition-transform ${
                                                         isDoctorDropdownOpen ? "rotate-180" : ""
