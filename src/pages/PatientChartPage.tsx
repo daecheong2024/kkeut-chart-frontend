@@ -342,6 +342,7 @@ const formatReservationHistoryValue = (
 };
 
 import { useSettingsStore } from "../stores/useSettingsStore";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { ReceptionForm } from "../components/chart/ReceptionForm";
 import { PatientSearchModal } from "../components/common/PatientSearchModal";
 import AddPaymentModal from "../components/AddPaymentModal";
@@ -382,6 +383,9 @@ export default function PatientChartPage() {
         { minWidth: 280, ratio: 2.5 },
     ], []);
     const { containerRef: gridRef, widths: colWidths, onMouseDown: onSepMouseDown } = useResizableColumns(columnDefs);
+
+    const isMobile = useMediaQuery("(max-width: 767px)");
+    const [activeMobileColumn, setActiveMobileColumn] = useState<"visits" | "chart" | "ticket" | "sidebar">("chart");
 
     // Data States
     const [patient, setPatient] = useState<Patient | null>(null);
@@ -2783,14 +2787,14 @@ export default function PatientChartPage() {
         <div className="flex flex-col h-screen bg-[#FAF3F5] overflow-hidden text-sm" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
             {/* 1. Header */}
             <div
-                className="h-16 flex items-center justify-between px-6 shrink-0 z-20"
+                className="min-h-16 flex items-center justify-between flex-wrap gap-y-2 px-4 sm:px-6 py-2 shrink-0 z-20"
                 style={{
                     background: "linear-gradient(135deg, #FFFFFF 0%, #FCF7F8 50%, #FCEBEF 100%)",
                     borderBottom: "1px solid #F8DCE2",
                     boxShadow: "0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 18px rgba(226, 107, 124, 0.08)",
                 }}
             >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 sm:gap-4 flex-wrap gap-y-1.5">
                     <div
                         className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                         style={{
@@ -2873,7 +2877,10 @@ export default function PatientChartPage() {
             {/* Main Grid */}
             <div ref={gridRef} className="flex flex-1 overflow-hidden">
                 {/* [Column 1] Left: Visits */}
-                <div className="bg-white border-r border-[#F8DCE2] flex flex-col shrink-0" style={{ width: colWidths[0] ?? 280 }}>
+                <div
+                    className={`bg-white border-r border-[#F8DCE2] flex flex-col shrink-0 ${isMobile && activeMobileColumn !== "visits" ? "hidden" : ""}`}
+                    style={{ width: isMobile ? "100%" : (colWidths[0] ?? 280) }}
+                >
                     <div
                         className="flex items-center justify-between px-4 h-12 border-b border-[#F8DCE2]"
                         style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FCF7F8 100%)" }}
@@ -3052,13 +3059,18 @@ export default function PatientChartPage() {
                 </div>
 
                 {/* Separator 0-1 */}
-                <div
-                    className="w-1 shrink-0 cursor-col-resize hover:bg-[#E26B7C]/30 active:bg-[#E26B7C]/50 transition-colors"
-                    onMouseDown={(e) => onSepMouseDown(0, e)}
-                />
+                {!isMobile && (
+                    <div
+                        className="w-1 shrink-0 cursor-col-resize hover:bg-[#E26B7C]/30 active:bg-[#E26B7C]/50 transition-colors"
+                        onMouseDown={(e) => onSepMouseDown(0, e)}
+                    />
+                )}
 
                 {/* [Column 2] Center Left: Charting */}
-                <div className="flex flex-col border-r border-[#F8DCE2] bg-white overflow-visible" style={{ width: colWidths[1] ?? '40%' }}>
+                <div
+                    className={`flex flex-col border-r border-[#F8DCE2] bg-white overflow-visible ${isMobile && activeMobileColumn !== "chart" ? "hidden" : ""}`}
+                    style={{ width: isMobile ? "100%" : (colWidths[1] ?? '40%') }}
+                >
                     {selectedVisit ? (
                         <>
                             {/* Visit Header */}
@@ -3208,9 +3220,6 @@ export default function PatientChartPage() {
                                 </div>
 
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <button className="px-2 py-1 border rounded text-xs flex items-center gap-1 hover:bg-gray-50 whitespace-nowrap">
-                                        MarkVu
-                                    </button>
                                     <button
                                         onClick={handlePrintChartRecord}
                                         className="px-2 py-1 border rounded text-xs flex items-center gap-1 hover:bg-gray-50 whitespace-nowrap"
@@ -3488,13 +3497,18 @@ export default function PatientChartPage() {
                 </div>
 
                 {/* Separator 1-2 */}
-                <div
-                    className="w-1 shrink-0 cursor-col-resize hover:bg-[#E26B7C]/30 active:bg-[#E26B7C]/50 transition-colors"
-                    onMouseDown={(e) => onSepMouseDown(1, e)}
-                />
+                {!isMobile && (
+                    <div
+                        className="w-1 shrink-0 cursor-col-resize hover:bg-[#E26B7C]/30 active:bg-[#E26B7C]/50 transition-colors"
+                        onMouseDown={(e) => onSepMouseDown(1, e)}
+                    />
+                )}
 
                 {/* [Column 3] Center Right: Orders/Payment */}
-                <div className="flex flex-col border-r border-[#F8DCE2] bg-white overflow-hidden" style={{ width: colWidths[2] ?? '30%' }}>
+                <div
+                    className={`flex flex-col border-r border-[#F8DCE2] bg-white overflow-hidden ${isMobile && activeMobileColumn !== "ticket" ? "hidden" : ""}`}
+                    style={{ width: isMobile ? "100%" : (colWidths[2] ?? '30%') }}
+                >
                     <div
                         className="h-12 border-b border-[#F8DCE2] flex items-center justify-between px-4"
                         style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FCF7F8 100%)" }}
@@ -4231,13 +4245,18 @@ export default function PatientChartPage() {
                 </div>
 
                 {/* Separator 2-3 */}
-                <div
-                    className="w-1 shrink-0 cursor-col-resize hover:bg-[#E26B7C]/30 active:bg-[#E26B7C]/50 transition-colors"
-                    onMouseDown={(e) => onSepMouseDown(2, e)}
-                />
+                {!isMobile && (
+                    <div
+                        className="w-1 shrink-0 cursor-col-resize hover:bg-[#E26B7C]/30 active:bg-[#E26B7C]/50 transition-colors"
+                        onMouseDown={(e) => onSepMouseDown(2, e)}
+                    />
+                )}
 
                 {/* [Column 4] Right Sidebar */}
-                <div className="border-l border-[#F8DCE2] bg-white flex flex-col shrink-0" style={{ width: colWidths[3] ?? 336 }}>
+                <div
+                    className={`border-l border-[#F8DCE2] bg-white flex flex-col shrink-0 ${isMobile && activeMobileColumn !== "sidebar" ? "hidden" : ""}`}
+                    style={{ width: isMobile ? "100%" : (colWidths[3] ?? 336) }}
+                >
                     {/* Tabs */}
                     <div className="border-b border-[#F8DCE2] bg-[#FCF7F8] px-1.5 py-1.5">
                         {(() => {
@@ -4815,6 +4834,42 @@ export default function PatientChartPage() {
                     </div>
                 </div>
             </div>
+
+            {isMobile && (
+                <div
+                    className="shrink-0 grid grid-cols-4 border-t border-[#F8DCE2] bg-white"
+                    style={{ boxShadow: "0 -4px 14px rgba(226,107,124,0.10)" }}
+                >
+                    {([
+                        { key: "visits" as const, label: "내원이력", icon: "📋" },
+                        { key: "chart" as const, label: "차트", icon: "📝" },
+                        { key: "ticket" as const, label: "티켓", icon: "🎫" },
+                        { key: "sidebar" as const, label: "환자기록", icon: "👤" },
+                    ]).map((tab) => {
+                        const active = activeMobileColumn === tab.key;
+                        return (
+                            <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setActiveMobileColumn(tab.key)}
+                                className="flex flex-col items-center justify-center gap-0.5 py-2 transition-all"
+                                style={{
+                                    background: active ? "linear-gradient(180deg, #FCEBEF 0%, #FFFFFF 100%)" : "transparent",
+                                    borderTop: active ? "2px solid #E26B7C" : "2px solid transparent",
+                                }}
+                            >
+                                <span className="text-[16px]" style={{ filter: active ? "none" : "grayscale(0.4)" }}>{tab.icon}</span>
+                                <span
+                                    className="text-[10px] font-bold tracking-[0.1px]"
+                                    style={{ color: active ? "#99354E" : "#7C6066" }}
+                                >
+                                    {tab.label}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
 
             {/* Modals */}
             {/* Modals */}
