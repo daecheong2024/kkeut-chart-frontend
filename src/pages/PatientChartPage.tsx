@@ -4490,9 +4490,9 @@ export default function PatientChartPage() {
 
                                             return (
                                                 <div key={t.id} className="border border-[#F8DCE2] rounded-2xl bg-white p-2.5 text-[13px] hover:border-[#E26B7C]/30 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] transition-all duration-200 ease-in-out group">
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <span className="font-semibold text-[#242424]">{t.itemName}</span>
-                                                        <span className={`px-1.5 py-0.5 rounded text-[15px] font-bold ${statusClass}`}>{statusText}</span>
+                                                    <div className="flex justify-between items-start gap-2 mb-1">
+                                                        <span className="font-semibold text-[#242424] flex-1 min-w-0 break-words">{t.itemName}</span>
+                                                        <span className={`shrink-0 whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-bold tracking-[0.1px] ${statusClass}`}>{statusText}</span>
                                                     </div>
 
                                                     <div className="flex justify-between items-center text-gray-500 mb-1">
