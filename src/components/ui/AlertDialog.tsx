@@ -59,13 +59,23 @@ type DialogState = {
 export function AlertProvider({ children }: { children: React.ReactNode }) {
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const resolveRef = useRef<((value: boolean) => void) | null>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelPendingClose = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
 
   const showAlert = useCallback((options: AlertOptions | string) => {
+    cancelPendingClose();
     const opts = typeof options === "string" ? { message: options } : options;
     setDialog({ ...opts, type: opts.type || "info", visible: true, mode: "alert" });
   }, []);
 
   const showConfirm = useCallback((options: ConfirmOptions | string): Promise<boolean> => {
+    cancelPendingClose();
     const opts = typeof options === "string" ? { message: options } : options;
     return new Promise((resolve) => {
       resolveRef.current = resolve;
@@ -79,7 +89,11 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
       resolveRef.current = null;
     }
     setDialog((prev) => (prev ? { ...prev, visible: false } : null));
-    setTimeout(() => setDialog(null), 150);
+    cancelPendingClose();
+    closeTimeoutRef.current = setTimeout(() => {
+      setDialog((current) => (current && current.visible === false ? null : current));
+      closeTimeoutRef.current = null;
+    }, 150);
   };
 
   return (
