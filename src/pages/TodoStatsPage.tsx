@@ -177,9 +177,9 @@ function quickRange(key: QuickRangeKey): { from: Date; to: Date } {
 
 function KpiCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#C5CAE9] bg-white px-4 py-3 text-center" style={{ boxShadow: "0 4px 12px rgba(63, 81, 181, 0.08)" }}>
+    <div className="rounded-2xl border border-[#F8DCE2] bg-white px-4 py-3 text-center" style={{ boxShadow: "0 4px 12px rgba(226, 107, 124, 0.08)" }}>
       <div className="text-[11px] font-medium text-[#616161]">{label}</div>
-      <div className="mt-1 text-base font-bold tabular-nums text-[#1A237E]">{value}</div>
+      <div className="mt-1 text-base font-bold tabular-nums text-[#5C2A35]">{value}</div>
     </div>
   );
 }
@@ -408,11 +408,11 @@ export default function TodoStatsPage() {
   ];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-[#F5F7FA]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
+    <div className="flex min-h-0 flex-1 flex-col bg-[#FAF3F5]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
       <TopBar title="할일 통계" />
 
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6">
-        <section className="rounded-2xl border border-[#C5CAE9] bg-white px-5 py-4" style={{ boxShadow: "0 4px 12px rgba(63, 81, 181, 0.08)" }}>
+        <section className="rounded-2xl border border-[#F8DCE2] bg-white px-5 py-4" style={{ boxShadow: "0 4px 12px rgba(226, 107, 124, 0.08)" }}>
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="outline" size="md" className="min-w-[96px]">
               {branchName}
@@ -441,12 +441,12 @@ export default function TodoStatsPage() {
               <RotateCcw className="h-4 w-4" />
               기본
             </Button>
-            <div className="ml-auto inline-flex rounded-lg border border-[#C5CAE9] bg-white p-1">
+            <div className="ml-auto inline-flex rounded-lg border border-[#F8DCE2] bg-white p-1">
               {(["day", "week", "month"] as PeriodUnit[]).map((u) => (
                 <button
                   key={u}
                   type="button"
-                  className={`px-4 h-10 text-sm font-medium rounded-lg transition-all duration-200 inline-flex items-center ${periodUnit === u ? "bg-[#3F51B5] text-white shadow-[0_4px_12px_rgba(63,81,181,0.18)]" : "text-[#616161] hover:bg-[#E8EAF6] hover:text-[#1A237E]"}`}
+                  className={`px-4 h-10 text-sm font-medium rounded-lg transition-all duration-200 inline-flex items-center ${periodUnit === u ? "bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]" : "text-[#616161] hover:bg-[#FCEBEF] hover:text-[#5C2A35]"}`}
                   onClick={() => setPeriodUnit(u)}
                 >
                   {u === "day" ? "일별" : u === "week" ? "주별" : "월별"}
@@ -458,15 +458,15 @@ export default function TodoStatsPage() {
 
         {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
         {loading && !dashboard ? (
-          <div className="rounded-2xl border border-[#C5CAE9] bg-white px-6 py-10 text-center text-gray-500">할일 통계를 불러오는 중입니다...</div>
+          <div className="rounded-2xl border border-[#F8DCE2] bg-white px-6 py-10 text-center text-gray-500">할일 통계를 불러오는 중입니다...</div>
         ) : null}
 
         {dashboard ? (
           <>
-            <section className="rounded-2xl border border-[#C5CAE9] bg-white" style={{ boxShadow: "0 4px 12px rgba(63, 81, 181, 0.08)" }}>
-              <div className="flex items-center justify-between gap-3 border-b border-[#C5CAE9] bg-[#F8F9FD] px-5 py-4 rounded-t-2xl">
+            <section className="rounded-2xl border border-[#F8DCE2] bg-white" style={{ boxShadow: "0 4px 12px rgba(226, 107, 124, 0.08)" }}>
+              <div className="flex items-center justify-between gap-3 border-b border-[#F8DCE2] bg-[#FCF7F8] px-5 py-4 rounded-t-2xl">
                 <div>
-                  <div className="text-sm font-semibold text-[#1A237E]">{branchName} 할일/시술 통계</div>
+                  <div className="text-sm font-semibold text-[#5C2A35]">{branchName} 할일/시술 통계</div>
                   <div className="mt-1 text-xs text-[#616161]">집계기간: {rangeLabel} | 생성시각: {generatedLabel}</div>
                 </div>
               </div>
@@ -477,31 +477,31 @@ export default function TodoStatsPage() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-[#C5CAE9] bg-white" style={{ boxShadow: "0 4px 12px rgba(63, 81, 181, 0.08)" }}>
-              <div className="border-b border-[#C5CAE9] bg-[#F8F9FD] px-5 py-4 rounded-t-2xl">
-                <div className="text-sm font-semibold text-[#1A237E]">집계 기준</div>
+            <section className="rounded-2xl border border-[#F8DCE2] bg-white" style={{ boxShadow: "0 4px 12px rgba(226, 107, 124, 0.08)" }}>
+              <div className="border-b border-[#F8DCE2] bg-[#FCF7F8] px-5 py-4 rounded-t-2xl">
+                <div className="text-sm font-semibold text-[#5C2A35]">집계 기준</div>
               </div>
               <div className="p-5">
                 <ul className="space-y-1.5 text-sm leading-relaxed text-[#242424]">{criteria.map((v) => <li key={v}>- {v}</li>)}</ul>
-                <div className="mt-5 border-t border-[#C5CAE9] pt-4">
-                  <div className="text-sm font-semibold text-[#1A237E]">핵심 요약</div>
+                <div className="mt-5 border-t border-[#F8DCE2] pt-4">
+                  <div className="text-sm font-semibold text-[#5C2A35]">핵심 요약</div>
                   <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-[#242424]">{insights.map((v) => <li key={v}>- {v}</li>)}</ul>
                 </div>
               </div>
             </section>
 
-            <section className="rounded-2xl border border-[#C5CAE9] bg-white" style={{ boxShadow: "0 4px 12px rgba(63, 81, 181, 0.08)" }}>
-              <div className="border-b border-[#C5CAE9] bg-[#F8F9FD] px-5 py-4 rounded-t-2xl">
-                <div className="text-sm font-semibold text-[#1A237E]">직군별 현황</div>
+            <section className="rounded-2xl border border-[#F8DCE2] bg-white" style={{ boxShadow: "0 4px 12px rgba(226, 107, 124, 0.08)" }}>
+              <div className="border-b border-[#F8DCE2] bg-[#FCF7F8] px-5 py-4 rounded-t-2xl">
+                <div className="text-sm font-semibold text-[#5C2A35]">직군별 현황</div>
                 <div className="mt-1 text-xs text-[#616161]">직군별 지정건수와 인당 평균/중앙값, 집중도를 비교합니다.</div>
               </div>
               <div className="p-5">
               <div className="overflow-auto">
                 <table className="w-full min-w-[1240px] table-fixed">
-                  <thead className="bg-[#F8F9FD] sticky top-0 z-10">
+                  <thead className="bg-[#FCF7F8] sticky top-0 z-10">
                     <tr className="border-b border-gray-100">
                       {["직군", "인원수", "총 지정건수", "1인 평균 지정", "1인 중앙값 지정", "상위 3명 비중", "일평균 지정", "최다 지정자", "최대 지정건수"].map((h) => (
-                        <th key={h} className="py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">{h}</th>
+                        <th key={h} className="py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -523,8 +523,8 @@ export default function TodoStatsPage() {
                 </table>
               </div>
 
-              <div className="mt-5 rounded-xl border border-[#C5CAE9] bg-[#F8F9FD] p-4">
-                <div className="mb-2 text-center text-sm font-semibold text-[#1A237E]">기간별 담당자 지정/완료 추이</div>
+              <div className="mt-5 rounded-xl border border-[#F8DCE2] bg-[#FCF7F8] p-4">
+                <div className="mb-2 text-center text-sm font-semibold text-[#5C2A35]">기간별 담당자 지정/완료 추이</div>
                 <div className="h-[360px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={periodRows} margin={{ top: 18, right: 24, left: 8, bottom: 8 }}>
@@ -532,9 +532,9 @@ export default function TodoStatsPage() {
                       <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} />
                       <Tooltip formatter={(value: number | string | undefined) => `${fmtCount(Number(value || 0))}건`} />
-                      <Line type="monotone" dataKey="assignedCount" stroke="#3F51B5" strokeWidth={3} dot={{ r: 3 }} name="배정" />
-                      <Line type="monotone" dataKey="doneCount" stroke="#536DFE" strokeWidth={3} dot={{ r: 3 }} name="완료" />
-                      <Line type="monotone" dataKey="totalCount" stroke="#303F9F" strokeWidth={3} dot={{ r: 3 }} name="전체" />
+                      <Line type="monotone" dataKey="assignedCount" stroke="#E26B7C" strokeWidth={3} dot={{ r: 3 }} name="배정" />
+                      <Line type="monotone" dataKey="doneCount" stroke="#F49EAF" strokeWidth={3} dot={{ r: 3 }} name="완료" />
+                      <Line type="monotone" dataKey="totalCount" stroke="#99354E" strokeWidth={3} dot={{ r: 3 }} name="전체" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -546,15 +546,15 @@ export default function TodoStatsPage() {
               const top10 = job.staffRows.slice(0, 10);
               const top5Share = job.totalAssigned ? (top10.slice(0, 5).reduce((s, r) => s + r.assignedCount, 0) / job.totalAssigned) * 100 : 0;
               return (
-                <section key={job.jobTitleName} className="rounded-2xl border border-[#C5CAE9] bg-white" style={{ boxShadow: "0 4px 12px rgba(63, 81, 181, 0.08)" }}>
-                  <div className="border-b border-[#C5CAE9] bg-[#F8F9FD] px-5 py-4 rounded-t-2xl">
-                    <div className="text-sm font-semibold text-[#1A237E]">{job.jobTitleName} 담당자별 할일 현황</div>
+                <section key={job.jobTitleName} className="rounded-2xl border border-[#F8DCE2] bg-white" style={{ boxShadow: "0 4px 12px rgba(226, 107, 124, 0.08)" }}>
+                  <div className="border-b border-[#F8DCE2] bg-[#FCF7F8] px-5 py-4 rounded-t-2xl">
+                    <div className="text-sm font-semibold text-[#5C2A35]">{job.jobTitleName} 담당자별 할일 현황</div>
                   </div>
                   <div className="p-5">
                   <div className="overflow-auto">
                     <table className="w-full min-w-[1240px] table-fixed">
-                      <thead className="bg-[#F8F9FD] sticky top-0 z-10">
-                        <tr className="border-b border-gray-100">{["순위", "이름", "지정건수", "직군 내 비중", "완료건수", "완료율", "평균 소요시간", "소요시간 샘플수"].map((h) => <th key={h} className="py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">{h}</th>)}</tr>
+                      <thead className="bg-[#FCF7F8] sticky top-0 z-10">
+                        <tr className="border-b border-gray-100">{["순위", "이름", "지정건수", "직군 내 비중", "완료건수", "완료율", "평균 소요시간", "소요시간 샘플수"].map((h) => <th key={h} className="py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">{h}</th>)}</tr>
                       </thead>
                       <tbody>
                         {top10.map((r, i) => (
@@ -581,16 +581,16 @@ export default function TodoStatsPage() {
               );
             })}
 
-            <section className="rounded-2xl border border-[#C5CAE9] bg-white" style={{ boxShadow: "0 4px 12px rgba(63, 81, 181, 0.08)" }}>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#C5CAE9] bg-[#F8F9FD] px-5 py-4 rounded-t-2xl">
-                <div className="text-sm font-semibold text-[#1A237E]">{chartJob} 담당자 분포와 주요 시술</div>
+            <section className="rounded-2xl border border-[#F8DCE2] bg-white" style={{ boxShadow: "0 4px 12px rgba(226, 107, 124, 0.08)" }}>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#F8DCE2] bg-[#FCF7F8] px-5 py-4 rounded-t-2xl">
+                <div className="text-sm font-semibold text-[#5C2A35]">{chartJob} 담당자 분포와 주요 시술</div>
                 <div className="flex flex-wrap gap-2">
                   {jobOptions.map((j) => (
                     <button
                       key={j}
                       type="button"
                       onClick={() => setSelectedJob(j)}
-                      className={`h-10 rounded-lg border px-4 text-sm font-medium transition-all duration-200 inline-flex items-center ${selectedJob === j ? "border-[#3F51B5] bg-[#3F51B5] text-white shadow-[0_4px_12px_rgba(63,81,181,0.18)]" : "border-[#C5CAE9] bg-white text-[#616161] hover:bg-[#E8EAF6] hover:text-[#1A237E]"}`}
+                      className={`h-10 rounded-lg border px-4 text-sm font-medium transition-all duration-200 inline-flex items-center ${selectedJob === j ? "border-[#E26B7C] bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]" : "border-[#F8DCE2] bg-white text-[#616161] hover:bg-[#FCEBEF] hover:text-[#5C2A35]"}`}
                     >
                       {j}
                     </button>
@@ -598,8 +598,8 @@ export default function TodoStatsPage() {
                 </div>
               </div>
               <div className="p-5 grid gap-5 xl:grid-cols-2">
-                <div className="rounded-xl border border-[#C5CAE9] bg-[#F8F9FD] p-4">
-                  <div className="mb-2 text-center text-sm font-semibold text-[#1A237E]">{chartJob} 담당자 지정 건수</div>
+                <div className="rounded-xl border border-[#F8DCE2] bg-[#FCF7F8] p-4">
+                  <div className="mb-2 text-center text-sm font-semibold text-[#5C2A35]">{chartJob} 담당자 지정 건수</div>
                   <div className="h-[460px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={staffDist} layout="vertical" margin={{ top: 6, right: 18, left: 10, bottom: 6 }}>
@@ -607,13 +607,13 @@ export default function TodoStatsPage() {
                         <XAxis type="number" />
                         <YAxis type="category" dataKey="name" width={95} tick={{ fontSize: 12 }} interval={0} />
                         <Tooltip formatter={(value: number | string | undefined) => `${fmtCount(Number(value || 0))}건`} />
-                        <Bar dataKey="count" fill="#3F51B5" radius={[0, 6, 6, 0]} />
+                        <Bar dataKey="count" fill="#E26B7C" radius={[0, 6, 6, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
-                <div className="rounded-xl border border-[#C5CAE9] bg-[#F8F9FD] p-4">
-                  <div className="mb-2 text-center text-sm font-semibold text-[#1A237E]">{chartJob} TOP 10 시술 분류</div>
+                <div className="rounded-xl border border-[#F8DCE2] bg-[#FCF7F8] p-4">
+                  <div className="mb-2 text-center text-sm font-semibold text-[#5C2A35]">{chartJob} TOP 10 시술 분류</div>
                   <div className="h-[460px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={procDist} layout="vertical" margin={{ top: 6, right: 18, left: 10, bottom: 6 }}>
@@ -621,7 +621,7 @@ export default function TodoStatsPage() {
                         <XAxis type="number" />
                         <YAxis type="category" dataKey="name" width={145} tick={{ fontSize: 12 }} interval={0} />
                         <Tooltip formatter={(value: number | string | undefined) => `${fmtCount(Number(value || 0))}건`} />
-                        <Bar dataKey="count" fill="#536DFE" radius={[0, 6, 6, 0]} />
+                        <Bar dataKey="count" fill="#F49EAF" radius={[0, 6, 6, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

@@ -158,13 +158,13 @@ export function HospitalTaskSection() {
   };
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden rounded-[16px] border border-[#C5CAE9] bg-white">
-      <div className="flex items-center justify-between border-b border-[#C5CAE9] bg-[#F8F9FD] px-6 py-4">
-        <h2 className="text-base font-semibold text-[#1A237E]">병원업무</h2>
+    <div className="relative flex h-full flex-col overflow-hidden rounded-[16px] border border-[#F8DCE2] bg-white">
+      <div className="flex items-center justify-between border-b border-[#F8DCE2] bg-[#FCF7F8] px-6 py-4">
+        <h2 className="text-base font-semibold text-[#5C2A35]">병원업무</h2>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setDate((value) => subDays(value, 1))}
-            className="rounded-[8px] p-1.5 text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#E8EAF6]"
+            className="rounded-[8px] p-1.5 text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#FCEBEF]"
           >
             <ChevronLeft size={18} />
           </button>
@@ -173,13 +173,13 @@ export function HospitalTaskSection() {
           </div>
           <button
             onClick={() => setDate((value) => addDays(value, 1))}
-            className="rounded-[8px] p-1.5 text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#E8EAF6]"
+            className="rounded-[8px] p-1.5 text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#FCEBEF]"
           >
             <ChevronRight size={18} />
           </button>
           <button
             onClick={() => setDate(new Date())}
-            className="rounded-[8px] border border-[#C5CAE9] bg-white px-3 py-1.5 text-xs font-medium text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#E8EAF6]"
+            className="rounded-[8px] border border-[#F8DCE2] bg-white px-3 py-1.5 text-xs font-medium text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#FCEBEF]"
           >
             오늘
           </button>
@@ -193,15 +193,15 @@ export function HospitalTaskSection() {
           return (
             <div
               key={task.id}
-              className={`group flex items-start gap-3 rounded-[12px] border border-[#C5CAE9] p-3 transition-all duration-200 ease-in-out hover:shadow-[0_4px_12px_rgba(63,81,181,0.08)] ${
-                task.isCompleted ? "bg-[#F5F7FA]" : "bg-white"
+              className={`group flex items-start gap-3 rounded-[12px] border border-[#F8DCE2] p-3 transition-all duration-200 ease-in-out hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] ${
+                task.isCompleted ? "bg-[#FAF3F5]" : "bg-white"
               }`}
             >
               <button
                 onClick={() => toggleTask(task.id, task.isCompleted)}
-                className={`mt-0.5 shrink-0 transition-all duration-200 ease-in-out ${task.isCompleted ? "text-[#616161]" : "text-[#3F51B5]"}`}
+                className={`mt-0.5 shrink-0 transition-all duration-200 ease-in-out ${task.isCompleted ? "text-[#616161]" : "text-[#E26B7C]"}`}
               >
-                {task.isCompleted ? <CheckCircle2 size={20} className="fill-[#E8EAF6]" /> : <Circle size={20} />}
+                {task.isCompleted ? <CheckCircle2 size={20} className="fill-[#FCEBEF]" /> : <Circle size={20} />}
               </button>
 
               <div className="min-w-0 flex-1">
@@ -234,7 +234,7 @@ export function HospitalTaskSection() {
                   setEditingTask(task);
                   setEditContent(task.content || "");
                 }}
-                className="text-[#616161] opacity-0 transition-all duration-200 ease-in-out hover:text-[#3F51B5] group-hover:opacity-100"
+                className="text-[#616161] opacity-0 transition-all duration-200 ease-in-out hover:text-[#E26B7C] group-hover:opacity-100"
               >
                 <Pencil size={16} />
               </button>
@@ -249,10 +249,10 @@ export function HospitalTaskSection() {
         })}
       </div>
 
-      <div className="border-t border-[#C5CAE9] bg-[#F8F9FD] px-6 py-4">
+      <div className="border-t border-[#F8DCE2] bg-[#FCF7F8] px-6 py-4">
         <button
           onClick={openAddModal}
-          className="ml-auto flex items-center gap-1.5 rounded-[8px] bg-[#3F51B5] px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#303F9F]"
+          className="ml-auto flex items-center gap-1.5 rounded-[8px] bg-[#E26B7C] px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#99354E]"
         >
           <Plus size={16} />
           병원 업무 등록
@@ -261,11 +261,11 @@ export function HospitalTaskSection() {
 
       {isAddModalOpen && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 p-4">
-          <form onSubmit={handleSaveTask} className="w-full max-w-md rounded-[16px] border border-[#C5CAE9] bg-white p-6 shadow-[0_4px_12px_rgba(63,81,181,0.08)]">
-            <div className="mb-4 text-base font-semibold text-[#1A237E]">병원업무 입력</div>
+          <form onSubmit={handleSaveTask} className="w-full max-w-md rounded-[16px] border border-[#F8DCE2] bg-white p-6 shadow-[0_4px_12px_rgba(226,107,124,0.08)]">
+            <div className="mb-4 text-base font-semibold text-[#5C2A35]">병원업무 입력</div>
             <textarea
               autoFocus
-              className="h-28 w-full resize-none rounded-t-[8px] border-0 border-b-2 border-b-[#C5CAE9] bg-[#E8EAF6] p-3 text-sm text-[#242424] placeholder:text-[#616161] transition-all duration-200 ease-in-out focus:border-b-[#536DFE] focus:outline-none"
+              className="h-28 w-full resize-none rounded-t-[8px] border-0 border-b-2 border-b-[#F8DCE2] bg-[#FCEBEF] p-3 text-sm text-[#242424] placeholder:text-[#616161] transition-all duration-200 ease-in-out focus:border-b-[#F49EAF] focus:outline-none"
               placeholder="업무 내용을 입력해 주세요."
               value={newTaskContent}
               onChange={(event) => setNewTaskContent(event.target.value)}
@@ -274,14 +274,14 @@ export function HospitalTaskSection() {
               <button
                 type="button"
                 onClick={closeAddModal}
-                className="flex-1 rounded-[8px] border border-[#C5CAE9] bg-white py-2.5 text-sm font-medium text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#E8EAF6]"
+                className="flex-1 rounded-[8px] border border-[#F8DCE2] bg-white py-2.5 text-sm font-medium text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#FCEBEF]"
               >
                 취소
               </button>
               <button
                 type="submit"
                 disabled={!newTaskContent.trim()}
-                className="flex-1 rounded-[8px] bg-[#3F51B5] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#303F9F] disabled:opacity-50"
+                className="flex-1 rounded-[8px] bg-[#E26B7C] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#99354E] disabled:opacity-50"
               >
                 등록
               </button>
@@ -292,11 +292,11 @@ export function HospitalTaskSection() {
 
       {editingTask && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 p-4">
-          <form onSubmit={handleSaveEdit} className="w-full max-w-md rounded-[16px] border border-[#C5CAE9] bg-white p-6 shadow-[0_4px_12px_rgba(63,81,181,0.08)]">
-            <div className="mb-4 text-base font-semibold text-[#1A237E]">업무 수정</div>
+          <form onSubmit={handleSaveEdit} className="w-full max-w-md rounded-[16px] border border-[#F8DCE2] bg-white p-6 shadow-[0_4px_12px_rgba(226,107,124,0.08)]">
+            <div className="mb-4 text-base font-semibold text-[#5C2A35]">업무 수정</div>
             <textarea
               autoFocus
-              className="h-28 w-full resize-none rounded-t-[8px] border-0 border-b-2 border-b-[#C5CAE9] bg-[#E8EAF6] p-3 text-sm text-[#242424] placeholder:text-[#616161] transition-all duration-200 ease-in-out focus:border-b-[#536DFE] focus:outline-none"
+              className="h-28 w-full resize-none rounded-t-[8px] border-0 border-b-2 border-b-[#F8DCE2] bg-[#FCEBEF] p-3 text-sm text-[#242424] placeholder:text-[#616161] transition-all duration-200 ease-in-out focus:border-b-[#F49EAF] focus:outline-none"
               value={editContent}
               onChange={(event) => setEditContent(event.target.value)}
             />
@@ -304,14 +304,14 @@ export function HospitalTaskSection() {
               <button
                 type="button"
                 onClick={() => setEditingTask(null)}
-                className="flex-1 rounded-[8px] border border-[#C5CAE9] bg-white py-2.5 text-sm font-medium text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#E8EAF6]"
+                className="flex-1 rounded-[8px] border border-[#F8DCE2] bg-white py-2.5 text-sm font-medium text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#FCEBEF]"
               >
                 취소
               </button>
               <button
                 type="submit"
                 disabled={!editContent.trim()}
-                className="flex-1 rounded-[8px] bg-[#3F51B5] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#303F9F] disabled:opacity-50"
+                className="flex-1 rounded-[8px] bg-[#E26B7C] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#99354E] disabled:opacity-50"
               >
                 저장
               </button>

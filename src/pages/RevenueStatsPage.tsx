@@ -82,9 +82,9 @@ function PeriodLabel({ data }: { data: RevenueDashboard }) {
 
 function SectionCard({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-[#C5CAE9] bg-white" style={{ boxShadow: "0 4px 12px rgba(63, 81, 181, 0.08)" }}>
-      <div className="flex items-center justify-between gap-3 border-b border-[#C5CAE9] bg-[#F8F9FD] px-5 py-4 rounded-t-2xl">
-        <div className="text-sm font-semibold text-[#1A237E]">{title}</div>
+    <section className="rounded-2xl border border-[#F8DCE2] bg-white" style={{ boxShadow: "0 4px 12px rgba(226, 107, 124, 0.08)" }}>
+      <div className="flex items-center justify-between gap-3 border-b border-[#F8DCE2] bg-[#FCF7F8] px-5 py-4 rounded-t-2xl">
+        <div className="text-sm font-semibold text-[#5C2A35]">{title}</div>
         {right}
       </div>
       <div className="p-5">{children}</div>
@@ -94,9 +94,9 @@ function SectionCard({ title, right, children }: { title: string; right?: React.
 
 function StatPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#C5CAE9] bg-white px-4 py-3 text-center" style={{ boxShadow: "0 4px 12px rgba(63, 81, 181, 0.08)" }}>
+    <div className="rounded-2xl border border-[#F8DCE2] bg-white px-4 py-3 text-center" style={{ boxShadow: "0 4px 12px rgba(226, 107, 124, 0.08)" }}>
       <div className="text-[11px] font-medium text-[#616161]">{label}</div>
-      <div className="mt-1 text-base font-bold text-[#1A237E] tabular-nums">{value}</div>
+      <div className="mt-1 text-base font-bold text-[#5C2A35] tabular-nums">{value}</div>
     </div>
   );
 }
@@ -300,10 +300,10 @@ export default function RevenueStatsPage() {
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-[#F5F7FA]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
+    <div className="flex min-h-0 flex-1 flex-col bg-[#FAF3F5]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
       <TopBar title="수납" />
 
-      <div className="flex items-center gap-1 border-b border-[#C5CAE9] bg-white px-6">
+      <div className="flex items-center gap-1 border-b border-[#F8DCE2] bg-white px-6">
         {([
           { key: "stats" as TabKey, label: "수납통계" },
           { key: "receivables" as TabKey, label: "미수/환불 내역" },
@@ -314,7 +314,7 @@ export default function RevenueStatsPage() {
             className={
               "px-5 h-12 text-sm font-semibold border-b-2 transition-all duration-200 " +
               (activeTab === tab.key
-                ? "border-[#3F51B5] text-[#3F51B5]"
+                ? "border-[#E26B7C] text-[#E26B7C]"
                 : "border-transparent text-gray-500 hover:text-gray-700")
             }
           >
@@ -326,14 +326,14 @@ export default function RevenueStatsPage() {
       <div className="flex min-h-0 flex-1 flex-col gap-6 p-6 overflow-y-auto">
         {activeTab === "stats" && (<>
         {/* Toolbar */}
-        <div className="rounded-2xl border border-[#C5CAE9] bg-white px-5 py-4" style={{ boxShadow: "0 4px 12px rgba(63, 81, 181, 0.08)" }}>
+        <div className="rounded-2xl border border-[#F8DCE2] bg-white px-5 py-4" style={{ boxShadow: "0 4px 12px rgba(226, 107, 124, 0.08)" }}>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center justify-center px-4 h-10 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-500 min-w-[120px]">
                 {settings.branches.find(b => b.id === settings.activeBranchId)?.name || '지점'}
               </div>
 
-              <div className="flex items-center rounded-lg border border-[#C5CAE9] bg-white p-1">
+              <div className="flex items-center rounded-lg border border-[#F8DCE2] bg-white p-1">
                 {PERIODS.map((p) => (
                   <button
                     key={p.key}
@@ -341,8 +341,8 @@ export default function RevenueStatsPage() {
                     className={
                       "px-4 h-10 text-sm font-medium rounded-lg transition-all duration-200 inline-flex items-center " +
                       (period === p.key
-                        ? "bg-[#3F51B5] text-white shadow-[0_4px_12px_rgba(63,81,181,0.18)]"
-                        : "text-[#616161] hover:bg-[#E8EAF6] hover:text-[#1A237E]")
+                        ? "bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]"
+                        : "text-[#616161] hover:bg-[#FCEBEF] hover:text-[#5C2A35]")
                     }
                   >
                     {p.label}
@@ -410,15 +410,15 @@ export default function RevenueStatsPage() {
             <SectionCard title="결제수단별 요약">
               <div className="overflow-auto">
                 <table className="w-full min-w-[920px] table-fixed">
-                  <thead className="bg-[#F8F9FD] sticky top-0 z-10">
+                  <thead className="bg-[#FCF7F8] sticky top-0 z-10">
                     <tr className="border-b border-gray-100">
-                      <th className="w-40 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">결제수단</th>
-                      <th className="w-20 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">건수</th>
-                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">과세 공급가</th>
-                      <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">부가세</th>
-                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">비과세</th>
-                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">합계</th>
-                      <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">비중</th>
+                      <th className="w-40 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">결제수단</th>
+                      <th className="w-20 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">건수</th>
+                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">과세 공급가</th>
+                      <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">부가세</th>
+                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">비과세</th>
+                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">합계</th>
+                      <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">비중</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -461,15 +461,15 @@ export default function RevenueStatsPage() {
             <SectionCard title="직원별 매출 기여 (수납자 기준)">
               <div className="overflow-auto">
                 <table className="w-full min-w-[980px] table-fixed">
-                  <thead className="bg-[#F8F9FD] sticky top-0 z-10">
+                  <thead className="bg-[#FCF7F8] sticky top-0 z-10">
                     <tr className="border-b border-gray-100">
-                      <th className="w-40 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">직원</th>
-                      <th className="w-20 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">건수</th>
-                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">과세 공급가</th>
-                      <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">부가세</th>
-                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">비과세</th>
-                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">합계</th>
-                      <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">비중</th>
+                      <th className="w-40 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">직원</th>
+                      <th className="w-20 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">건수</th>
+                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">과세 공급가</th>
+                      <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">부가세</th>
+                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">비과세</th>
+                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">합계</th>
+                      <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">비중</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -512,13 +512,13 @@ export default function RevenueStatsPage() {
             <SectionCard title="직원별 회원권 결제 유치">
               <div className="overflow-auto">
                 <table className="w-full min-w-[860px] table-fixed">
-                  <thead className="bg-[#F8F9FD] sticky top-0 z-10">
+                  <thead className="bg-[#FCF7F8] sticky top-0 z-10">
                     <tr className="border-b border-gray-100">
-                      <th className="w-40 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">직원</th>
-                      <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">회원권 결제 건수</th>
-                      <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">회원권 항목수</th>
-                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">회원권 결제금액</th>
-                      <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">비중</th>
+                      <th className="w-40 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">직원</th>
+                      <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">회원권 결제 건수</th>
+                      <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">회원권 항목수</th>
+                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">회원권 결제금액</th>
+                      <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">비중</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -584,17 +584,17 @@ export default function RevenueStatsPage() {
             >
               <div className="overflow-auto">
                 <table className="w-full min-w-[1250px] table-fixed">
-                  <thead className="bg-[#F8F9FD] sticky top-0 z-10">
+                  <thead className="bg-[#FCF7F8] sticky top-0 z-10">
                     <tr className="border-b border-gray-100">
-                      <th className="w-36 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">결제일시</th>
-                      <th className="w-36 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">환자</th>
-                      <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">차트번호</th>
-                      <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">상담</th>
-                      <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">원장상담</th>
-                      <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">수납직원</th>
-                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">회원권 결제금액</th>
-                      <th className="w-36 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">회원권 항목</th>
-                      <th className="w-20 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">상태</th>
+                      <th className="w-36 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">결제일시</th>
+                      <th className="w-36 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">환자</th>
+                      <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">차트번호</th>
+                      <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">상담</th>
+                      <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">원장상담</th>
+                      <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">수납직원</th>
+                      <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">회원권 결제금액</th>
+                      <th className="w-36 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">회원권 항목</th>
+                      <th className="w-20 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">상태</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -669,20 +669,20 @@ export default function RevenueStatsPage() {
               >
                 <div className="overflow-auto">
                   <table className="w-full min-w-[1320px] table-fixed">
-                    <thead className="bg-[#F8F9FD] sticky top-0 z-10">
+                    <thead className="bg-[#FCF7F8] sticky top-0 z-10">
                       <tr className="border-b border-gray-100">
-                        <th className="w-36 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">결제시간</th>
-                        <th className="w-36 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">환자</th>
-                        <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">차트번호</th>
-                        <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">상담</th>
-                        <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">원장상담</th>
-                        <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">수납직원</th>
-                        <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">결제수단</th>
-                        <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">과세 공급가</th>
-                        <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">부가세</th>
-                        <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">비과세</th>
-                        <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">합계</th>
-                        <th className="w-20 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">상태</th>
+                        <th className="w-36 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">결제시간</th>
+                        <th className="w-36 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">환자</th>
+                        <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">차트번호</th>
+                        <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">상담</th>
+                        <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">원장상담</th>
+                        <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">수납직원</th>
+                        <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">결제수단</th>
+                        <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">과세 공급가</th>
+                        <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">부가세</th>
+                        <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">비과세</th>
+                        <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">합계</th>
+                        <th className="w-20 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">상태</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -740,9 +740,9 @@ export default function RevenueStatsPage() {
         {activeTab === "receivables" && (
           <div className="flex gap-6 min-h-0">
             <div className="w-[340px] shrink-0 space-y-3">
-              <div className="rounded-2xl border border-[#C5CAE9] bg-white px-5 py-4" style={{ boxShadow: "0 4px 12px rgba(63, 81, 181, 0.08)" }}>
+              <div className="rounded-2xl border border-[#F8DCE2] bg-white px-5 py-4" style={{ boxShadow: "0 4px 12px rgba(226, 107, 124, 0.08)" }}>
                 <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center rounded-lg border border-[#C5CAE9] bg-white p-1">
+                  <div className="flex items-center rounded-lg border border-[#F8DCE2] bg-white p-1">
                     {PERIODS.map((p) => (
                       <button
                         key={p.key}
@@ -750,8 +750,8 @@ export default function RevenueStatsPage() {
                         className={
                           "px-4 h-10 text-sm font-medium rounded-lg transition-all duration-200 inline-flex items-center " +
                           (period === p.key
-                            ? "bg-[#3F51B5] text-white shadow-[0_4px_12px_rgba(63,81,181,0.18)]"
-                            : "text-[#616161] hover:bg-[#E8EAF6] hover:text-[#1A237E]")
+                            ? "bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]"
+                            : "text-[#616161] hover:bg-[#FCEBEF] hover:text-[#5C2A35]")
                         }
                       >
                         {p.label}
@@ -791,7 +791,7 @@ export default function RevenueStatsPage() {
                   className={
                     "w-full rounded-2xl border px-4 py-3 text-left transition-all " +
                     (card.key === receivablesCategory
-                      ? "ring-2 ring-[#3F51B5] ring-offset-1"
+                      ? "ring-2 ring-[#E26B7C] ring-offset-1"
                       : "")
                   }
                   style={{ backgroundColor: card.bg, borderColor: card.border }}
@@ -827,15 +827,15 @@ export default function RevenueStatsPage() {
                 {!receivablesLoading && !receivablesError && (
                   <div className="overflow-auto">
                     <table className="w-full min-w-[700px] table-fixed">
-                      <thead className="bg-[#F8F9FD] sticky top-0 z-10">
+                      <thead className="bg-[#FCF7F8] sticky top-0 z-10">
                         <tr className="border-b border-gray-100">
-                          <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">환자번호</th>
-                          <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">환자명</th>
-                          <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">연락처</th>
-                          <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">
+                          <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">환자번호</th>
+                          <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">환자명</th>
+                          <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">연락처</th>
+                          <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">
                             {receivablesCategory === "receivable" ? "장바구니 추가일" : "환불일"}
                           </th>
-                          <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">
+                          <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">
                             {receivablesCategory === "receivable" ? "미수 금액" : "환불 금액"}
                           </th>
                         </tr>
@@ -861,7 +861,7 @@ export default function RevenueStatsPage() {
                                 <td className="py-3 px-2 text-sm text-gray-700 text-center">
                                   {hasDetail ? (
                                     <span className="inline-flex items-center gap-1">
-                                      <ChevronDown className={`h-3.5 w-3.5 text-[#3F51B5] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                      <ChevronDown className={`h-3.5 w-3.5 text-[#E26B7C] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                                       {p.customerId}
                                     </span>
                                   ) : p.customerId}
@@ -876,7 +876,7 @@ export default function RevenueStatsPage() {
                                   <td colSpan={5} className="px-4 py-2">
                                     <table className="w-full">
                                       <thead>
-                                        <tr className="border-b border-[#E8EAF6]">
+                                        <tr className="border-b border-[#FCEBEF]">
                                           <th className="py-2 px-2 text-center text-xs font-semibold text-[#5C6BC0]">티켓명</th>
                                           <th className="py-2 px-2 text-center text-xs font-semibold text-[#5C6BC0]">단가</th>
                                           <th className="py-2 px-2 text-center text-xs font-semibold text-[#5C6BC0]">수량</th>
@@ -933,11 +933,11 @@ export default function RevenueStatsPage() {
                 )}
 
                 {filteredReceivablePatients.length > receivablesPageSize && (
-                  <div className="flex items-center justify-center gap-2 py-3 border-t border-[#C5CAE9]">
+                  <div className="flex items-center justify-center gap-2 py-3 border-t border-[#F8DCE2]">
                     <button
                       disabled={receivablesPage <= 1}
                       onClick={() => { setReceivablesPage((p) => Math.max(1, p - 1)); setExpandedReceivableIdx(null); }}
-                      className="h-8 px-3 rounded-lg border border-[#C5CAE9] bg-white text-xs font-medium text-[#242424] hover:bg-[#E8EAF6] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+                      className="h-8 px-3 rounded-lg border border-[#F8DCE2] bg-white text-xs font-medium text-[#242424] hover:bg-[#FCEBEF] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
                     >
                       이전
                     </button>
@@ -948,7 +948,7 @@ export default function RevenueStatsPage() {
                     <button
                       disabled={receivablesPage >= receivablesTotalPages}
                       onClick={() => { setReceivablesPage((p) => p + 1); setExpandedReceivableIdx(null); }}
-                      className="h-8 px-3 rounded-lg border border-[#C5CAE9] bg-white text-xs font-medium text-[#242424] hover:bg-[#E8EAF6] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+                      className="h-8 px-3 rounded-lg border border-[#F8DCE2] bg-white text-xs font-medium text-[#242424] hover:bg-[#FCEBEF] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
                     >
                       다음
                     </button>

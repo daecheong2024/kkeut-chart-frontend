@@ -94,27 +94,27 @@ export default function TerminalTestPage() {
         <div className="max-w-5xl mx-auto p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-xl font-bold text-[#1A237E]">KIS 단말기 테스트</h1>
+                    <h1 className="text-xl font-bold text-[#5C2A35]">KIS 단말기 테스트</h1>
                     <p className="text-sm text-[#616161] mt-1">WebSocket 통신 테스트 (admin 전용)</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${connected ? "bg-green-500" : "bg-red-400"}`} />
                     <span className="text-sm font-medium text-[#242424]">{connected ? "연결됨" : "미연결"}</span>
                     {!connected ? (
-                        <button onClick={handleConnect} disabled={loading} className="rounded-lg bg-[#3F51B5] px-4 py-2 text-sm font-medium text-white hover:bg-[#303F9F] disabled:opacity-50 transition-all">
+                        <button onClick={handleConnect} disabled={loading} className="rounded-lg bg-[#E26B7C] px-4 py-2 text-sm font-medium text-white hover:bg-[#99354E] disabled:opacity-50 transition-all">
                             연결
                         </button>
                     ) : (
-                        <button onClick={handleDisconnect} className="rounded-lg border border-[#C5CAE9] bg-white px-4 py-2 text-sm font-medium text-[#616161] hover:bg-[#E8EAF6] transition-all">
+                        <button onClick={handleDisconnect} className="rounded-lg border border-[#F8DCE2] bg-white px-4 py-2 text-sm font-medium text-[#616161] hover:bg-[#FCEBEF] transition-all">
                             연결 해제
                         </button>
                     )}
                 </div>
             </div>
 
-            <div className="rounded-xl border border-[#C5CAE9] overflow-hidden">
-                <div className="px-4 py-3 bg-[#F8F9FD] border-b border-[#C5CAE9]">
-                    <div className="text-[14px] font-semibold text-[#1A237E]">연동 상태</div>
+            <div className="rounded-xl border border-[#F8DCE2] overflow-hidden">
+                <div className="px-4 py-3 bg-[#FCF7F8] border-b border-[#F8DCE2]">
+                    <div className="text-[14px] font-semibold text-[#5C2A35]">연동 상태</div>
                 </div>
                 <div className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -156,7 +156,7 @@ export default function TerminalTestPage() {
                                     setLoading(false);
                                 }}
                                 disabled={loading}
-                                className="rounded-lg bg-[#3F51B5] px-4 py-2 text-sm font-medium text-white hover:bg-[#303F9F] disabled:opacity-50 transition-all"
+                                className="rounded-lg bg-[#E26B7C] px-4 py-2 text-sm font-medium text-white hover:bg-[#99354E] disabled:opacity-50 transition-all"
                             >
                                 {loading ? "확인 중..." : "연동 확인"}
                             </button>
@@ -166,15 +166,15 @@ export default function TerminalTestPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-6">
-                <div className="rounded-xl border border-[#C5CAE9] overflow-hidden">
-                    <div className="px-4 py-3 bg-[#F8F9FD] border-b border-[#C5CAE9]">
-                        <div className="text-[14px] font-semibold text-[#1A237E]">결제 테스트</div>
+                <div className="rounded-xl border border-[#F8DCE2] overflow-hidden">
+                    <div className="px-4 py-3 bg-[#FCF7F8] border-b border-[#F8DCE2]">
+                        <div className="text-[14px] font-semibold text-[#5C2A35]">결제 테스트</div>
                     </div>
                     <div className="p-4 space-y-3">
                         <div>
                             <label className="text-[12px] font-medium text-[#616161]">거래유형</label>
                             <select value={payTradeType} onChange={(e) => setPayTradeType(e.target.value as "D1" | "v1")}
-                                className="w-full mt-1 rounded-lg border border-[#C5CAE9] px-3 py-2 text-[13px]">
+                                className="w-full mt-1 rounded-lg border border-[#F8DCE2] px-3 py-2 text-[13px]">
                                 <option value="D1">D1 - 신용카드 승인</option>
                                 <option value="v1">v1 - 간편결제 승인</option>
                             </select>
@@ -182,16 +182,16 @@ export default function TerminalTestPage() {
                         <div>
                             <label className="text-[12px] font-medium text-[#616161]">결제 금액</label>
                             <input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
-                                className="w-full mt-1 rounded-lg border border-[#C5CAE9] px-3 py-2 text-[13px]" />
+                                className="w-full mt-1 rounded-lg border border-[#F8DCE2] px-3 py-2 text-[13px]" />
                         </div>
                         <div>
                             <label className="text-[12px] font-medium text-[#616161]">할부 (00=일시불)</label>
                             <input value={payInstallment} onChange={(e) => setPayInstallment(e.target.value)}
-                                className="w-full mt-1 rounded-lg border border-[#C5CAE9] px-3 py-2 text-[13px]" />
+                                className="w-full mt-1 rounded-lg border border-[#F8DCE2] px-3 py-2 text-[13px]" />
                         </div>
                         <div className="flex gap-2 pt-2">
                             <button onClick={handlePayment} disabled={loading || !connected}
-                                className="flex-1 rounded-lg bg-[#3F51B5] py-2.5 text-sm font-medium text-white hover:bg-[#303F9F] disabled:opacity-50 transition-all">
+                                className="flex-1 rounded-lg bg-[#E26B7C] py-2.5 text-sm font-medium text-white hover:bg-[#99354E] disabled:opacity-50 transition-all">
                                 {loading ? "대기 중..." : "결제 요청"}
                             </button>
                             {loading && (
@@ -203,15 +203,15 @@ export default function TerminalTestPage() {
                     </div>
                 </div>
 
-                <div className="rounded-xl border border-[#C5CAE9] overflow-hidden">
-                    <div className="px-4 py-3 bg-[#F8F9FD] border-b border-[#C5CAE9]">
-                        <div className="text-[14px] font-semibold text-[#1A237E]">환불 테스트</div>
+                <div className="rounded-xl border border-[#F8DCE2] overflow-hidden">
+                    <div className="px-4 py-3 bg-[#FCF7F8] border-b border-[#F8DCE2]">
+                        <div className="text-[14px] font-semibold text-[#5C2A35]">환불 테스트</div>
                     </div>
                     <div className="p-4 space-y-3">
                         <div>
                             <label className="text-[12px] font-medium text-[#616161]">거래유형</label>
                             <select value={refundTradeType} onChange={(e) => setRefundTradeType(e.target.value as "D2" | "v2")}
-                                className="w-full mt-1 rounded-lg border border-[#C5CAE9] px-3 py-2 text-[13px]">
+                                className="w-full mt-1 rounded-lg border border-[#F8DCE2] px-3 py-2 text-[13px]">
                                 <option value="D2">D2 - 신용카드 취소</option>
                                 <option value="v2">v2 - 간편결제 취소</option>
                             </select>
@@ -219,22 +219,22 @@ export default function TerminalTestPage() {
                         <div>
                             <label className="text-[12px] font-medium text-[#616161]">원승인번호</label>
                             <input value={refundOrgAuthNo} onChange={(e) => setRefundOrgAuthNo(e.target.value)}
-                                className="w-full mt-1 rounded-lg border border-[#C5CAE9] px-3 py-2 text-[13px]" placeholder="결제 성공 시 자동 입력" />
+                                className="w-full mt-1 rounded-lg border border-[#F8DCE2] px-3 py-2 text-[13px]" placeholder="결제 성공 시 자동 입력" />
                         </div>
                         <div>
                             <label className="text-[12px] font-medium text-[#616161]">원승인일자 (YYMMDD)</label>
                             <input value={refundOrgAuthDate} onChange={(e) => setRefundOrgAuthDate(e.target.value)}
-                                className="w-full mt-1 rounded-lg border border-[#C5CAE9] px-3 py-2 text-[13px]" placeholder="결제 성공 시 자동 입력" />
+                                className="w-full mt-1 rounded-lg border border-[#F8DCE2] px-3 py-2 text-[13px]" placeholder="결제 성공 시 자동 입력" />
                         </div>
                         <div>
                             <label className="text-[12px] font-medium text-[#616161]">VANKEY</label>
                             <input value={refundVanKey} onChange={(e) => setRefundVanKey(e.target.value)}
-                                className="w-full mt-1 rounded-lg border border-[#C5CAE9] px-3 py-2 text-[13px]" placeholder="결제 성공 시 자동 입력" />
+                                className="w-full mt-1 rounded-lg border border-[#F8DCE2] px-3 py-2 text-[13px]" placeholder="결제 성공 시 자동 입력" />
                         </div>
                         <div>
                             <label className="text-[12px] font-medium text-[#616161]">환불 금액</label>
                             <input type="number" value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)}
-                                className="w-full mt-1 rounded-lg border border-[#C5CAE9] px-3 py-2 text-[13px]" />
+                                className="w-full mt-1 rounded-lg border border-[#F8DCE2] px-3 py-2 text-[13px]" />
                         </div>
                         <div className="flex gap-2 pt-2">
                             <button onClick={handleRefund} disabled={loading || !connected}
@@ -251,10 +251,10 @@ export default function TerminalTestPage() {
                 </div>
             </div>
 
-            <div className="rounded-xl border border-[#C5CAE9] overflow-hidden">
-                <div className="px-4 py-3 bg-[#F8F9FD] border-b border-[#C5CAE9] flex items-center justify-between">
-                    <div className="text-[14px] font-semibold text-[#1A237E]">통신 로그</div>
-                    <button onClick={() => setLogs([])} className="text-[11px] text-[#616161] hover:text-[#3F51B5]">초기화</button>
+            <div className="rounded-xl border border-[#F8DCE2] overflow-hidden">
+                <div className="px-4 py-3 bg-[#FCF7F8] border-b border-[#F8DCE2] flex items-center justify-between">
+                    <div className="text-[14px] font-semibold text-[#5C2A35]">통신 로그</div>
+                    <button onClick={() => setLogs([])} className="text-[11px] text-[#616161] hover:text-[#E26B7C]">초기화</button>
                 </div>
                 <div className="p-4 max-h-[400px] overflow-y-auto bg-[#1a1a2e] rounded-b-xl">
                     {logs.length === 0 && <div className="text-[12px] text-gray-500 text-center py-4">로그가 없습니다.</div>}

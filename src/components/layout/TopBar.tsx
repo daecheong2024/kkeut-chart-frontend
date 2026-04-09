@@ -11,9 +11,9 @@ export function TopBar({ title, children }: { title: string; children?: React.Re
       style={{
         display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between",
         gap: 16, padding: "12px 24px",
-        background: "#F8F9FD",
-        borderBottom: "1px solid #C5CAE9",
-        boxShadow: "0 1px 3px rgba(63, 81, 181, 0.06)",
+        background: "#FCF7F8",
+        borderBottom: "1px solid #F8DCE2",
+        boxShadow: "0 1px 3px rgba(226, 107, 124, 0.06)",
         fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif",
       }}
     >
@@ -25,7 +25,7 @@ export function TopBar({ title, children }: { title: string; children?: React.Re
             style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               width: 40, height: 40, borderRadius: 8,
-              border: "1px solid #C5CAE9", background: "#FFFFFF",
+              border: "1px solid #F8DCE2", background: "#FFFFFF",
               color: "#242424", cursor: "pointer",
               transition: "all 0.2s ease-in-out",
             }}
@@ -35,7 +35,7 @@ export function TopBar({ title, children }: { title: string; children?: React.Re
           </button>
         ) : null}
 
-        <div style={{ fontSize: 18, fontWeight: 700, color: "#1A237E", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: "#5C2A35", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
           {title}
         </div>
 

@@ -307,23 +307,23 @@ export function WaitCard({
         if (expandOnClick) { setIsExpanded(!isExpanded); return; }
         if (onCardClick) onCardClick();
       }}
-      className={`border rounded-2xl p-2 hover:shadow-[0_4px_12px_rgba(63,81,181,0.08)] transition-all duration-200 ease-in-out ${onCardClick || expandOnClick ? "cursor-pointer" : "cursor-move"} group select-none relative ${!(statusConfig as any).colorHex ? `${statusConfig.bgColor} ${statusConfig.borderColor}` : ""} ${isHighlighted ? "animate-card-highlight" : ""} ${isAlertTriggered ? "animate-pulse ring-2 ring-red-400" : ""}`}
+      className={`border rounded-2xl p-2 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] transition-all duration-200 ease-in-out ${onCardClick || expandOnClick ? "cursor-pointer" : "cursor-move"} group select-none relative ${!(statusConfig as any).colorHex ? `${statusConfig.bgColor} ${statusConfig.borderColor}` : ""} ${isHighlighted ? "animate-card-highlight" : ""} ${isAlertTriggered ? "animate-pulse ring-2 ring-red-400" : ""}`}
       style={cardStyle}
     >
       <div className="mb-1.5 flex flex-col gap-1.5">
         <div className="flex min-w-0 items-center gap-1.5">
           {expandOnClick ? (
-            <span className="shrink-0 text-[10px] text-[#9FA8DA] transition-transform" style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+            <span className="shrink-0 text-[10px] text-[#E5B5C0] transition-transform" style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
           ) : (
             <button
               type="button"
-              className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-[10px] text-[#9FA8DA] hover:text-[#3F51B5] hover:bg-[#E8EAF6] transition-all"
+              className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-[10px] text-[#E5B5C0] hover:text-[#E26B7C] hover:bg-[#FCEBEF] transition-all"
               style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
               onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
             >▶</button>
           )}
           <span className="shrink-0 text-xs font-normal text-[#9E9E9E]">{patient.chartNo}</span>
-          <span className="min-w-0 truncate text-base font-bold text-[#1A237E]">{patient.name}</span>
+          <span className="min-w-0 truncate text-base font-bold text-[#5C2A35]">{patient.name}</span>
           <span className="shrink-0 text-[11px] font-medium text-[#616161]">{patient.gender}, {patient.age}세</span>
           <div className="shrink-0 flex items-center gap-1 ml-auto">
             {patient.time && (
@@ -353,7 +353,7 @@ export function WaitCard({
               e.stopPropagation();
               navigate(`/app/chart-view/${patient.patientId}`);
             }}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#C5CAE9]/50 bg-white/80 text-[#616161] transition-all duration-200 hover:bg-[#E8EAF6] hover:text-[#3F51B5] hover:border-[#3F51B5]/30"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#F8DCE2]/50 bg-white/80 text-[#616161] transition-all duration-200 hover:bg-[#FCEBEF] hover:text-[#E26B7C] hover:border-[#E26B7C]/30"
             title="차트 보기"
           >
             <FileText className="h-4 w-4" />
@@ -377,13 +377,13 @@ export function WaitCard({
                   }}
                   onMouseEnter={(e) => { e.stopPropagation(); setShowPrintTip(true); }}
                   onMouseLeave={() => setShowPrintTip(false)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#C5CAE9]/50 bg-white/80 text-[#616161] transition-all duration-200 hover:bg-[#E8EAF6] hover:text-[#3F51B5] hover:border-[#3F51B5]/30"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#F8DCE2]/50 bg-white/80 text-[#616161] transition-all duration-200 hover:bg-[#FCEBEF] hover:text-[#E26B7C] hover:border-[#E26B7C]/30"
                 >
                   <Printer className="h-4 w-4" />
                 </button>
                 {showPrintTip && printPreview && tipStyle && createPortal(
                   <div
-                    className="pointer-events-none w-max max-w-[280px] rounded-lg border border-[#C5CAE9] bg-white px-3 py-2 text-[11px] text-[#242424] shadow-lg whitespace-pre-wrap leading-relaxed"
+                    className="pointer-events-none w-max max-w-[280px] rounded-lg border border-[#F8DCE2] bg-white px-3 py-2 text-[11px] text-[#242424] shadow-lg whitespace-pre-wrap leading-relaxed"
                     style={{ ...tipStyle, zIndex: 99999 }}
                   >
                     {printPreview}
@@ -445,7 +445,7 @@ export function WaitCard({
                 e.stopPropagation();
                 onDelete();
               }}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#C5CAE9]/50 bg-white/80 text-[#616161] transition-all duration-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#F8DCE2]/50 bg-white/80 text-[#616161] transition-all duration-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200"
               title="삭제"
             >
               <Trash2 className="h-4 w-4" />
@@ -578,13 +578,13 @@ export function WaitCard({
                   }}
                   title={status === "todo" ? "시작" : status === "doing" ? "완료" : "초기화"}
                 >
-                  <circle cx="8" cy="8" r="7" fill="none" stroke={status === "todo" ? "#D1D5DB" : status === "doing" ? "#3F51B5" : "#10B981"} strokeWidth="1.5" />
-                  {status === "doing" && <path d="M8 1 A7 7 0 0 1 8 15 Z" fill="#3F51B5" />}
+                  <circle cx="8" cy="8" r="7" fill="none" stroke={status === "todo" ? "#D1D5DB" : status === "doing" ? "#E26B7C" : "#10B981"} strokeWidth="1.5" />
+                  {status === "doing" && <path d="M8 1 A7 7 0 0 1 8 15 Z" fill="#E26B7C" />}
                   {status === "done" && <circle cx="8" cy="8" r="5.5" fill="#10B981" />}
                 </svg>
                 <span className={`flex-1 min-w-0 truncate text-[11px] ${status === "done" ? "line-through text-gray-400" : ""}`}>{todo.content}</span>
                 {status === "doing" && todo.startedAt && (
-                  <span className="text-[10px] text-[#3F51B5] shrink-0">{format(new Date(todo.startedAt), "HH:mm")}~</span>
+                  <span className="text-[10px] text-[#E26B7C] shrink-0">{format(new Date(todo.startedAt), "HH:mm")}~</span>
                 )}
                 {status === "done" && todo.startedAt && todo.completedAt && (
                   <span className="text-[10px] text-emerald-600 shrink-0">
@@ -804,7 +804,7 @@ export function WaitCard({
                   setIsSavingStatusAlert(false);
                 }
               }}
-              className="h-10 rounded-xl bg-[#3F51B5] px-5 text-sm font-bold text-white shadow-sm hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-10 rounded-xl bg-[#E26B7C] px-5 text-sm font-bold text-white shadow-sm hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSavingStatusAlert ? "저장중..." : "적용"}
             </button>

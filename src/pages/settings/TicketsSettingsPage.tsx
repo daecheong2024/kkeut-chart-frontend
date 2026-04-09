@@ -256,9 +256,16 @@ export default function TicketsSettingsPage() {
 
   const loadTicketDefs = async (categoryList?: ProcedureTodoStatsProcedureGroupRule[]) => {
     try {
-      const result = await ticketDefService.getAll();
+      const allItems: TicketDefResponse[] = [];
+      let page = 1;
+      while (true) {
+        const result = await ticketDefService.getAll(undefined, page, 500);
+        allItems.push(...result.items);
+        if (page >= result.totalPages) break;
+        page++;
+      }
       const cats = categoryList || procedureGroups;
-      const mapped = result.items.map((r) => mapResponseToTicketItem(r, cats));
+      const mapped = allItems.map((r) => mapResponseToTicketItem(r, cats));
       setItems(mapped);
     } catch (e) {
       console.error("Failed to load ticket defs", e);
@@ -972,7 +979,7 @@ export default function TicketsSettingsPage() {
                   <div className="space-y-5">
                     {/* 기본 정보 섹션 */}
                     <div className="rounded-xl border border-[rgb(var(--kkeut-border))] p-4">
-                      <div className="mb-3 text-sm font-bold text-[#1A237E]">기본 정보</div>
+                      <div className="mb-3 text-sm font-bold text-[#5C2A35]">기본 정보</div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <label className="mb-1 block text-xs font-bold text-gray-500">티켓명</label>
@@ -1006,7 +1013,7 @@ export default function TicketsSettingsPage() {
 
                     {/* 분류 및 시술 설정 */}
                     <div className="rounded-xl border border-[rgb(var(--kkeut-border))] p-4">
-                      <div className="mb-3 text-sm font-bold text-[#1A237E]">분류 및 시술</div>
+                      <div className="mb-3 text-sm font-bold text-[#5C2A35]">분류 및 시술</div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <div className="mb-1 flex items-center justify-between">
@@ -1079,7 +1086,7 @@ export default function TicketsSettingsPage() {
 
                     {/* 판매 및 유형 */}
                     <div className="rounded-xl border border-[rgb(var(--kkeut-border))] p-4">
-                      <div className="mb-3 text-sm font-bold text-[#1A237E]">판매 및 유형</div>
+                      <div className="mb-3 text-sm font-bold text-[#5C2A35]">판매 및 유형</div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-bold text-gray-500">판매 시작일</label>

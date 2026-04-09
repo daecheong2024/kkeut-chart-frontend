@@ -45,7 +45,7 @@ export default function ReservationCancelModal({ isOpen, onClose, onConfirm }: R
                     <div className="mb-1">
                         <label className="block text-sm font-bold text-gray-600 mb-2">취소 사유</label>
                         <textarea
-                            className="w-full h-32 p-3 border border-[#C5CAE9] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#E8EAF6] text-sm placeholder-gray-300"
+                            className="w-full h-32 p-3 border border-[#F8DCE2] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#FCEBEF] text-sm placeholder-gray-300"
                             placeholder="400자 이내로 입력해 주세요"
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
@@ -63,7 +63,7 @@ export default function ReservationCancelModal({ isOpen, onClose, onConfirm }: R
                             id="noshow"
                             checked={isNoShow}
                             onChange={(e) => setIsNoShow(e.target.checked)}
-                            className="w-5 h-5 rounded border-gray-300 text-[#3F51B5] focus:ring-[#E8EAF6]"
+                            className="w-5 h-5 rounded border-gray-300 text-[#E26B7C] focus:ring-[#FCEBEF]"
                         />
                         <label htmlFor="noshow" className="text-sm font-bold text-gray-800 cursor-pointer">노쇼</label>
                     </div>
@@ -78,7 +78,7 @@ export default function ReservationCancelModal({ isOpen, onClose, onConfirm }: R
                         </button>
                         <button
                             onClick={() => onConfirm(reason, isNoShow)}
-                            className="px-6 py-2 bg-[#3F51B5] text-white font-bold rounded-lg hover:bg-[#303F9F] text-sm"
+                            className="px-6 py-2 bg-[#E26B7C] text-white font-bold rounded-lg hover:bg-[#99354E] text-sm"
                         >
                             확인
                         </button>

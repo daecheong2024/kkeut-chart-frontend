@@ -148,12 +148,12 @@ export function Sidebar({ onNavigate, collapsed = false }: { onNavigate?: () => 
 
   return (
     <aside className="kkeut-sidebar-shell flex h-full w-[264px] flex-col">
-      <div className="px-5 py-5 border-b border-white/10 flex items-center justify-between">
+      <div className="relative px-5 py-5 border-b border-white/10 flex items-center justify-center">
         <BrandMark />
         {shell && (
           <button
             onClick={() => shell.toggleSidebarCollapsed()}
-            className="p-1 rounded hover:bg-white/15 text-white/50 hover:text-white transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-white/15 text-white/50 hover:text-white transition-colors"
             title="사이드바 접기"
           >
             <ChevronLeft className="w-4 h-4" />

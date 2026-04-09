@@ -26,7 +26,7 @@ const CHANGE_TYPE_LABELS: Record<string, string> = {
 };
 
 const CHANGE_TYPE_COLORS: Record<string, string> = {
-    CREATED: "bg-[#E8EAF6] text-[#3F51B5]",
+    CREATED: "bg-[#FCEBEF] text-[#E26B7C]",
     DATE_CHANGED: "bg-amber-50 text-amber-700",
     CATEGORY_CHANGED: "bg-teal-50 text-teal-700",
     MEMO_CHANGED: "bg-sky-50 text-sky-700",
@@ -59,14 +59,14 @@ export function ReservationChangeHistoryModal({ isOpen, onClose, reservationId }
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
             <div className="absolute inset-0 bg-black/40" onClick={onClose} />
             <div
-                className="relative flex flex-col w-[800px] max-h-[80vh] rounded-2xl border border-[#C5CAE9] bg-white animate-in fade-in zoom-in-95 duration-200"
-                style={{ boxShadow: "0 8px 32px rgba(63, 81, 181, 0.12)" }}
+                className="relative flex flex-col w-[800px] max-h-[80vh] rounded-2xl border border-[#F8DCE2] bg-white animate-in fade-in zoom-in-95 duration-200"
+                style={{ boxShadow: "0 8px 32px rgba(226, 107, 124, 0.12)" }}
             >
-                <div className="flex items-center justify-between px-6 py-4 bg-[#F8F9FD] rounded-t-2xl border-b border-[#C5CAE9]">
-                    <h2 className="text-base font-bold text-[#1A237E] tracking-tight">예약 수정이력</h2>
+                <div className="flex items-center justify-between px-6 py-4 bg-[#FCF7F8] rounded-t-2xl border-b border-[#F8DCE2]">
+                    <h2 className="text-base font-bold text-[#5C2A35] tracking-tight">예약 수정이력</h2>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-lg text-[#616161] hover:bg-[#E8EAF6] transition-all duration-200"
+                        className="p-2 rounded-lg text-[#616161] hover:bg-[#FCEBEF] transition-all duration-200"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -79,20 +79,20 @@ export function ReservationChangeHistoryModal({ isOpen, onClose, reservationId }
                         <div className="text-center text-[#616161] py-16 text-sm">수정이력이 없습니다.</div>
                     ) : (
                         <table className="w-full text-sm border-collapse">
-                            <thead className="sticky top-0 bg-[#F8F9FD]">
-                                <tr className="border-b border-[#C5CAE9]">
-                                    <th className="py-3 px-4 text-center text-xs font-semibold text-[#1A237E] w-[108px]">변경유형</th>
-                                    <th className="py-3 px-4 text-center text-xs font-semibold text-[#1A237E]">이전값</th>
-                                    <th className="py-3 px-4 text-center text-xs font-semibold text-[#1A237E]">변경값</th>
-                                    <th className="py-3 px-4 text-center text-xs font-semibold text-[#1A237E] w-[72px]">변경자</th>
-                                    <th className="py-3 px-4 text-center text-xs font-semibold text-[#1A237E] w-[132px]">변경일시</th>
+                            <thead className="sticky top-0 bg-[#FCF7F8]">
+                                <tr className="border-b border-[#F8DCE2]">
+                                    <th className="py-3 px-4 text-center text-xs font-semibold text-[#5C2A35] w-[108px]">변경유형</th>
+                                    <th className="py-3 px-4 text-center text-xs font-semibold text-[#5C2A35]">이전값</th>
+                                    <th className="py-3 px-4 text-center text-xs font-semibold text-[#5C2A35]">변경값</th>
+                                    <th className="py-3 px-4 text-center text-xs font-semibold text-[#5C2A35] w-[72px]">변경자</th>
+                                    <th className="py-3 px-4 text-center text-xs font-semibold text-[#5C2A35] w-[132px]">변경일시</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {items.map((item) => (
                                     <tr
                                         key={item.id}
-                                        className="border-b border-gray-100 hover:bg-[#E8EAF6]/40 transition-colors duration-200"
+                                        className="border-b border-gray-100 hover:bg-[#FCEBEF]/40 transition-colors duration-200"
                                     >
                                         <td className="py-3 px-4 text-center">
                                             <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${CHANGE_TYPE_COLORS[item.changeType] || "bg-gray-100 text-gray-600"}`}>
@@ -118,10 +118,10 @@ export function ReservationChangeHistoryModal({ isOpen, onClose, reservationId }
                     )}
                 </div>
 
-                <div className="flex justify-end px-6 py-3 border-t border-[#C5CAE9] bg-[#F8F9FD] rounded-b-2xl">
+                <div className="flex justify-end px-6 py-3 border-t border-[#F8DCE2] bg-[#FCF7F8] rounded-b-2xl">
                     <button
                         onClick={onClose}
-                        className="h-10 px-6 rounded-lg border border-[#C5CAE9] text-sm font-medium text-[#242424] hover:bg-[#E8EAF6] transition-all duration-200"
+                        className="h-10 px-6 rounded-lg border border-[#F8DCE2] text-sm font-medium text-[#242424] hover:bg-[#FCEBEF] transition-all duration-200"
                     >
                         닫기
                     </button>

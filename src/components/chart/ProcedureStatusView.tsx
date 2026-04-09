@@ -115,7 +115,7 @@ export function ProcedureStatusView() {
         <div className="h-full overflow-y-auto p-2 md:p-3" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
             <div className="mb-3 grid grid-cols-2 gap-2 xl:grid-cols-4">
                 {[
-                    { label: "현재 환자", value: summary.totalPatients, unit: "명", bg: "#E8EAF6", color: "#3F51B5", border: "#C5CAE9" },
+                    { label: "현재 환자", value: summary.totalPatients, unit: "명", bg: "#FCEBEF", color: "#E26B7C", border: "#F8DCE2" },
                     { label: "시술 진행", value: summary.totalDoingPatients, unit: "명", bg: "#E0F7FA", color: "#00838F", border: "#80DEEA" },
                     { label: "평균 대기", value: summary.averageWait, unit: "분", bg: "#FFF8E1", color: "#F57F17", border: "#FFE082" },
                     { label: "혼잡 시술", value: summary.highCongestionCount, unit: "개", bg: "#FCE4EC", color: "#C62828", border: "#EF9A9A" },
@@ -130,9 +130,9 @@ export function ProcedureStatusView() {
                 ))}
             </div>
 
-            <div className="mb-3 flex items-center justify-between rounded-[8px] px-3 py-2" style={{ backgroundColor: "#F8F9FD", border: "1px solid #E8EAF6" }}>
+            <div className="mb-3 flex items-center justify-between rounded-[8px] px-3 py-2" style={{ backgroundColor: "#FCF7F8", border: "1px solid #FCEBEF" }}>
                 <div className="text-[12px]" style={{ color: "#616161" }}>
-                    기준일 <span className="font-bold" style={{ color: "#1A237E" }}>{dateISO}</span>
+                    기준일 <span className="font-bold" style={{ color: "#5C2A35" }}>{dateISO}</span>
                     {lastLoadedAt && (
                         <span className="ml-2 text-[11px]" style={{ color: "#9E9E9E" }}>
                             {lastLoadedAt.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} 갱신
@@ -143,8 +143,8 @@ export function ProcedureStatusView() {
                     type="button"
                     onClick={() => { void loadStatusData(); }}
                     className="inline-flex items-center gap-1 rounded-[8px] px-3 py-1.5 text-[11px] font-bold transition-all duration-200"
-                    style={{ backgroundColor: "#FFFFFF", border: "1px solid #C5CAE9", color: "#3F51B5" }}
-                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#E8EAF6"; }}
+                    style={{ backgroundColor: "#FFFFFF", border: "1px solid #F8DCE2", color: "#E26B7C" }}
+                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#FCEBEF"; }}
                     onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#FFFFFF"; }}
                 >
                     <RefreshCcw className="h-3 w-3" />
@@ -153,18 +153,18 @@ export function ProcedureStatusView() {
             </div>
 
             <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-                <section className="rounded-[12px] overflow-hidden" style={{ border: "1px solid #C5CAE9" }}>
-                    <div className="px-4 py-2.5 flex items-center gap-2" style={{ backgroundColor: "#F8F9FD", borderBottom: "1px solid #E8EAF6" }}>
-                        <Users className="h-4 w-4" style={{ color: "#3F51B5" }} />
-                        <h3 className="text-[13px] font-bold" style={{ color: "#1A237E" }}>위치별 시술 진행 현황</h3>
+                <section className="rounded-[12px] overflow-hidden" style={{ border: "1px solid #F8DCE2" }}>
+                    <div className="px-4 py-2.5 flex items-center gap-2" style={{ backgroundColor: "#FCF7F8", borderBottom: "1px solid #FCEBEF" }}>
+                        <Users className="h-4 w-4" style={{ color: "#E26B7C" }} />
+                        <h3 className="text-[13px] font-bold" style={{ color: "#5C2A35" }}>위치별 시술 진행 현황</h3>
                     </div>
 
                     <div className="p-3 grid grid-cols-1 gap-2 md:grid-cols-2" style={{ backgroundColor: "#FFFFFF" }}>
                         {locationRows.map((location: any) => (
-                            <div key={location.id} className="rounded-[8px] p-2.5" style={{ backgroundColor: "#F5F7FA", border: "1px solid #E8EAF6" }}>
+                            <div key={location.id} className="rounded-[8px] p-2.5" style={{ backgroundColor: "#FAF3F5", border: "1px solid #FCEBEF" }}>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[13px] font-bold" style={{ color: "#1A237E" }}>{location.label}</span>
-                                    <span className="rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums" style={{ backgroundColor: "#E8EAF6", color: "#3F51B5" }}>
+                                    <span className="text-[13px] font-bold" style={{ color: "#5C2A35" }}>{location.label}</span>
+                                    <span className="rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums" style={{ backgroundColor: "#FCEBEF", color: "#E26B7C" }}>
                                         {location.totalPatients}명
                                     </span>
                                 </div>
@@ -180,7 +180,7 @@ export function ProcedureStatusView() {
                                             <div
                                                 key={`${location.id}-${procedure.name}`}
                                                 className="rounded-[6px] px-2 py-1.5 flex items-center justify-between gap-2"
-                                                style={{ backgroundColor: "#FFFFFF", border: "1px solid #E8EAF6" }}
+                                                style={{ backgroundColor: "#FFFFFF", border: "1px solid #FCEBEF" }}
                                             >
                                                 <span className="truncate text-[11px] font-semibold" style={{ color: "#242424" }}>{procedure.name}</span>
                                                 <span className="shrink-0 text-[10px] font-medium tabular-nums" style={{ color: "#616161" }}>
@@ -191,7 +191,7 @@ export function ProcedureStatusView() {
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="mt-2 rounded-[6px] py-2 text-center text-[11px]" style={{ border: "1px dashed #C5CAE9", color: "#9E9E9E" }}>
+                                    <div className="mt-2 rounded-[6px] py-2 text-center text-[11px]" style={{ border: "1px dashed #F8DCE2", color: "#9E9E9E" }}>
                                         시술 없음
                                     </div>
                                 )}
@@ -200,15 +200,15 @@ export function ProcedureStatusView() {
                     </div>
                 </section>
 
-                <section className="rounded-[12px] overflow-hidden" style={{ border: "1px solid #C5CAE9" }}>
-                    <div className="px-4 py-2.5 flex items-center gap-2" style={{ backgroundColor: "#F8F9FD", borderBottom: "1px solid #E8EAF6" }}>
-                        <Activity className="h-4 w-4" style={{ color: "#3F51B5" }} />
-                        <h3 className="text-[13px] font-bold" style={{ color: "#1A237E" }}>시술 그룹별 예상 대기 시간</h3>
+                <section className="rounded-[12px] overflow-hidden" style={{ border: "1px solid #F8DCE2" }}>
+                    <div className="px-4 py-2.5 flex items-center gap-2" style={{ backgroundColor: "#FCF7F8", borderBottom: "1px solid #FCEBEF" }}>
+                        <Activity className="h-4 w-4" style={{ color: "#E26B7C" }} />
+                        <h3 className="text-[13px] font-bold" style={{ color: "#5C2A35" }}>시술 그룹별 예상 대기 시간</h3>
                     </div>
 
                     <div className="p-3" style={{ backgroundColor: "#FFFFFF" }}>
                         {queueRows.length === 0 ? (
-                            <div className="rounded-[8px] py-8 text-center text-[12px]" style={{ border: "1px dashed #C5CAE9", color: "#9E9E9E" }}>
+                            <div className="rounded-[8px] py-8 text-center text-[12px]" style={{ border: "1px dashed #F8DCE2", color: "#9E9E9E" }}>
                                 대기 중인 데이터가 없습니다.
                             </div>
                         ) : (
@@ -220,7 +220,7 @@ export function ProcedureStatusView() {
                                     const barBg = level === "high" ? "#FFCDD2" : level === "medium" ? "#FFE082" : "#A5D6A7";
 
                                     return (
-                                        <div key={row.key} className="rounded-[8px] p-2.5" style={{ backgroundColor: "#F5F7FA", border: "1px solid #E8EAF6" }}>
+                                        <div key={row.key} className="rounded-[8px] p-2.5" style={{ backgroundColor: "#FAF3F5", border: "1px solid #FCEBEF" }}>
                                             <div className="flex items-center justify-between gap-2">
                                                 <div className="min-w-0">
                                                     <div className="truncate text-[12px] font-bold" style={{ color: "#242424" }}>{row.name}</div>
@@ -257,7 +257,7 @@ export function ProcedureStatusView() {
             </div>
 
             {loading && (
-                <div className="pointer-events-none fixed bottom-6 right-6 z-20 inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-medium backdrop-blur" style={{ backgroundColor: "rgba(255,255,255,0.9)", border: "1px solid #C5CAE9", color: "#3F51B5", boxShadow: "0 4px 12px rgba(63,81,181,0.12)" }}>
+                <div className="pointer-events-none fixed bottom-6 right-6 z-20 inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-medium backdrop-blur" style={{ backgroundColor: "rgba(255,255,255,0.9)", border: "1px solid #F8DCE2", color: "#E26B7C", boxShadow: "0 4px 12px rgba(226,107,124,0.12)" }}>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     현황 갱신 중...
                 </div>

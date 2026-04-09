@@ -72,7 +72,7 @@ const TEMPLATE_STATUS_LABEL: Record<MessageTemplateStatus, string> = {
 };
 
 const TEMPLATE_STATUS_STYLE: Record<MessageTemplateStatus, string> = {
-    draft: "bg-[#E8EAF6] text-[#3F51B5]",
+    draft: "bg-[#FCEBEF] text-[#E26B7C]",
     published: "bg-emerald-100 text-emerald-700",
     archived: "bg-amber-100 text-amber-700",
 };
@@ -393,7 +393,7 @@ export default function MessagesPage() {
     }, [automations, branchId, outbox, syncReady, templates]);
 
     return (
-        <div className="flex h-full flex-col bg-[#F5F7FA]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
+        <div className="flex h-full flex-col bg-[#FAF3F5]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
             <TopBar title="CRM > 메시지" />
 
             <div className="border-b border-gray-200 px-4 md:px-6">
@@ -416,7 +416,7 @@ export default function MessagesPage() {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-hidden bg-[#F5F7FA] p-4 md:p-6">
+            <div className="flex-1 overflow-hidden bg-[#FAF3F5] p-4 md:p-6">
                 <div className="mb-3 flex items-center gap-2 text-xs text-gray-500">
                     {isSyncLoading && <span className="rounded-full bg-slate-100 px-2 py-1">동기화 중...</span>}
                     {isSyncSaving && !isSyncLoading && <span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">저장 중...</span>}
@@ -499,7 +499,7 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
 
     return (
         <div className="flex h-full flex-col gap-4">
-            <div className="flex justify-between rounded-xl border border-[#C5CAE9] bg-white p-4" style={{ boxShadow: "0 4px 12px rgba(63, 81, 181, 0.08)" }}>
+            <div className="flex justify-between rounded-xl border border-[#F8DCE2] bg-white p-4" style={{ boxShadow: "0 4px 12px rgba(226, 107, 124, 0.08)" }}>
                 <div className="relative w-64">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <Input className="pl-9" placeholder="템플릿 검색..." value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -509,9 +509,9 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
                 </Button>
             </div>
 
-            <div className="flex-1 overflow-y-auto rounded-xl border border-[#C5CAE9] bg-white p-0 md:p-0">
+            <div className="flex-1 overflow-y-auto rounded-xl border border-[#F8DCE2] bg-white p-0 md:p-0">
                 <table className="hidden w-full text-left text-sm md:table">
-                    <thead className="bg-[#F8F9FD] text-[#1A237E]">
+                    <thead className="bg-[#FCF7F8] text-[#5C2A35]">
                         <tr>
                             <th className="px-6 py-3 font-medium">이름</th>
                             <th className="px-6 py-3 font-medium">채널</th>
@@ -793,7 +793,7 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
             <div className="mx-auto flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
-                <div className="flex items-center justify-between border-b border-[#C5CAE9] bg-[#F8F9FD] px-6 py-4">
+                <div className="flex items-center justify-between border-b border-[#F8DCE2] bg-[#FCF7F8] px-6 py-4">
                     <div>
                         <h3 className="text-lg font-bold">템플릿 편집</h3>
                         <div className="mt-1 flex items-center gap-2">
@@ -847,7 +847,7 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
                             </div>
                         </div>
 
-                        <div className="mt-5 rounded-xl border border-[#C5CAE9] bg-white p-4">
+                        <div className="mt-5 rounded-xl border border-[#F8DCE2] bg-white p-4">
                             <div className="text-sm font-bold text-gray-800">변수 삽입</div>
                             <div className="mt-1 text-xs text-gray-500">문법은 <code>{"{{key}}"}</code>를 사용합니다.</div>
                             <div className="mt-3 flex flex-wrap gap-2">
@@ -864,7 +864,7 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
                             </div>
                         </div>
 
-                        <div className="mt-5 rounded-xl border border-[#C5CAE9] bg-white p-4">
+                        <div className="mt-5 rounded-xl border border-[#F8DCE2] bg-white p-4">
                             <div className="text-sm font-bold text-gray-800">채널 검증</div>
                             <div className="mt-2 text-xs text-gray-500">
                                 SMS/LMS 길이: <span className="font-bold text-gray-700">{smsByteLength} byte</span>
@@ -886,7 +886,7 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
                             {errors.length === 0 && warnings.length === 0 && <div className="mt-2 text-xs text-emerald-700">검증 통과</div>}
                         </div>
 
-                        <div className="mt-5 rounded-xl border border-[#C5CAE9] bg-white p-4">
+                        <div className="mt-5 rounded-xl border border-[#F8DCE2] bg-white p-4">
                             <div className="text-sm font-bold text-gray-800">테스트 발송</div>
                             <div className="mt-2 flex items-center gap-2">
                                 <Input
@@ -1051,7 +1051,7 @@ function AutomationsTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
 
     return (
         <div className="flex h-full flex-col gap-4">
-            <div className="rounded-xl border border-[#C5CAE9] bg-white p-4">
+            <div className="rounded-xl border border-[#F8DCE2] bg-white p-4">
                 <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-500">
                         자동발송 규칙은 <span className="font-bold text-gray-700">배포 + 사용</span> 템플릿만 연결하는 것을 권장합니다.
@@ -1062,9 +1062,9 @@ function AutomationsTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto rounded-xl border border-[#C5CAE9] bg-white p-0 md:p-0">
+            <div className="flex-1 overflow-y-auto rounded-xl border border-[#F8DCE2] bg-white p-0 md:p-0">
                 <table className="hidden w-full text-left text-sm md:table">
-                    <thead className="bg-[#F8F9FD] text-[#1A237E]">
+                    <thead className="bg-[#FCF7F8] text-[#5C2A35]">
                         <tr>
                             <th className="px-6 py-3 font-medium">규칙명</th>
                             <th className="px-6 py-3 font-medium">트리거</th>
@@ -1318,7 +1318,7 @@ function OutboxTab() {
 
     return (
         <div className="flex h-full flex-col gap-4">
-            <div className="rounded-xl border border-[#C5CAE9] bg-white p-4">
+            <div className="rounded-xl border border-[#F8DCE2] bg-white p-4">
                 <div className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto] md:items-center">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -1356,7 +1356,7 @@ function OutboxTab() {
 
             <div className="flex-1 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-sm">
                 <table className="hidden w-full text-left text-sm md:table">
-                    <thead className="bg-[#F8F9FD] text-[#1A237E]">
+                    <thead className="bg-[#FCF7F8] text-[#5C2A35]">
                         <tr>
                             <th className="px-6 py-3 font-medium">일시</th>
                             <th className="px-6 py-3 font-medium">환자</th>
@@ -1553,7 +1553,7 @@ function OptOutTab() {
 
     return (
         <div className="flex h-full flex-col gap-4">
-            <div className="rounded-xl border border-[#C5CAE9] bg-white p-4">
+            <div className="rounded-xl border border-[#F8DCE2] bg-white p-4">
                 <div className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto] md:items-center">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -1577,7 +1577,7 @@ function OptOutTab() {
 
             <div className="flex-1 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-sm">
                 <table className="hidden w-full text-left text-sm md:table">
-                    <thead className="bg-[#F8F9FD] text-[#1A237E]">
+                    <thead className="bg-[#FCF7F8] text-[#5C2A35]">
                         <tr>
                             <th className="px-6 py-3 font-medium">환자</th>
                             <th className="px-6 py-3 font-medium">전화번호</th>

@@ -94,7 +94,7 @@ export default function BoardPage() {
 
     if (permLoaded && !permissions["chart.view"]) {
         return (
-            <div className="flex flex-col h-full bg-[#F5F7FA]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
+            <div className="flex flex-col h-full bg-[#FAF3F5]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
                 <TopBar title="차트" />
                 <NoPermissionOverlay />
             </div>
@@ -102,22 +102,22 @@ export default function BoardPage() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-[#F5F7FA]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
+        <div className="flex flex-col h-full bg-[#FAF3F5]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
             <TopBar title="차트">
-                <div className="flex items-center gap-1 rounded-lg border border-[#C5CAE9] bg-white p-1">
+                <div className="flex items-center gap-1 rounded-lg border border-[#F8DCE2] bg-white p-1">
                     {tabs.map((tab) => (
                         <button
                             key={tab.key}
                             onClick={() => setViewMode(tab.key)}
                             className={`px-4 py-2 min-h-[40px] text-sm font-medium rounded-lg transition-all duration-200 ease-in-out whitespace-nowrap ${
                                 viewMode === tab.key
-                                    ? 'bg-[#3F51B5] text-white shadow-[0_4px_12px_rgba(63,81,181,0.18)]'
-                                    : 'text-[#616161] hover:text-[#1A237E] hover:bg-[#E8EAF6]'
+                                    ? 'bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]'
+                                    : 'text-[#616161] hover:text-[#5C2A35] hover:bg-[#FCEBEF]'
                             }`}
                         >
                             {tab.label}
                             {tab.badge != null && tab.badge > 0 && (
-                                <span className={`ml-1.5 text-xs font-bold ${viewMode === tab.key ? 'text-indigo-200' : 'text-[#3F51B5]'}`}>
+                                <span className={`ml-1.5 text-xs font-bold ${viewMode === tab.key ? 'text-indigo-200' : 'text-[#E26B7C]'}`}>
                                     {tab.badge}
                                 </span>
                             )}

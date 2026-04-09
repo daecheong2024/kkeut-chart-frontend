@@ -2204,7 +2204,7 @@ export function IntegratedView() {
                                 <div
                                     key={i}
                                     onClick={() => handleDateClick(day)}
-                                    className={`p-1 rounded-full cursor-pointer hover:bg-[#E8EAF6] ${isSelected ? 'bg-[rgb(var(--kkeut-primary-strong))] text-white' : ''}`}
+                                    className={`p-1 rounded-full cursor-pointer hover:bg-[#FCEBEF] ${isSelected ? 'bg-[rgb(var(--kkeut-primary-strong))] text-white' : ''}`}
                                 >
                                     {day}
                                 </div>
@@ -2378,7 +2378,7 @@ export function IntegratedView() {
                                             ].map((option) => (
                                                 <button
                                                     key={option.id}
-                                                    className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-[#3F51B5] transition-colors"
+                                                    className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-[#E26B7C] transition-colors"
                                                     onClick={() => {
                                                         setReservationSortOption(option.id as any);
                                                         setIsReservationSortDropdownOpen(false);
@@ -2462,7 +2462,7 @@ export function IntegratedView() {
                                             ].map((option) => (
                                                 <button
                                                     key={option.id}
-                                                    className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-[#3F51B5] transition-colors"
+                                                    className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-[#E26B7C] transition-colors"
                                                     onClick={() => {
                                                         setReceptionSortOption(option.id as any);
                                                         setIsReceptionSortDropdownOpen(false);
@@ -2588,7 +2588,7 @@ export function IntegratedView() {
                                             ].map((option) => (
                                                 <button
                                                     key={option.id}
-                                                    className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-[#3F51B5] transition-colors"
+                                                    className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-[#E26B7C] transition-colors"
                                                     onClick={() => {
                                                         setSortOption(option.id as any);
                                                         setIsSortDropdownOpen(false);
@@ -2699,7 +2699,7 @@ export function IntegratedView() {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <span className="shrink-0 font-bold text-[#3F51B5]">
+                                                    <span className="shrink-0 font-bold text-[#E26B7C]">
                                                         잔여 {ticket.remaining}회
                                                     </span>
                                                 </div>
@@ -2811,11 +2811,11 @@ export function IntegratedView() {
                                             disabled
                                                 ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70"
                                                 : (quickTicketPicker?.selectedIds || []).includes(option.ticketId)
-                                                    ? "border-[#3F51B5] bg-[#E8EAF6] ring-1 ring-[#3F51B5]/30"
+                                                    ? "border-[#E26B7C] bg-[#FCEBEF] ring-1 ring-[#E26B7C]/30"
                                                 : allowCycleOverride
                                                     ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50"
                                                 : option.matchedPlanned
-                                                    ? "border-cyan-200 bg-cyan-50/60 hover:bg-[#E8EAF6]"
+                                                    ? "border-cyan-200 bg-cyan-50/60 hover:bg-[#FCEBEF]"
                                                     : "border-slate-200 bg-white hover:bg-slate-50"
                                         }`}
                                     >
@@ -2823,7 +2823,7 @@ export function IntegratedView() {
                                             <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                                                 disabled ? "border-gray-300 bg-gray-200" :
                                                 (quickTicketPicker?.selectedIds || []).includes(option.ticketId)
-                                                    ? "border-[#3F51B5] bg-[#3F51B5] text-white" : "border-gray-300 bg-white"
+                                                    ? "border-[#E26B7C] bg-[#E26B7C] text-white" : "border-gray-300 bg-white"
                                             }`}>
                                                 {(quickTicketPicker?.selectedIds || []).includes(option.ticketId) && (
                                                     <Check className="h-3 w-3" strokeWidth={3} />
@@ -2926,7 +2926,7 @@ export function IntegratedView() {
                                         extraTickets: selected.slice(1),
                                     });
                                 }}
-                                className="rounded-lg bg-[#3F51B5] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#303F9F] disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="rounded-lg bg-[#E26B7C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#99354E] disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 차감하기 ({quickTicketPicker?.selectedIds?.length || 0}건)
                             </button>
@@ -3240,7 +3240,7 @@ export function IntegratedView() {
             {/* Reception Form Modal (Directly render ReceptionForm in a modal wrapper) */}
             {selectedReceptionPatient && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[1500px] max-h-[85vh] flex flex-col overflow-hidden border border-[#C5CAE9] animate-in fade-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[1500px] max-h-[85vh] flex flex-col overflow-hidden border border-[#F8DCE2] animate-in fade-in zoom-in-95 duration-200">
                         <ReceptionForm
                             patient={selectedReceptionPatient}
                             isEditMode={receptionEditMode}
@@ -3365,7 +3365,7 @@ function ReservationCard({ data, onDragStart, onMouseEnter, onMouseLeave, onClic
                                 e.stopPropagation();
                                 navigate(`/app/chart-view/${data.patientId}`);
                             }}
-                            className="ml-1 p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-[#3F51B5] transition-colors"
+                            className="ml-1 p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-[#E26B7C] transition-colors"
                         >
                             <FileText className="w-4 h-4" />
                         </button>

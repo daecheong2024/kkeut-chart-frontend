@@ -191,7 +191,7 @@ export function PatientSearchModal({ isOpen, onClose, onSelectPatient }: Patient
         return createPortal(
             <>
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[1500px] max-h-[85vh] flex flex-col overflow-hidden border border-[#C5CAE9] animate-in fade-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[1500px] max-h-[85vh] flex flex-col overflow-hidden border border-[#F8DCE2] animate-in fade-in zoom-in-95 duration-200">
                         <ReceptionForm
                             patient={patientForForm}
                             onClose={() => {
@@ -285,10 +285,10 @@ export function PatientSearchModal({ isOpen, onClose, onSelectPatient }: Patient
                                                     return { ...prev, _selectedIds: next };
                                                 });
                                             }}
-                                            className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${disabled ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70" : selected ? "border-[#3F51B5] bg-[#E8EAF6] ring-1 ring-[#3F51B5]/30" : allowOverride ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                                            className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${disabled ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70" : selected ? "border-[#E26B7C] bg-[#FCEBEF] ring-1 ring-[#E26B7C]/30" : allowOverride ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
                                         >
                                             <div className="flex items-start justify-between gap-3">
-                                                <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${disabled ? "border-gray-300 bg-gray-200" : selected ? "border-[#3F51B5] bg-[#3F51B5] text-white" : "border-gray-300 bg-white"}`}>
+                                                <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${disabled ? "border-gray-300 bg-gray-200" : selected ? "border-[#E26B7C] bg-[#E26B7C] text-white" : "border-gray-300 bg-white"}`}>
                                                     {selected && <Check className="h-3 w-3" strokeWidth={3} />}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
@@ -349,7 +349,7 @@ export function PatientSearchModal({ isOpen, onClose, onSelectPatient }: Patient
                                             setQuickTicketBusy(false);
                                         }
                                     }}
-                                    className="rounded-lg bg-[#3F51B5] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#303F9F] disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="rounded-lg bg-[#E26B7C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#99354E] disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     차감하기 ({quickTicketPickerData._selectedIds?.length || 0}건)
                                 </button>

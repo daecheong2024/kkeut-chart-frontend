@@ -187,13 +187,13 @@ export function NoticeSection() {
   const AddButtonIcon = activeTab === "HQ" ? Building2 : Megaphone;
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden rounded-[16px] border border-[#C5CAE9] bg-white text-sm">
-      <div className="flex items-center justify-between border-b border-[#C5CAE9] bg-[#F8F9FD] px-6 py-4">
-        <h2 className="text-base font-semibold text-[#1A237E]">공지사항</h2>
+    <div className="relative flex h-full flex-col overflow-hidden rounded-[16px] border border-[#F8DCE2] bg-white text-sm">
+      <div className="flex items-center justify-between border-b border-[#F8DCE2] bg-[#FCF7F8] px-6 py-4">
+        <h2 className="text-base font-semibold text-[#5C2A35]">공지사항</h2>
         {canEditCurrent && (
           <button
             onClick={openAddModal}
-            className="flex items-center gap-1.5 rounded-[8px] bg-[#3F51B5] px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#303F9F]"
+            className="flex items-center gap-1.5 rounded-[8px] bg-[#E26B7C] px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#99354E]"
           >
             <AddButtonIcon size={16} className={activeTab === "BRANCH" ? "fill-white" : ""} />
             {addButtonLabel}
@@ -201,14 +201,14 @@ export function NoticeSection() {
         )}
       </div>
 
-      <div className="flex border-b border-[#C5CAE9] bg-white px-4">
+      <div className="flex border-b border-[#F8DCE2] bg-white px-4">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`border-b-2 px-4 py-3 text-sm font-medium transition-all duration-200 ease-in-out ${
               activeTab === tab.key
-                ? "border-[#3F51B5] text-[#3F51B5]"
+                ? "border-[#E26B7C] text-[#E26B7C]"
                 : "border-transparent text-[#616161] hover:text-[#242424]"
             }`}
           >
@@ -229,7 +229,7 @@ export function NoticeSection() {
             return (
               <div
                 key={notice.id}
-                className="group relative rounded-[12px] border border-[#C5CAE9] p-4 transition-all duration-200 ease-in-out hover:shadow-[0_4px_12px_rgba(63,81,181,0.08)]"
+                className="group relative rounded-[12px] border border-[#F8DCE2] p-4 transition-all duration-200 ease-in-out hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)]"
               >
                 <div className="mb-2 flex items-start justify-between">
                   <div className="flex items-center gap-2">
@@ -238,7 +238,7 @@ export function NoticeSection() {
                         중요
                       </span>
                     )}
-                    <span className="rounded-[8px] bg-[#E8EAF6] px-2 py-0.5 text-xs font-medium text-[#3F51B5]">
+                    <span className="rounded-[8px] bg-[#FCEBEF] px-2 py-0.5 text-xs font-medium text-[#E26B7C]">
                       {notice.type === "HQ" ? "본사" : "병원"}
                     </span>
                     <span className="text-xs text-[#616161]">{formatTimeAgo(notice.createdAt)}</span>
@@ -247,7 +247,7 @@ export function NoticeSection() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => openEditModal(notice)}
-                        className="p-1 text-[#616161] opacity-0 transition-all duration-200 ease-in-out hover:text-[#3F51B5] group-hover:opacity-100"
+                        className="p-1 text-[#616161] opacity-0 transition-all duration-200 ease-in-out hover:text-[#E26B7C] group-hover:opacity-100"
                       >
                         <Pencil size={16} />
                       </button>
@@ -286,14 +286,14 @@ export function NoticeSection() {
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 p-4">
           <form
             onSubmit={handleSaveNotice}
-            className="flex w-full max-w-sm flex-col gap-4 rounded-[16px] border border-[#C5CAE9] bg-white p-6 shadow-[0_4px_12px_rgba(63,81,181,0.08)]"
+            className="flex w-full max-w-sm flex-col gap-4 rounded-[16px] border border-[#F8DCE2] bg-white p-6 shadow-[0_4px_12px_rgba(226,107,124,0.08)]"
           >
-            <div className="text-base font-semibold text-[#1A237E]">{addModalTitle}</div>
+            <div className="text-base font-semibold text-[#5C2A35]">{addModalTitle}</div>
 
             <div>
               <label className="mb-1 block text-xs font-medium text-[#616161]">제목</label>
               <input
-                className="w-full rounded-t-[8px] border-0 border-b-2 border-b-[#C5CAE9] bg-[#E8EAF6] px-3 py-2.5 text-sm text-[#242424] placeholder:text-[#616161] transition-all duration-200 ease-in-out focus:border-b-[#536DFE] focus:outline-none"
+                className="w-full rounded-t-[8px] border-0 border-b-2 border-b-[#F8DCE2] bg-[#FCEBEF] px-3 py-2.5 text-sm text-[#242424] placeholder:text-[#616161] transition-all duration-200 ease-in-out focus:border-b-[#F49EAF] focus:outline-none"
                 placeholder="공지 제목을 입력하세요"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
@@ -304,7 +304,7 @@ export function NoticeSection() {
             <div>
               <label className="mb-1 block text-xs font-medium text-[#616161]">내용</label>
               <textarea
-                className="h-36 w-full resize-none rounded-t-[8px] border-0 border-b-2 border-b-[#C5CAE9] bg-[#E8EAF6] p-3 text-sm text-[#242424] placeholder:text-[#616161] transition-all duration-200 ease-in-out focus:border-b-[#536DFE] focus:outline-none"
+                className="h-36 w-full resize-none rounded-t-[8px] border-0 border-b-2 border-b-[#F8DCE2] bg-[#FCEBEF] p-3 text-sm text-[#242424] placeholder:text-[#616161] transition-all duration-200 ease-in-out focus:border-b-[#F49EAF] focus:outline-none"
                 placeholder="공지 내용을 입력하세요"
                 value={newContent}
                 onChange={(e) => setNewContent(e.target.value)}
@@ -317,7 +317,7 @@ export function NoticeSection() {
                 id="isImportantCreate"
                 checked={isImportant}
                 onChange={(e) => setIsImportant(e.target.checked)}
-                className="h-4 w-4 rounded border-[#C5CAE9] text-[#3F51B5] focus:ring-[#536DFE]"
+                className="h-4 w-4 rounded border-[#F8DCE2] text-[#E26B7C] focus:ring-[#F49EAF]"
               />
               <label htmlFor="isImportantCreate" className="text-xs font-medium text-[#242424]">
                 중요 공지로 등록
@@ -328,14 +328,14 @@ export function NoticeSection() {
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="flex-1 rounded-[8px] border border-[#C5CAE9] bg-white py-2.5 text-sm font-medium text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#E8EAF6]"
+                className="flex-1 rounded-[8px] border border-[#F8DCE2] bg-white py-2.5 text-sm font-medium text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#FCEBEF]"
               >
                 취소
               </button>
               <button
                 type="submit"
                 disabled={!newTitle.trim()}
-                className="flex-1 rounded-[8px] bg-[#3F51B5] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#303F9F] disabled:opacity-50"
+                className="flex-1 rounded-[8px] bg-[#E26B7C] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#99354E] disabled:opacity-50"
               >
                 등록
               </button>
@@ -348,14 +348,14 @@ export function NoticeSection() {
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 p-4">
           <form
             onSubmit={handleSaveEdit}
-            className="flex w-full max-w-sm flex-col gap-4 rounded-[16px] border border-[#C5CAE9] bg-white p-6 shadow-[0_4px_12px_rgba(63,81,181,0.08)]"
+            className="flex w-full max-w-sm flex-col gap-4 rounded-[16px] border border-[#F8DCE2] bg-white p-6 shadow-[0_4px_12px_rgba(226,107,124,0.08)]"
           >
-            <div className="text-base font-semibold text-[#1A237E]">공지사항 수정</div>
+            <div className="text-base font-semibold text-[#5C2A35]">공지사항 수정</div>
 
             <div>
               <label className="mb-1 block text-xs font-medium text-[#616161]">제목</label>
               <input
-                className="w-full rounded-t-[8px] border-0 border-b-2 border-b-[#C5CAE9] bg-[#E8EAF6] px-3 py-2.5 text-sm text-[#242424] placeholder:text-[#616161] transition-all duration-200 ease-in-out focus:border-b-[#536DFE] focus:outline-none"
+                className="w-full rounded-t-[8px] border-0 border-b-2 border-b-[#F8DCE2] bg-[#FCEBEF] px-3 py-2.5 text-sm text-[#242424] placeholder:text-[#616161] transition-all duration-200 ease-in-out focus:border-b-[#F49EAF] focus:outline-none"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
                 autoFocus
@@ -365,7 +365,7 @@ export function NoticeSection() {
             <div>
               <label className="mb-1 block text-xs font-medium text-[#616161]">내용</label>
               <textarea
-                className="h-36 w-full resize-none rounded-t-[8px] border-0 border-b-2 border-b-[#C5CAE9] bg-[#E8EAF6] p-3 text-sm text-[#242424] placeholder:text-[#616161] transition-all duration-200 ease-in-out focus:border-b-[#536DFE] focus:outline-none"
+                className="h-36 w-full resize-none rounded-t-[8px] border-0 border-b-2 border-b-[#F8DCE2] bg-[#FCEBEF] p-3 text-sm text-[#242424] placeholder:text-[#616161] transition-all duration-200 ease-in-out focus:border-b-[#F49EAF] focus:outline-none"
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
               />
@@ -377,7 +377,7 @@ export function NoticeSection() {
                 id="isImportantEdit"
                 checked={editImportant}
                 onChange={(e) => setEditImportant(e.target.checked)}
-                className="h-4 w-4 rounded border-[#C5CAE9] text-[#3F51B5] focus:ring-[#536DFE]"
+                className="h-4 w-4 rounded border-[#F8DCE2] text-[#E26B7C] focus:ring-[#F49EAF]"
               />
               <label htmlFor="isImportantEdit" className="text-xs font-medium text-[#242424]">
                 중요 공지로 등록
@@ -388,14 +388,14 @@ export function NoticeSection() {
               <button
                 type="button"
                 onClick={() => setEditingNotice(null)}
-                className="flex-1 rounded-[8px] border border-[#C5CAE9] bg-white py-2.5 text-sm font-medium text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#E8EAF6]"
+                className="flex-1 rounded-[8px] border border-[#F8DCE2] bg-white py-2.5 text-sm font-medium text-[#616161] transition-all duration-200 ease-in-out hover:bg-[#FCEBEF]"
               >
                 취소
               </button>
               <button
                 type="submit"
                 disabled={!editTitle.trim()}
-                className="flex-1 rounded-[8px] bg-[#3F51B5] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#303F9F] disabled:opacity-50"
+                className="flex-1 rounded-[8px] bg-[#E26B7C] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#99354E] disabled:opacity-50"
               >
                 저장
               </button>

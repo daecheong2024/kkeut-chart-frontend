@@ -239,15 +239,15 @@ export default function PatientListPage() {
   };
 
   return (
-    <div className="flex h-full flex-col bg-[#F5F7FA]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
+    <div className="flex h-full flex-col bg-[#FAF3F5]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
       <TopBar title="환자 목록" />
 
       <div className="flex min-h-0 flex-1">
         {/* Desktop sidebar */}
-        <aside className="hidden md:flex w-[240px] flex-col border-r border-[#C5CAE9] bg-[#F8F9FD] pt-6">
+        <aside className="hidden md:flex w-[240px] flex-col border-r border-[#F8DCE2] bg-[#FCF7F8] pt-6">
           <div className="px-5 mb-6 flex items-center justify-between">
             {/* Removed duplicate title */}
-            <button className="text-xs font-medium text-[#3F51B5] hover:text-[#303F9F]">조건그룹 등록</button>
+            <button className="text-xs font-medium text-[#E26B7C] hover:text-[#99354E]">조건그룹 등록</button>
           </div>
 
           <div className="px-5 mb-2">
@@ -255,27 +255,27 @@ export default function PatientListPage() {
           </div>
 
           <div className="px-3">
-            <div className="flex items-center justify-between rounded-lg bg-[#E8EAF6] px-4 py-3 text-sm font-medium text-[#3F51B5] cursor-pointer">
+            <div className="flex items-center justify-between rounded-lg bg-[#FCEBEF] px-4 py-3 text-sm font-medium text-[#E26B7C] cursor-pointer">
               <span>전체 환자</span>
-              <span className="text-[#3F51B5]">{filteredPatients.length}</span>
+              <span className="text-[#E26B7C]">{filteredPatients.length}</span>
             </div>
           </div>
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col bg-white">
           {/* Mobile group header */}
-          <div className="md:hidden border-b border-[#C5CAE9] bg-white px-4 py-3">
+          <div className="md:hidden border-b border-[#F8DCE2] bg-white px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
                 <div className="truncate text-sm font-bold text-gray-900">전체 환자</div>
                 <div className="truncate text-xs text-gray-500">총 {filteredPatients.length}명</div>
               </div>
-              <button className="text-xs font-bold text-[#3F51B5]">조건그룹</button>
+              <button className="text-xs font-bold text-[#E26B7C]">조건그룹</button>
             </div>
           </div>
 
           {/* Filters + actions */}
-          <div className="flex flex-col gap-3 border-b border-[#C5CAE9] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
+          <div className="flex flex-col gap-3 border-b border-[#F8DCE2] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
             <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pr-4">
               {/* Sex Toggle */}
               <div className="flex items-center rounded-full bg-gray-100 p-1 shrink-0">
@@ -285,7 +285,7 @@ export default function PatientListPage() {
                     onClick={() => setSelectedSex(label)}
                     className={cn(
                       "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-                      selectedSex === label ? "bg-[#3F51B5] text-white shadow-[0_4px_12px_rgba(63,81,181,0.18)]" : "text-gray-500 hover:text-gray-700"
+                      selectedSex === label ? "bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]" : "text-gray-500 hover:text-gray-700"
                     )}
                   >
                     {label}
@@ -302,7 +302,7 @@ export default function PatientListPage() {
                   <select
                     value={selectedAge}
                     onChange={(e) => setSelectedAge(e.target.value)}
-                    className="appearance-none pl-3 pr-8 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:border-[#536DFE] bg-white hover:bg-[#E8EAF6] cursor-pointer min-w-[90px]"
+                    className="appearance-none pl-3 pr-8 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:border-[#F49EAF] bg-white hover:bg-[#FCEBEF] cursor-pointer min-w-[90px]"
                   >
                     <option value="전체">전체</option>
                     <option value="10대">10대</option>
@@ -323,7 +323,7 @@ export default function PatientListPage() {
                   <select
                     value={selectedTag}
                     onChange={(e) => setSelectedTag(e.target.value)}
-                    className="appearance-none pl-3 pr-8 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:border-[#536DFE] bg-white hover:bg-[#E8EAF6] cursor-pointer min-w-[90px]"
+                    className="appearance-none pl-3 pr-8 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:border-[#F49EAF] bg-white hover:bg-[#FCEBEF] cursor-pointer min-w-[90px]"
                   >
                     <option value="전체">전체</option>
                     {tagMaster.map(t => (
@@ -341,7 +341,7 @@ export default function PatientListPage() {
                   <select
                     value={selectedMarketing}
                     onChange={(e) => setSelectedMarketing(e.target.value)}
-                    className="appearance-none pl-3 pr-8 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:border-[#536DFE] bg-white hover:bg-[#E8EAF6] cursor-pointer min-w-[90px]"
+                    className="appearance-none pl-3 pr-8 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 focus:outline-none focus:border-[#F49EAF] bg-white hover:bg-[#FCEBEF] cursor-pointer min-w-[90px]"
                   >
                     <option value="전체">전체</option>
                     <option value="동의">동의</option>
@@ -369,7 +369,7 @@ export default function PatientListPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="환자번호, 환자명, 연락처로 검색"
-                className="w-full pl-10 pr-4 py-2 text-sm border-b border-gray-300 focus:outline-none focus:border-[#536DFE] transition-colors placeholder:text-gray-400 bg-transparent"
+                className="w-full pl-10 pr-4 py-2 text-sm border-b border-gray-300 focus:outline-none focus:border-[#F49EAF] transition-colors placeholder:text-gray-400 bg-transparent"
               />
             </div>
           </div>
@@ -379,8 +379,8 @@ export default function PatientListPage() {
             {/* Desktop table */}
             <div className="hidden md:block">
               <table className="w-full min-w-[1000px] table-fixed">
-                <thead className="bg-[#F8F9FD] sticky top-0 z-10">
-                  <tr className="border-b border-[#C5CAE9]">
+                <thead className="bg-[#FCF7F8] sticky top-0 z-10">
+                  <tr className="border-b border-[#F8DCE2]">
                     <th className="w-12 py-3 px-4 text-center">
                       <input
                         type="checkbox"
@@ -389,16 +389,16 @@ export default function PatientListPage() {
                         onChange={handleSelectAll}
                       />
                     </th>
-                    <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">환자번호</th>
-                    <th className="w-48 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">환자명</th>
-                    <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">생년월일</th>
-                    <th className="w-16 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">나이</th>
-                    <th className="w-16 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">성별</th>
-                    <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">전화번호</th>
-                    <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">최근방문일</th>
-                    <th className="w-48 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">환자태그</th>
-                    <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">마케팅 수신 동의</th>
-                    <th className="w-48 py-3 px-2 text-center text-xs font-semibold text-[#1A237E]">기능</th>
+                    <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">환자번호</th>
+                    <th className="w-48 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">환자명</th>
+                    <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">생년월일</th>
+                    <th className="w-16 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">나이</th>
+                    <th className="w-16 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">성별</th>
+                    <th className="w-32 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">전화번호</th>
+                    <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">최근방문일</th>
+                    <th className="w-48 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">환자태그</th>
+                    <th className="w-24 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">마케팅 수신 동의</th>
+                    <th className="w-48 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">기능</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -542,11 +542,11 @@ export default function PatientListPage() {
           </div>
 
           {totalCount > pageSize && (
-            <div className="flex items-center justify-center gap-2 py-4 border-t border-[#C5CAE9] bg-[#F8F9FD]">
+            <div className="flex items-center justify-center gap-2 py-4 border-t border-[#F8DCE2] bg-[#FCF7F8]">
               <button
                 disabled={currentPage <= 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="h-8 px-3 rounded-lg border border-[#C5CAE9] bg-white text-xs font-medium text-[#242424] hover:bg-[#E8EAF6] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+                className="h-8 px-3 rounded-lg border border-[#F8DCE2] bg-white text-xs font-medium text-[#242424] hover:bg-[#FCEBEF] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
               >
                 이전
               </button>
@@ -557,7 +557,7 @@ export default function PatientListPage() {
               <button
                 disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                 onClick={() => setCurrentPage((p) => p + 1)}
-                className="h-8 px-3 rounded-lg border border-[#C5CAE9] bg-white text-xs font-medium text-[#242424] hover:bg-[#E8EAF6] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+                className="h-8 px-3 rounded-lg border border-[#F8DCE2] bg-white text-xs font-medium text-[#242424] hover:bg-[#FCEBEF] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
               >
                 다음
               </button>
@@ -568,7 +568,7 @@ export default function PatientListPage() {
 
       {showReceptionForm && selectedPatientForReception && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[1500px] max-h-[85vh] flex flex-col overflow-hidden border border-[#C5CAE9] animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[1500px] max-h-[85vh] flex flex-col overflow-hidden border border-[#F8DCE2] animate-in fade-in zoom-in-95 duration-200">
             <ReceptionForm
               patient={{
                 id: selectedPatientForReception.id,
@@ -646,10 +646,10 @@ export default function PatientListPage() {
                         return { ...prev, _selectedIds: next };
                       });
                     }}
-                    className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${disabled ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70" : selected ? "border-[#3F51B5] bg-[#E8EAF6] ring-1 ring-[#3F51B5]/30" : allowOverride ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                    className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${disabled ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70" : selected ? "border-[#E26B7C] bg-[#FCEBEF] ring-1 ring-[#E26B7C]/30" : allowOverride ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${disabled ? "border-gray-300 bg-gray-200" : selected ? "border-[#3F51B5] bg-[#3F51B5] text-white" : "border-gray-300 bg-white"}`}>
+                      <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${disabled ? "border-gray-300 bg-gray-200" : selected ? "border-[#E26B7C] bg-[#E26B7C] text-white" : "border-gray-300 bg-white"}`}>
                         {selected && <Check className="h-3 w-3" strokeWidth={3} />}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -707,7 +707,7 @@ export default function PatientListPage() {
                     setQuickTicketBusy(false);
                   }
                 }}
-                className="rounded-lg bg-[#3F51B5] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#303F9F] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="rounded-lg bg-[#E26B7C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#99354E] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 차감하기 ({quickTicketPickerData._selectedIds?.length || 0}건)
               </button>

@@ -246,7 +246,7 @@ export default function SmartTextarea(props: SmartTextareaProps) {
                                     onClick={() => handleSelect(item)}
                                     onMouseEnter={() => setSelectedIndex(index)}
                                     className={`group block w-full px-3 py-2 text-left transition-colors ${
-                                        index === selectedIndex ? "bg-[#E8EAF6]" : "hover:bg-gray-50"
+                                        index === selectedIndex ? "bg-[#FCEBEF]" : "hover:bg-gray-50"
                                     }`}
                                 >
                                     <div className="mb-0.5 flex items-center gap-2">

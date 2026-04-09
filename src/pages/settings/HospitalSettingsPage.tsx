@@ -66,7 +66,7 @@ function ImageField({
   };
 
   return (
-    <div className="rounded-2xl border border-[#C5CAE9] bg-white p-4">
+    <div className="rounded-2xl border border-[#F8DCE2] bg-white p-4">
       <div className="flex items-center justify-between">
         <div className="text-sm font-extrabold">{label}</div>
         <div className="flex items-center gap-2">
@@ -82,7 +82,7 @@ function ImageField({
                 e.target.value = "";
               }}
             />
-            <span className="rounded-lg border border-[#C5CAE9] bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">
+            <span className="rounded-lg border border-[#F8DCE2] bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">
               {uploading ? "업로드 중..." : "이미지 업로드"}
             </span>
           </label>
@@ -93,7 +93,7 @@ function ImageField({
       </div>
 
       <div className="mt-3 flex items-center gap-4">
-        <div className="h-24 w-24 overflow-hidden rounded-xl border border-[#C5CAE9] bg-gray-50">
+        <div className="h-24 w-24 overflow-hidden rounded-xl border border-[#F8DCE2] bg-gray-50">
           {value ? (
             <img src={value.startsWith("http") ? value : `${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, "") || ""}${value}`} alt={label} className="h-full w-full object-contain" />
           ) : (
@@ -163,7 +163,7 @@ export default function HospitalSettingsPage() {
   ) => (
     <button
       type="button"
-      className="rounded-2xl border border-[#C5CAE9] bg-white p-4 text-left shadow-sm transition hover:border-[#3F51B5] hover:bg-[#E8EAF6]"
+      className="rounded-2xl border border-[#F8DCE2] bg-white p-4 text-left shadow-sm transition hover:border-[#E26B7C] hover:bg-[#FCEBEF]"
       onClick={() => {
         setEditor({
           mode: "field",
@@ -180,7 +180,7 @@ export default function HospitalSettingsPage() {
         <div className="text-xs font-bold text-gray-500">{label}</div>
         <span className="text-[11px] font-semibold text-slate-500">수정</span>
       </div>
-      <div className="mt-2 rounded-lg border border-[#C5CAE9] bg-[#F8F9FD] px-3 py-2 text-sm font-semibold text-[#242424]">
+      <div className="mt-2 rounded-lg border border-[#F8DCE2] bg-[#FCF7F8] px-3 py-2 text-sm font-semibold text-[#242424]">
         {key === "effectiveDate"
           ? ((draft as any)[key] || "").substring(0, 10) || placeholder || "미입력"
           : (draft as any)[key] || placeholder || "미입력"}
@@ -234,7 +234,7 @@ export default function HospitalSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col bg-[#F5F7FA]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
+      <div className="flex min-h-0 flex-1 flex-col bg-[#FAF3F5]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
         <TopBar title="설정 > 병원" />
         <div className="flex flex-1 items-center justify-center">
           <div className="text-[#616161]">로딩 중...</div>
@@ -244,13 +244,13 @@ export default function HospitalSettingsPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-[#F5F7FA]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
+    <div className="flex min-h-0 flex-1 flex-col bg-[#FAF3F5]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
       <TopBar title="설정 > 병원" />
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-lg font-bold text-[#1A237E]">병원정보</div>
+            <div className="text-lg font-bold text-[#5C2A35]">병원정보</div>
             <div className="mt-1 text-sm text-gray-600">
               병원 기본 정보와 로고/직인 이미지, 운영시간을 설정합니다. (지점: {activeBranchId})
             </div>
@@ -289,8 +289,8 @@ export default function HospitalSettingsPage() {
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-[#C5CAE9] bg-white p-4">
-            <div className="text-sm font-bold text-[#1A237E]">운영시간</div>
+          <div className="rounded-2xl border border-[#F8DCE2] bg-white p-4">
+            <div className="text-sm font-bold text-[#5C2A35]">운영시간</div>
             <div className="mt-1 text-xs text-gray-500">
               요일별 운영시간을 설정합니다. 시작/종료 시간을 선택하세요.
             </div>
@@ -303,8 +303,8 @@ export default function HospitalSettingsPage() {
                 const refVal = draft.operatingHours?.[refDay] || "";
                 const [s, e] = refVal.includes("~") ? refVal.split("~").map((v) => v.trim()) : ["", ""];
                 return (
-                  <div key={label} className="flex items-center gap-1.5 rounded-lg border border-[#C5CAE9] bg-white px-3 py-1.5">
-                    <span className="text-xs font-bold text-[#3F51B5]">{label}</span>
+                  <div key={label} className="flex items-center gap-1.5 rounded-lg border border-[#F8DCE2] bg-white px-3 py-1.5">
+                    <span className="text-xs font-bold text-[#E26B7C]">{label}</span>
                     <select
                       className="rounded border border-slate-200 bg-white px-1.5 py-1 text-xs font-semibold text-slate-700 outline-none cursor-pointer"
                       value={s}
@@ -333,11 +333,11 @@ export default function HospitalSettingsPage() {
                 return (
                   <div
                     key={day}
-                    className="flex items-center gap-3 rounded-lg border border-[#C5CAE9] bg-[#F8F9FD] px-4 py-2.5"
+                    className="flex items-center gap-3 rounded-lg border border-[#F8DCE2] bg-[#FCF7F8] px-4 py-2.5"
                   >
                     <div className="w-8 text-sm font-bold text-gray-700">{day}</div>
                     <select
-                      className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 outline-none focus:border-[#536DFE] cursor-pointer"
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 outline-none focus:border-[#F49EAF] cursor-pointer"
                       value={startVal}
                       onChange={(e) => {
                         const next = `${e.target.value}~${endVal}`;
@@ -351,7 +351,7 @@ export default function HospitalSettingsPage() {
                     </select>
                     <span className="text-sm text-gray-400">~</span>
                     <select
-                      className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 outline-none focus:border-[#536DFE] cursor-pointer"
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-semibold text-slate-700 outline-none focus:border-[#F49EAF] cursor-pointer"
                       value={endVal}
                       onChange={(e) => {
                         const next = `${startVal}~${e.target.value}`;
@@ -416,7 +416,7 @@ export default function HospitalSettingsPage() {
           }}
         >
           <div
-            className="w-full max-w-lg overflow-hidden rounded-2xl border border-[#C5CAE9] bg-white shadow-2xl"
+            className="w-full max-w-lg overflow-hidden rounded-2xl border border-[#F8DCE2] bg-white shadow-2xl"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="border-b border-slate-200 px-6 py-4">
@@ -450,7 +450,7 @@ export default function HospitalSettingsPage() {
               {editorError && <div className="text-xs font-semibold text-rose-600">{editorError}</div>}
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-[#C5CAE9] bg-[#F8F9FD] px-6 py-4">
+            <div className="flex items-center justify-end gap-2 border-t border-[#F8DCE2] bg-[#FCF7F8] px-6 py-4">
               <Button
                 variant="outline"
                 onClick={() => {
