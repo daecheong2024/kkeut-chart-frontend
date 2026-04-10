@@ -11,9 +11,18 @@ import {
   type DocumentationResponse,
   type CreateDocumentationRequest,
   type UpdateDocumentationRequest,
+  type DocumentationStructureType,
 } from "../../services/documentationService";
 import { useCurrentUserPermissions } from "../../hooks/useCurrentUserPermissions";
 import { NoPermissionOverlay } from "../../components/common/NoPermissionOverlay";
+import { DocumentationBuilder } from "../../components/documentBuilder/DocumentationBuilder";
+import { DocumentationPreviewModal } from "../../components/documentBuilder/DocumentationPreviewModal";
+import {
+  type DocumentationStructured,
+  createEmptyStructured,
+  parseStructured,
+  serializeStructured,
+} from "../../types/documentationBuilder";
 
 type PreviewMode = "desktop" | "mobile";
 
@@ -142,6 +151,9 @@ export default function FormsSettingsPage() {
   const [editContent, setEditContent] = useState("");
   const [editIsSignature, setEditIsSignature] = useState(true);
   const [editIsActive, setEditIsActive] = useState(true);
+  const [editStructureType, setEditStructureType] = useState<DocumentationStructureType>("structured");
+  const [editStructured, setEditStructured] = useState<DocumentationStructured>(() => createEmptyStructured());
+  const [showPreview, setShowPreview] = useState(false);
 
   const loadItems = useCallback(async () => {
     if (!activeBranchId) return;
@@ -169,6 +181,13 @@ export default function FormsSettingsPage() {
     setEditContent(item.content ?? "");
     setEditIsSignature(item.isSignature);
     setEditIsActive(item.isActive);
+    const structureType = (item.structureType ?? "html") as DocumentationStructureType;
+    setEditStructureType(structureType);
+    if (structureType === "structured") {
+      setEditStructured(parseStructured(item.content));
+    } else {
+      setEditStructured(createEmptyStructured());
+    }
   };
 
   const closeEditor = () => {
@@ -179,6 +198,7 @@ export default function FormsSettingsPage() {
   };
 
   // ID === -1 means "draft" — not yet persisted to server
+  // 신규 동의서는 항상 structured 모드로 시작
   const handleCreate = () => {
     setEditingId(-1);
     setEditTitle("");
@@ -186,6 +206,8 @@ export default function FormsSettingsPage() {
     setEditContent("");
     setEditIsSignature(true);
     setEditIsActive(false);
+    setEditStructureType("structured");
+    setEditStructured(createEmptyStructured());
   };
 
   const handleSave = async () => {
@@ -196,13 +218,19 @@ export default function FormsSettingsPage() {
     }
     try {
       setSaving(true);
+      // structured 모드일 때 Content 는 JSON 직렬화
+      const contentToSave = editStructureType === "structured"
+        ? serializeStructured(editStructured)
+        : (editContent || null);
+
       if (editingId === -1) {
         // Draft → create
         const request: CreateDocumentationRequest = {
           title: editTitle,
           remarks: editRemarks || null,
-          content: editContent || null,
+          content: contentToSave,
           contentType: "html",
+          structureType: editStructureType,
           isSignature: editIsSignature,
           isActive: editIsActive,
         };
@@ -215,7 +243,8 @@ export default function FormsSettingsPage() {
         const request: UpdateDocumentationRequest = {
           title: editTitle,
           remarks: editRemarks || null,
-          content: editContent || null,
+          content: contentToSave,
+          structureType: editStructureType,
           isSignature: editIsSignature,
           isActive: editIsActive,
         };
@@ -365,9 +394,17 @@ export default function FormsSettingsPage() {
               <p className="text-sm text-gray-500">{editingId === -1 ? "새 동의서를 작성하고 저장하세요." : "동의서 내용을 작성하고 저장하세요."}</p>
             </div>
             <div className="flex items-center gap-2">
+              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${editStructureType === "structured" ? "bg-[#FCEBEF] text-[#8B3F50]" : "bg-amber-100 text-amber-700"}`}>
+                {editStructureType === "structured" ? "블록 빌더" : "HTML (legacy)"}
+              </span>
               <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${editIsActive ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-700"}`}>
                 {editIsActive ? "사용중" : "미사용"}
               </span>
+              {editStructureType === "structured" && (
+                <Button variant="outline" onClick={() => setShowPreview(true)}>
+                  미리보기
+                </Button>
+              )}
               <Button variant="primary" onClick={handleSave} disabled={saving}>
                 {saving ? "저장 중..." : "저장"}
               </Button>
@@ -429,51 +466,72 @@ export default function FormsSettingsPage() {
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 gap-4 p-6">
-              <div className="flex min-h-0 flex-1 flex-col">
-                <label className="mb-2 text-sm font-bold text-gray-700">본문 내용</label>
-                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-gray-300">
-                  <RichTextEditor
-                    content={editContent}
-                    onChange={(html) => setEditContent(html)}
-                    placeholder="동의서 내용을 입력하세요..."
+            {editStructureType === "structured" ? (
+              /* Block-based builder mode (new) */
+              <div className="flex min-h-0 flex-1 overflow-y-auto bg-[#FCF7F8]/30 px-6 py-6">
+                <div className="mx-auto w-full max-w-[820px]">
+                  <DocumentationBuilder
+                    value={editStructured}
+                    onChange={setEditStructured}
                   />
                 </div>
               </div>
-
-              <div className="flex min-h-0 w-[420px] flex-shrink-0 flex-col rounded-xl border border-gray-300 bg-white">
-                <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-                  <div className="text-sm font-bold text-gray-800">미리보기</div>
-                  <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1">
-                    <button
-                      type="button"
-                      onClick={() => setPreviewMode("desktop")}
-                      className={`rounded-md px-2 py-1 text-xs font-semibold ${previewMode === "desktop" ? "bg-white text-gray-900" : "text-gray-500"}`}
-                    >
-                      PC
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPreviewMode("mobile")}
-                      className={`rounded-md px-2 py-1 text-xs font-semibold ${previewMode === "mobile" ? "bg-white text-gray-900" : "text-gray-500"}`}
-                    >
-                      모바일
-                    </button>
+            ) : (
+              /* Legacy HTML mode */
+              <div className="flex min-h-0 flex-1 gap-4 p-6">
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <label className="mb-2 text-sm font-bold text-gray-700">본문 내용</label>
+                  <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-gray-300">
+                    <RichTextEditor
+                      content={editContent}
+                      onChange={(html) => setEditContent(html)}
+                      placeholder="동의서 내용을 입력하세요..."
+                    />
                   </div>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto bg-gray-100 p-4">
-                  <ConsentDocumentPreview
-                    title={previewTitle}
-                    bodyHtml={previewHtml}
-                    requireSignature={editIsSignature}
-                    mode={previewMode}
-                  />
+
+                <div className="flex min-h-0 w-[420px] flex-shrink-0 flex-col rounded-xl border border-gray-300 bg-white">
+                  <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                    <div className="text-sm font-bold text-gray-800">미리보기</div>
+                    <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewMode("desktop")}
+                        className={`rounded-md px-2 py-1 text-xs font-semibold ${previewMode === "desktop" ? "bg-white text-gray-900" : "text-gray-500"}`}
+                      >
+                        PC
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewMode("mobile")}
+                        className={`rounded-md px-2 py-1 text-xs font-semibold ${previewMode === "mobile" ? "bg-white text-gray-900" : "text-gray-500"}`}
+                      >
+                        모바일
+                      </button>
+                    </div>
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-y-auto bg-gray-100 p-4">
+                    <ConsentDocumentPreview
+                      title={previewTitle}
+                      bodyHtml={previewHtml}
+                      requireSignature={editIsSignature}
+                      mode={previewMode}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
+
+      {/* Structured 동의서 미리보기 모달 */}
+      <DocumentationPreviewModal
+        open={showPreview}
+        title={editTitle}
+        structured={editStructured}
+        onClose={() => setShowPreview(false)}
+      />
     </div>
   );
 }

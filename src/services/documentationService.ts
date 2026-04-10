@@ -1,5 +1,7 @@
 import apiClient from './apiClient';
 
+export type DocumentationStructureType = "html" | "structured";
+
 export interface DocumentationResponse {
     id: number;
     branchId: number;
@@ -7,6 +9,7 @@ export interface DocumentationResponse {
     remarks: string | null;
     content: string | null;
     contentType: string;
+    structureType: DocumentationStructureType;
     isSignature: boolean;
     isActive: boolean;
     creator: string;
@@ -20,6 +23,7 @@ export interface CreateDocumentationRequest {
     remarks?: string | null;
     content?: string | null;
     contentType?: string;
+    structureType?: DocumentationStructureType;
     isSignature?: boolean;
     isActive?: boolean;
 }
@@ -29,6 +33,7 @@ export interface UpdateDocumentationRequest {
     remarks?: string | null;
     content?: string | null;
     contentType?: string | null;
+    structureType?: DocumentationStructureType | null;
     isSignature?: boolean | null;
     isActive?: boolean | null;
 }
