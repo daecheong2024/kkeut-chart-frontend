@@ -350,6 +350,7 @@ import AddPaymentModal from "../components/AddPaymentModal";
 import { RefundModal } from "../components/refund/RefundModal";
 import { BulkRefundModal, type BulkRefundModalItem } from "../components/refund/BulkRefundModal";
 import { MembershipSettlementModal } from "../components/refund/MembershipSettlementModal";
+import { UnifiedRefundModal, type UnifiedRefundSelection } from "../components/refund/UnifiedRefundModal";
 import SmartTextarea from "../components/SmartTextarea";
 import { printService, PrintSection } from "../services/printService";
 import { useNavigate, useParams } from "react-router-dom";
@@ -6134,6 +6135,8 @@ function RefundHistoryList({
     const [selectedCardKeys, setSelectedCardKeys] = useState<Set<string>>(new Set());
     const [bulkModalState, setBulkModalState] = useState<BulkRefundModalItem[] | null>(null);
     const [settlementModalState, setSettlementModalState] = useState<{ paymentDetailId: number; membershipName: string } | null>(null);
+    // ISSUE-176: unified refund modal (replaces bulk modal for mixed selections)
+    const [unifiedModalState, setUnifiedModalState] = useState<UnifiedRefundSelection[] | null>(null);
 
     const normalizeItemKey = (value?: string) =>
         String(value || "")
@@ -6581,23 +6584,50 @@ function RefundHistoryList({
         return cards.sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
     }, [groupedRecords]);
 
-    const filteredCards = useMemo(() => {
-        const nonRefunded = itemCards.filter(c => c.status !== "refunded");
-        if (refundFilterTab === 'all') return nonRefunded;
-        return nonRefunded.filter(c => refundFilterTab === 'ticket' ? c.itemType === 'ticket' : c.itemType === 'membership');
-    }, [itemCards, refundFilterTab]);
+    // ISSUE-176: 탭 필터 제거 — 전체 결제내역 노출, 그룹화로 정리
+    const filteredCards = useMemo(() => itemCards.filter(c => c.status !== "refunded"), [itemCards]);
+    // refundFilterTab 은 더 이상 사용하지 않지만 state 유지 (호환성)
+    void refundFilterTab;
 
-    const nonRefundedCards = useMemo(() => itemCards.filter(c => c.status !== "refunded"), [itemCards]);
-    const ticketCardCount = useMemo(() => nonRefundedCards.filter(c => c.itemType === 'ticket').length, [nonRefundedCards]);
-    const membershipCardCount = useMemo(() => nonRefundedCards.filter(c => c.itemType === 'membership').length, [nonRefundedCards]);
+    // ISSUE-176: 그룹별로 묶기 (PaymentMaster 단위)
+    type GroupedCardEntry = {
+        groupId: string;
+        groupKey: string;
+        latestPaidAt: string;
+        groupTotal: number;
+        groupStatus: string;
+        cards: typeof filteredCards;
+    };
+    const cardsByGroup = useMemo<GroupedCardEntry[]>(() => {
+        const map = new Map<string, GroupedCardEntry>();
+        for (const card of filteredCards) {
+            const groupId = card.group.id;
+            const existing = map.get(groupId);
+            if (existing) {
+                existing.cards.push(card);
+            } else {
+                map.set(groupId, {
+                    groupId,
+                    groupKey: groupId,
+                    latestPaidAt: card.group.latestPaidAt || card.paidAt,
+                    groupTotal: card.group.totalActualPaid + card.group.totalMembershipDeduction,
+                    groupStatus: card.group.status,
+                    cards: [card],
+                });
+            }
+        }
+        return Array.from(map.values()).sort((a, b) => new Date(b.latestPaidAt).getTime() - new Date(a.latestPaidAt).getTime());
+    }, [filteredCards]);
 
-    // ISSUE-174 helpers
-    const eligibleCardsForBulk = filteredCards.filter((c) => {
+    // 환불 가능한 카드 (체크박스 활성 대상)
+    const isCardEligible = (c: typeof filteredCards[number]) => {
         if (c.status === "refunded") return false;
         if (getRefundClientBlockReason(c.record)) return false;
         if (!c.itemPaymentDetails[0]?.id) return false;
         return c.itemType === "ticket" || c.itemType === "membership";
-    });
+    };
+
+    const eligibleCardsForBulk = useMemo(() => filteredCards.filter(isCardEligible), [filteredCards]);
     const allEligibleSelected = eligibleCardsForBulk.length > 0 && eligibleCardsForBulk.every((c) => selectedCardKeys.has(c.id));
     const selectedCount = eligibleCardsForBulk.filter((c) => selectedCardKeys.has(c.id)).length;
 
@@ -6615,39 +6645,50 @@ function RefundHistoryList({
             setSelectedCardKeys(new Set(eligibleCardsForBulk.map((c) => c.id)));
         }
     };
-    const openBulkRefund = () => {
+    // 그룹 전체 선택 토글
+    const toggleGroupSelected = (groupCards: typeof filteredCards) => {
+        const eligibleInGroup = groupCards.filter(isCardEligible);
+        const allSelected = eligibleInGroup.length > 0 && eligibleInGroup.every((c) => selectedCardKeys.has(c.id));
+        setSelectedCardKeys((prev) => {
+            const next = new Set(prev);
+            if (allSelected) {
+                eligibleInGroup.forEach((c) => next.delete(c.id));
+            } else {
+                eligibleInGroup.forEach((c) => next.add(c.id));
+            }
+            return next;
+        });
+    };
+
+    // ISSUE-176: 통합 환불 모달 열기
+    const openUnifiedRefund = () => {
         const selected = eligibleCardsForBulk.filter((c) => selectedCardKeys.has(c.id));
         if (selected.length === 0) return;
-        const items: BulkRefundModalItem[] = selected.map((c) => ({
-            paymentMasterId: c.record.paymentMasterId || c.record.id,
-            paymentDetailId: c.itemPaymentDetails[0].id,
-            itemName: c.itemName,
-            itemType: c.itemType,
-        }));
-        setBulkModalState(items);
+        const selections: UnifiedRefundSelection[] = selected.map((c) => {
+            const pd = c.itemPaymentDetails[0];
+            return {
+                paymentMasterId: c.record.paymentMasterId || c.record.id,
+                paymentDetailId: pd.id,
+                itemType: c.itemType as "ticket" | "membership",
+                itemName: c.itemName,
+                paymentType: pd.paymentType,
+                terminalInfo: (pd.terminalAuthNo || pd.terminalAuthDate || pd.terminalVanKey)
+                    ? {
+                        authNo: pd.terminalAuthNo,
+                        authDate: pd.terminalAuthDate,
+                        vanKey: pd.terminalVanKey,
+                    }
+                    : undefined,
+            };
+        });
+        setUnifiedModalState(selections);
     };
 
     return (
         <div className="space-y-3">
-            <div className="flex items-center rounded-[8px] bg-[#FAF3F5] p-0.5 gap-0.5">
-                {([
-                    { key: 'all' as const, label: '전체', count: nonRefundedCards.length },
-                    { key: 'ticket' as const, label: '티켓', count: ticketCardCount },
-                    { key: 'membership' as const, label: '회원권', count: membershipCardCount },
-                ] as const).map(tab => (
-                    <button
-                        key={tab.key}
-                        onClick={() => { setRefundFilterTab(tab.key); setExpandedGroupId(null); setSelectedCardKeys(new Set()); }}
-                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${refundFilterTab === tab.key ? 'bg-white text-[#D27A8C] shadow-sm border border-[#F8DCE2]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
-                    >
-                        {tab.label} ({tab.count})
-                    </button>
-                ))}
-            </div>
-
-            {/* ISSUE-174: Bulk action toolbar */}
+            {/* ISSUE-176: 통합 환불 toolbar (sticky 느낌) */}
             {!isReadOnly && eligibleCardsForBulk.length > 0 && (
-                <div className="flex items-center justify-between gap-2 rounded-[10px] border border-[#F8DCE2] bg-gradient-to-r from-[#FCEBEF]/40 to-[#FCF7F8] px-3 py-2">
+                <div className="sticky top-0 z-10 flex items-center justify-between gap-2 rounded-[10px] border border-[#F8DCE2] bg-gradient-to-r from-[#FCEBEF]/60 to-[#FCF7F8] px-3 py-2 backdrop-blur shadow-sm">
                     <button
                         type="button"
                         onClick={toggleAllSelected}
@@ -6656,12 +6697,12 @@ function RefundHistoryList({
                         <span className={`flex h-4 w-4 items-center justify-center rounded border ${allEligibleSelected ? "border-[#D27A8C] bg-[#D27A8C]" : "border-[#F8DCE2] bg-white"}`}>
                             {allEligibleSelected && <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>}
                         </span>
-                        {allEligibleSelected ? "전체 해제" : "전체 선택"}
+                        {allEligibleSelected ? "전체 해제" : `전체 선택 (${eligibleCardsForBulk.length})`}
                     </button>
                     <button
                         type="button"
                         disabled={selectedCount === 0}
-                        onClick={openBulkRefund}
+                        onClick={openUnifiedRefund}
                         className="rounded-lg px-3 py-1.5 text-[11px] font-extrabold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-[1px] disabled:hover:translate-y-0"
                         style={{
                             background: selectedCount === 0
@@ -6670,17 +6711,60 @@ function RefundHistoryList({
                             boxShadow: selectedCount === 0 ? "none" : "0 4px 12px rgba(210, 122, 140, 0.32)",
                         }}
                     >
-                        선택 환불 ({selectedCount})
+                        통합 환불 ({selectedCount})
                     </button>
                 </div>
             )}
 
-            <div className="space-y-2">
-                {filteredCards.length === 0 ? (
+            {/* ISSUE-176: 결제건 그룹별 카드 */}
+            <div className="space-y-3">
+                {cardsByGroup.length === 0 ? (
                     <div className="text-center text-[#616161] text-[13px] py-6">
-                        {refundFilterTab === 'ticket' ? '티켓 결제 내역이 없습니다.' : refundFilterTab === 'membership' ? '회원권 결제 내역이 없습니다.' : '결제 내역이 없습니다.'}
+                        결제 내역이 없습니다.
                     </div>
-                ) : filteredCards.map((card) => {
+                ) : cardsByGroup.map((groupEntry) => {
+                    const eligibleInGroup = groupEntry.cards.filter(isCardEligible);
+                    const groupAllSelected = eligibleInGroup.length > 0 && eligibleInGroup.every((c) => selectedCardKeys.has(c.id));
+                    const groupSomeSelected = eligibleInGroup.some((c) => selectedCardKeys.has(c.id));
+                    const groupDate = new Date(groupEntry.latestPaidAt);
+                    const dateLabel = groupDate.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
+                    const groupStatusLabel = groupEntry.groupStatus === "refunded" ? "전체 환불" : groupEntry.groupStatus === "partial_refunded" ? "부분 환불" : "정상";
+                    const groupStatusClass = groupEntry.groupStatus === "refunded" ? "bg-red-100 text-red-600" : groupEntry.groupStatus === "partial_refunded" ? "bg-amber-100 text-amber-700" : "bg-emerald-50 text-emerald-700 border border-emerald-200";
+
+                    return (
+                        <div key={groupEntry.groupId} className="rounded-[16px] border border-[#F8DCE2] bg-white overflow-hidden shadow-[0_2px_10px_rgba(226,107,124,0.04)]">
+                            {/* Group header */}
+                            <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gradient-to-r from-[#FCEBEF]/40 to-[#FCF7F8] border-b border-[#F8DCE2]">
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                    {!isReadOnly && eligibleInGroup.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleGroupSelected(groupEntry.cards)}
+                                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all ${groupAllSelected ? "border-[#D27A8C] bg-[#D27A8C]" : groupSomeSelected ? "border-[#D27A8C] bg-[#FCEBEF]" : "border-[#F8DCE2] bg-white hover:border-[#D27A8C]"}`}
+                                            title={groupAllSelected ? "이 결제건 전체 해제" : "이 결제건 전체 선택"}
+                                        >
+                                            {groupAllSelected && <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>}
+                                            {!groupAllSelected && groupSomeSelected && <span className="h-1 w-2 bg-[#D27A8C] rounded" />}
+                                        </button>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-[13px] font-extrabold text-[#5C2A35]">{dateLabel}</span>
+                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold leading-none ${groupStatusClass}`}>
+                                                {groupStatusLabel}
+                                            </span>
+                                            <span className="text-[10px] text-[#8B5A66]">{groupEntry.cards.length}건</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="text-[14px] font-extrabold tabular-nums text-[#5C2A35] shrink-0">
+                                    {groupEntry.groupTotal.toLocaleString()}원
+                                </div>
+                            </div>
+
+                            {/* Group items */}
+                            <div className="divide-y divide-[#F8DCE2]/60">
+                                {groupEntry.cards.map((card) => {
                     const isRefunded = card.status === "refunded";
                     const isTicket = card.itemType === "ticket";
                     const isMembership = card.itemType === "membership";
@@ -6885,6 +6969,10 @@ function RefundHistoryList({
                         </div>
                     );
                 })}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
             {refundModalState && (
                 <RefundModal
@@ -6932,6 +7020,24 @@ function RefundHistoryList({
                     onClose={() => setSettlementModalState(null)}
                     onRefunded={() => {
                         setSettlementModalState(null);
+                        setRefundCheckByRecordId({});
+                        setRefundCheckByGroupId({});
+                        if (typeof onRefundCompleted === "function") {
+                            void onRefundCompleted();
+                        }
+                    }}
+                />
+            )}
+
+            {/* ISSUE-176: Unified refund modal */}
+            {unifiedModalState && (
+                <UnifiedRefundModal
+                    open
+                    selections={unifiedModalState}
+                    onClose={() => setUnifiedModalState(null)}
+                    onCompleted={() => {
+                        setUnifiedModalState(null);
+                        setSelectedCardKeys(new Set());
                         setRefundCheckByRecordId({});
                         setRefundCheckByGroupId({});
                         if (typeof onRefundCompleted === "function") {

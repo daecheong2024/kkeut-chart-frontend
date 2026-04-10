@@ -446,8 +446,9 @@ export function MembershipSettlementModal({
                                     )}
                                 </div>
 
-                                <div className="text-[10px] text-[#8B5A66] italic leading-relaxed">
-                                    💡 보너스 포인트({formatWon(info.snapshotBonusPoint)})는 무상지급분이라 환불에서 제외됩니다.
+                                <div className="rounded-lg bg-[#FCF7F8] border border-[#F8DCE2] px-3 py-2 text-[10px] text-[#8B5A66] leading-relaxed space-y-1">
+                                    <div>💡 <b>처리 흐름:</b> 선택된 티켓이 먼저 환불되어 회원권 잔액이 복구되고, 그 합계에서 위약금을 차감한 금액이 고객에게 환불됩니다.</div>
+                                    <div>🚫 보너스 포인트({formatWon(info.snapshotBonusPoint)})는 무상지급분이라 환불에서 제외됩니다.</div>
                                 </div>
                             </div>
                         </div>
