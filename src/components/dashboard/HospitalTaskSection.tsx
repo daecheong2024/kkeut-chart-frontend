@@ -193,7 +193,7 @@ export function HospitalTaskSection() {
           return (
             <div
               key={task.id}
-              className={`group flex items-start gap-3 rounded-[12px] border border-[#F8DCE2] p-3 transition-all duration-200 ease-in-out hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] ${
+              className={`group flex items-start gap-3 rounded-[12px] border border-[#F8DCE2] p-4 transition-all duration-200 ease-in-out hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] ${
                 task.isCompleted ? "bg-[#FAF3F5]" : "bg-white"
               }`}
             >
@@ -206,13 +206,13 @@ export function HospitalTaskSection() {
 
               <div className="min-w-0 flex-1">
                 <div
-                  className={`whitespace-pre-wrap text-sm font-medium leading-relaxed ${
+                  className={`whitespace-pre-wrap text-[15px] font-medium leading-relaxed ${
                     task.isCompleted ? "text-[#616161] line-through decoration-[#9E9E9E]" : "text-[#242424]"
                   }`}
                 >
                   {task.content}
                 </div>
-                <div className="mt-2 space-y-1 text-[11px] text-[#616161]">
+                <div className="mt-2 space-y-1 text-xs text-[#616161]">
                   <div>
                     작성: {normalizeActorName(task.creator)} · {timeAgo(task.createdAt)}
                   </div>

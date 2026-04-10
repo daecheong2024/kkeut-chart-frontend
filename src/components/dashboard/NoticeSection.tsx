@@ -260,13 +260,13 @@ export function NoticeSection() {
                     </div>
                   )}
                 </div>
-                <h3 className="mb-1 text-sm font-semibold text-[#242424]">{notice.title}</h3>
+                <h3 className="mb-1.5 text-[15px] font-semibold text-[#242424]">{notice.title}</h3>
                 {notice.content && (
-                  <p className="whitespace-pre-wrap text-xs leading-relaxed text-[#616161]">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#616161]">
                     {notice.content}
                   </p>
                 )}
-                <div className="mt-3 space-y-1 text-[11px] text-[#616161]">
+                <div className="mt-3 space-y-1 text-xs text-[#616161]">
                   <div>
                     작성: {normalizeActorName(notice.creatorName)} · {formatTimeAgo(notice.createdAt)}
                   </div>

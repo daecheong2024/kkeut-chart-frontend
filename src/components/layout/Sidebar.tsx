@@ -149,8 +149,8 @@ export function Sidebar({ onNavigate, collapsed = false }: { onNavigate?: () => 
   return (
     <aside className="kkeut-sidebar-shell flex h-full w-[264px] flex-col">
       <div className="relative px-5 py-3 border-b border-white/10 flex flex-col items-center gap-1">
-        <BrandMark size={84} />
-        <div className="text-[9px] font-bold tracking-[0.22em] text-white/55 uppercase">KKEUT CHART</div>
+        <BrandMark size={140} />
+        <div className="text-[10px] font-bold tracking-[0.22em] text-white/55 uppercase">KKEUT CHART</div>
         {shell && (
           <button
             onClick={() => shell.toggleSidebarCollapsed()}
