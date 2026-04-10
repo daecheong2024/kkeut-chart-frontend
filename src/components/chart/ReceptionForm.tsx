@@ -93,11 +93,12 @@ export function ReceptionForm({
                 const jobTitleMap = new Map<string, string>(
                     (jobTitles || []).map((job: any) => [String(job.id), String(job.name || "")])
                 );
+                const allowedJobIds = (settings.chartConfig?.statusRules?.receptionDoctorJobTitleIds || []).map(String);
                 const filtered = (members || []).filter((member: any) => {
                     if (member?.isApproved === false) return false;
                     const jobId = String(member?.jobTitleId || "");
-                    const jobName = jobTitleMap.get(jobId) || "";
-                    return jobName === "원장";
+                    if (allowedJobIds.length > 0) return jobId && allowedJobIds.includes(jobId);
+                    return true;
                 });
 
                 const mapped = filtered.map((member: any) => {
@@ -463,7 +464,7 @@ export function ReceptionForm({
                     </div>
 
                     <div className="px-3 pt-3 pb-3 flex-1">
-                        <h4 className="text-[13px] font-semibold text-[#5C2A35] mb-2">내원이력 <span className="text-[11px] font-bold text-[#E26B7C] bg-[#E26B7C]/10 px-1.5 py-0.5 rounded-full">{visitHistoryList.length}</span></h4>
+                        <h4 className="text-[13px] font-semibold text-[#5C2A35] mb-2">내원이력 <span className="text-[11px] font-bold text-[#D27A8C] bg-[#D27A8C]/10 px-1.5 py-0.5 rounded-full">{visitHistoryList.length}</span></h4>
                         <div className="space-y-1">
                             {visitHistoryList.length === 0 ? (
                                 <div className="text-[12px] text-[#616161] pl-4">내원이력이 없습니다.</div>
@@ -490,7 +491,7 @@ export function ReceptionForm({
                                     return (
                                         <div
                                             key={v.id || i}
-                                            className={`rounded-lg border transition-all duration-200 cursor-pointer ${isExpanded ? "border-[#E26B7C]/30 bg-[#FCEBEF]/30" : "border-[#F8DCE2] bg-white hover:bg-[#FCEBEF]"}`}
+                                            className={`rounded-lg border transition-all duration-200 cursor-pointer ${isExpanded ? "border-[#D27A8C]/30 bg-[#FCEBEF]/30" : "border-[#F8DCE2] bg-white hover:bg-[#FCEBEF]"}`}
                                             onClick={() => setExpandedVisitId(isExpanded ? null : v.id)}
                                         >
                                             <div className="flex items-center justify-between px-2 py-1.5">
@@ -551,9 +552,9 @@ export function ReceptionForm({
                                     <span className="text-[12px] text-[#616161]">{displayGender} · {displayAge}세</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="px-2 py-0.5 bg-[#FCEBEF] text-[#E26B7C] rounded text-[11px] font-medium">누적 {cumulativePaymentLabel}</span>
+                                    <span className="px-2 py-0.5 bg-[#FCEBEF] text-[#D27A8C] rounded text-[11px] font-medium">누적 {cumulativePaymentLabel}</span>
                                     {displayTags.map((tag: string) => (
-                                        <span key={tag} className="px-2 py-0.5 bg-[#FCEBEF] text-[#E26B7C] rounded text-[11px] font-medium">{tag}</span>
+                                        <span key={tag} className="px-2 py-0.5 bg-[#FCEBEF] text-[#D27A8C] rounded text-[11px] font-medium">{tag}</span>
                                     ))}
                                 </div>
                             </div>
@@ -589,7 +590,7 @@ export function ReceptionForm({
                                                     key={vp.id}
                                                     onClick={() => togglePurpose(vp.id)}
                                                     className={`px-3 py-1.5 rounded-lg text-[13px] min-h-[34px] border transition-all duration-200 ${visitPurposeIds.includes(vp.id)
-                                                        ? "bg-[#E26B7C] border-[#E26B7C] text-white font-bold"
+                                                        ? "bg-[#D27A8C] border-[#D27A8C] text-white font-bold"
                                                         : "bg-white border-[#F8DCE2] text-[#242424] font-medium hover:bg-[#FCEBEF]"
                                                         }`}
                                                 >
@@ -610,7 +611,7 @@ export function ReceptionForm({
                                             {currentPlanned.map((name, idx) => (
                                                 <span
                                                     key={`planned-current-${idx}-${name}`}
-                                                    className="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-[#E26B7C] border border-[#F8DCE2]"
+                                                    className="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-[#D27A8C] border border-[#F8DCE2]"
                                                 >
                                                     {name}
                                                 </span>
@@ -630,7 +631,7 @@ export function ReceptionForm({
                                             <option value="">선택</option>
                                             {doctorCandidates.map((member) => (
                                                 <option key={member.id} value={member.name}>
-                                                    {member.name}{member.jobTitleName ? ` (${member.jobTitleName})` : ""}
+                                                    {member.name}
                                                 </option>
                                             ))}
                                         </select>
@@ -666,7 +667,7 @@ export function ReceptionForm({
 
                     <div className="w-56 border-l border-[#F8DCE2] bg-white flex flex-col shrink-0 overflow-y-auto">
                         <div className="bg-[#FCF7F8] px-3 py-2 border-b border-[#F8DCE2]">
-                            <h3 className="text-[13px] font-semibold text-[#5C2A35]">다가올 예약 <span className="text-[11px] font-bold text-[#E26B7C] bg-[#E26B7C]/10 px-1.5 py-0.5 rounded-full">{upcomingReservations.length}</span></h3>
+                            <h3 className="text-[13px] font-semibold text-[#5C2A35]">다가올 예약 <span className="text-[11px] font-bold text-[#D27A8C] bg-[#D27A8C]/10 px-1.5 py-0.5 rounded-full">{upcomingReservations.length}</span></h3>
                         </div>
                         <div className="p-2 space-y-1.5 flex-1">
                             {upcomingReservations.length === 0 ? (
@@ -681,13 +682,13 @@ export function ReceptionForm({
                                     return (
                                         <div key={r.id} className="rounded-lg border border-[#F8DCE2] bg-white p-2 hover:bg-[#FCEBEF] transition-colors">
                                             <div className="flex items-center gap-1.5 mb-1">
-                                                <Calendar className="w-3 h-3 text-[#E26B7C] shrink-0" />
+                                                <Calendar className="w-3 h-3 text-[#D27A8C] shrink-0" />
                                                 <span className="text-[11px] font-bold text-[#5C2A35]">{dateStr}</span>
-                                                <span className="text-[10px] font-medium text-[#E26B7C]">{timeStr}</span>
+                                                <span className="text-[10px] font-medium text-[#D27A8C]">{timeStr}</span>
                                             </div>
                                             {categoryName && (
                                                 <div className="text-[10px] text-[#616161] mb-0.5">
-                                                    <span className="px-1.5 py-0.5 rounded bg-[#FCEBEF] text-[#E26B7C] font-medium">{categoryName}</span>
+                                                    <span className="px-1.5 py-0.5 rounded bg-[#FCEBEF] text-[#D27A8C] font-medium">{categoryName}</span>
                                                 </div>
                                             )}
                                             {rMemo && (
@@ -728,7 +729,7 @@ export function ReceptionForm({
                             disabled={quickActionDisabled}
                             className={`px-4 py-1.5 rounded-lg text-[13px] font-bold transition-all duration-200 min-h-[38px] ${
                                 quickActionDisabled
-                                    ? "bg-[#FCEBEF] text-[#E26B7C]/50 cursor-not-allowed"
+                                    ? "bg-[#FCEBEF] text-[#D27A8C]/50 cursor-not-allowed"
                                     : "bg-emerald-500 hover:bg-emerald-600 text-white"
                             }`}
                         >
@@ -737,7 +738,7 @@ export function ReceptionForm({
                     )}
                     <button
                         onClick={handleSubmit}
-                        className="px-6 py-1.5 bg-[#E26B7C] hover:bg-[#99354E] text-white rounded-lg text-[13px] font-bold transition-all duration-200 min-h-[38px]"
+                        className="px-6 py-1.5 bg-[#D27A8C] hover:bg-[#8B3F50] text-white rounded-lg text-[13px] font-bold transition-all duration-200 min-h-[38px]"
                     >
                         {isEditMode ? "저장" : "접수"}
                     </button>

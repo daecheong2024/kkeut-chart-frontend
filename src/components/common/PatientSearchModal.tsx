@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, X, Info, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { NewPatientModal } from "./NewPatientModal";
@@ -10,7 +10,6 @@ import { ticketService } from "../../services/ticketService";
 import { useScheduleStore } from "../../stores/useScheduleStore";
 import { useChartStore } from "../../stores/useChartStore";
 import { resolveActiveBranchId } from "../../utils/branch";
-import { Gift } from "lucide-react";
 import { ConfirmModal } from "../chart/ConfirmModal";
 import { fetchQuickTicketOptions, canOverrideCycleBlock, type QuickTicketOption } from "../../utils/quickTicketOption";
 import { useSettingsStore } from "../../stores/useSettingsStore";
@@ -285,10 +284,10 @@ export function PatientSearchModal({ isOpen, onClose, onSelectPatient }: Patient
                                                     return { ...prev, _selectedIds: next };
                                                 });
                                             }}
-                                            className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${disabled ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70" : selected ? "border-[#E26B7C] bg-[#FCEBEF] ring-1 ring-[#E26B7C]/30" : allowOverride ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                                            className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${disabled ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70" : selected ? "border-[#D27A8C] bg-[#FCEBEF] ring-1 ring-[#D27A8C]/30" : allowOverride ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
                                         >
                                             <div className="flex items-start justify-between gap-3">
-                                                <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${disabled ? "border-gray-300 bg-gray-200" : selected ? "border-[#E26B7C] bg-[#E26B7C] text-white" : "border-gray-300 bg-white"}`}>
+                                                <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${disabled ? "border-gray-300 bg-gray-200" : selected ? "border-[#D27A8C] bg-[#D27A8C] text-white" : "border-gray-300 bg-white"}`}>
                                                     {selected && <Check className="h-3 w-3" strokeWidth={3} />}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
@@ -349,7 +348,7 @@ export function PatientSearchModal({ isOpen, onClose, onSelectPatient }: Patient
                                             setQuickTicketBusy(false);
                                         }
                                     }}
-                                    className="rounded-lg bg-[#E26B7C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#99354E] disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="rounded-lg bg-[#D27A8C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#8B3F50] disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     차감하기 ({quickTicketPickerData._selectedIds?.length || 0}건)
                                 </button>
@@ -373,46 +372,67 @@ export function PatientSearchModal({ isOpen, onClose, onSelectPatient }: Patient
 
     return createPortal(
         <>
-            <div className="fixed inset-0 z-[9999] flex items-start justify-center p-6 pt-14 bg-slate-900/35 backdrop-blur-[4px] transition-all duration-300">
+            <div className="fixed inset-0 z-[9999] flex items-start justify-center p-6 pt-14 bg-[#2A1F22]/40 backdrop-blur-[5px] transition-all duration-300">
                 <div
-                    className={`relative bg-white rounded-[26px] border border-slate-200/80 shadow-[0_28px_80px_rgba(15,23,42,0.24)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-all ${searchText ? 'w-[min(1280px,96vw)] min-h-[620px] max-h-[90vh]' : 'w-[min(760px,96vw)] min-h-[540px] max-h-[88vh]'}`}
+                    className={`relative bg-white rounded-[28px] border border-[#F8DCE2] shadow-[0_32px_90px_rgba(92,42,53,0.28)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-all ${searchText ? 'w-[min(1280px,96vw)] min-h-[620px] max-h-[90vh]' : 'w-[min(780px,96vw)] min-h-[560px] max-h-[88vh]'}`}
                 >
                     {/* Search Header */}
-                    <div className="px-6 py-5 border-b border-slate-200 bg-gradient-to-b from-slate-50/85 to-white">
-                        <div className="flex items-center justify-between gap-4 mb-3">
-                            <div>
-                                <div className="text-[20px] font-extrabold tracking-tight text-slate-900">환자 검색</div>
-                                <div className="text-xs text-slate-500 mt-1">이름, 차트번호, 연락처, 생년월일로 빠르게 찾을 수 있습니다.</div>
+                    <div className="relative px-7 pt-6 pb-5 border-b border-[#F8DCE2] bg-gradient-to-b from-[#FCEBEF] via-[#FCF7F8] to-white">
+                        <div className="absolute left-0 top-6 bottom-5 w-[3px] rounded-r-full bg-gradient-to-b from-[#D27A8C] to-[#8B3F50]" />
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                            <div className="pl-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#D27A8C] to-[#8B3F50] shadow-[0_6px_18px_rgba(226,107,124,0.35)]">
+                                        <Search className="w-4 h-4 text-white" strokeWidth={2.5} />
+                                    </div>
+                                    <div className="text-[22px] font-extrabold tracking-tight text-[#5C2A35]">환자 검색</div>
+                                </div>
+                                <div className="text-[12px] text-[#8B5A66] mt-1.5 ml-[40px]">이름, 차트번호, 연락처, 생년월일로 빠르게 찾을 수 있습니다.</div>
                             </div>
                             <button
                                 onClick={onClose}
-                                className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                                className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-[#F8DCE2] bg-white text-[#8B3F50] hover:text-[#5C2A35] hover:bg-[#FCEBEF] hover:border-[#D27A8C]/40 transition-all shadow-sm"
                             >
                                 <span className="sr-only">닫기</span>
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
-                        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                            <Search className="text-slate-400 w-5 h-5 shrink-0" />
+                        <div className="group flex items-center gap-3 rounded-2xl border border-[#F8DCE2] bg-white px-4 py-3.5 shadow-[0_4px_14px_rgba(226,107,124,0.08)] focus-within:border-[#D27A8C] focus-within:shadow-[0_6px_20px_rgba(226,107,124,0.18)] focus-within:ring-2 focus-within:ring-[#D27A8C]/15 transition-all">
+                            <Search className="text-[#D27A8C] w-5 h-5 shrink-0 group-focus-within:scale-110 transition-transform" />
                             <input
                                 ref={inputRef}
-                                className="flex-1 text-[17px] placeholder:text-slate-300 text-slate-800 outline-none bg-transparent"
-                                placeholder="환자 검색"
+                                className="flex-1 text-[17px] placeholder:text-[#C9A0A8] text-[#2A1F22] outline-none bg-transparent font-medium"
+                                placeholder="이름 / 차트번호 / 연락처 / 생년월일 (6자리)"
                                 value={searchText}
                                 onChange={(e) => setSearchText(e.target.value)}
                             />
+                            {searchText && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchText("")}
+                                    className="h-6 w-6 inline-flex items-center justify-center rounded-full bg-[#FCEBEF] text-[#8B3F50] hover:bg-[#F8DCE2] transition-colors"
+                                    title="지우기"
+                                >
+                                    <X className="w-3 h-3" strokeWidth={3} />
+                                </button>
+                            )}
                         </div>
                     </div>
 
                     {/* content */}
                     <div className="flex-1 flex flex-col w-full">
                         {/* Tabs */}
-                        <div className="flex items-center px-6 border-b border-slate-200 bg-white/95 relative">
+                        <div className="flex items-center px-7 border-b border-[#F8DCE2] bg-white relative">
                             <div className="flex gap-6">
-                                <button className="py-3 text-sm font-semibold text-[rgb(var(--kkeut-primary-strong))] border-b-2 border-[rgb(var(--kkeut-primary))]">
+                                <button className="py-3 text-sm font-bold text-[#5C2A35] border-b-2 border-[#D27A8C] -mb-px">
                                     환자
                                 </button>
                             </div>
+                            {searchText && !isLoading && patients.length > 0 && (
+                                <div className="ml-auto py-3 text-[11px] font-semibold text-[#8B3F50]">
+                                    검색 결과 <span className="text-[#D27A8C] font-extrabold">{patients.length}</span>건
+                                </div>
+                            )}
                         </div>
 
                         {/* Content Body */}
@@ -420,51 +440,54 @@ export function PatientSearchModal({ isOpen, onClose, onSelectPatient }: Patient
                             {searchText && (patients.length > 0 || isLoading) ? (
                                 <div className="flex-1 overflow-y-auto">
                                     <table className="w-full text-left text-sm whitespace-nowrap">
-                                        <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
+                                        <thead className="bg-gradient-to-b from-[#FCF7F8] to-[#FCEBEF]/60 sticky top-0 z-10 border-b border-[#F8DCE2]">
                                             <tr>
-                                                <th className="py-3 px-4 font-bold text-slate-500">No.</th>
-                                                <th className="py-3 px-4 font-bold text-slate-500">이름</th>
-                                                <th className="py-3 px-4 font-bold text-slate-500">성별</th>
-                                                <th className="py-3 px-4 font-bold text-slate-500">나이</th>
-                                                <th className="py-3 px-4 font-bold text-slate-500">생년월일</th>
-                                                <th className="py-3 px-4 font-bold text-slate-500">대표연락처</th>
-                                                <th className="py-3 px-4 font-bold text-slate-500">여권번호</th>
-                                                <th className="py-3 px-4 font-bold text-slate-500">피보험자</th>
-                                                <th className="py-3 px-4 font-bold text-slate-500">최근 예약</th>
-                                                <th className="py-3 px-4 font-bold text-slate-500">최근방문</th>
-                                                <th className="py-3 px-4 font-bold text-slate-500 text-center">기능</th>
+                                                <th className="py-3 px-4 font-bold text-[#8B3F50] text-[11px] uppercase tracking-wider">No.</th>
+                                                <th className="py-3 px-4 font-bold text-[#8B3F50] text-[11px] uppercase tracking-wider">이름</th>
+                                                <th className="py-3 px-4 font-bold text-[#8B3F50] text-[11px] uppercase tracking-wider">성별</th>
+                                                <th className="py-3 px-4 font-bold text-[#8B3F50] text-[11px] uppercase tracking-wider">나이</th>
+                                                <th className="py-3 px-4 font-bold text-[#8B3F50] text-[11px] uppercase tracking-wider">생년월일</th>
+                                                <th className="py-3 px-4 font-bold text-[#8B3F50] text-[11px] uppercase tracking-wider">대표연락처</th>
+                                                <th className="py-3 px-4 font-bold text-[#8B3F50] text-[11px] uppercase tracking-wider">여권번호</th>
+                                                <th className="py-3 px-4 font-bold text-[#8B3F50] text-[11px] uppercase tracking-wider">피보험자</th>
+                                                <th className="py-3 px-4 font-bold text-[#8B3F50] text-[11px] uppercase tracking-wider">최근 예약</th>
+                                                <th className="py-3 px-4 font-bold text-[#8B3F50] text-[11px] uppercase tracking-wider">최근방문</th>
+                                                <th className="py-3 px-4 font-bold text-[#8B3F50] text-[11px] uppercase tracking-wider text-center">기능</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100">
+                                        <tbody className="divide-y divide-[#F8DCE2]/60">
                                             {isLoading ? (
                                                 <tr>
-                                                    <td colSpan={11} className="py-20 text-center text-slate-400">
-                                                        검색 중...
+                                                    <td colSpan={11} className="py-20 text-center">
+                                                        <div className="flex flex-col items-center gap-3">
+                                                            <div className="h-8 w-8 rounded-full border-2 border-[#F8DCE2] border-t-[#D27A8C] animate-spin" />
+                                                            <span className="text-[#8B3F50] text-sm font-medium">검색 중...</span>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ) : patients.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={11} className="py-20 text-center text-slate-400">
+                                                    <td colSpan={11} className="py-20 text-center text-[#8B5A66] text-sm">
                                                         검색 결과가 없습니다.
                                                     </td>
                                                 </tr>
                                             ) : (
                                                 patients.map((patient, index) => (
-                                                    <tr key={index} className="hover:bg-slate-50/80 transition-colors">
-                                                        <td className="py-3 px-4 text-slate-500">{patient.no}</td>
-                                                        <td className="py-3 px-4 font-semibold text-slate-900">{patient.name}</td>
-                                                        <td className="py-3 px-4 text-slate-500">{patient.sex}</td>
-                                                        <td className="py-3 px-4 text-slate-500">{patient.age}</td>
-                                                        <td className="py-3 px-4 text-slate-500">{patient.dob}</td>
-                                                        <td className="py-3 px-4 text-slate-500">{patient.phone}</td>
-                                                        <td className="py-3 px-4 text-slate-500">{patient.passport || '-'}</td>
-                                                        <td className="py-3 px-4 text-slate-500">{patient.insured}</td>
-                                                        <td className="py-3 px-4 text-slate-500">{patient.plan}</td>
-                                                        <td className="py-3 px-4 text-slate-500">{patient.lastContent}</td>
+                                                    <tr key={index} className="hover:bg-[#FCEBEF]/40 transition-colors group">
+                                                        <td className="py-3 px-4 text-[#8B5A66] font-mono text-xs">{patient.no}</td>
+                                                        <td className="py-3 px-4 font-bold text-[#2A1F22] group-hover:text-[#5C2A35]">{patient.name}</td>
+                                                        <td className="py-3 px-4 text-[#5C2A35]">{patient.sex}</td>
+                                                        <td className="py-3 px-4 text-[#5C2A35]">{patient.age}</td>
+                                                        <td className="py-3 px-4 text-[#5C2A35]">{patient.dob}</td>
+                                                        <td className="py-3 px-4 text-[#5C2A35]">{patient.phone}</td>
+                                                        <td className="py-3 px-4 text-[#8B5A66]">{patient.passport || '-'}</td>
+                                                        <td className="py-3 px-4 text-[#5C2A35]">{patient.insured}</td>
+                                                        <td className="py-3 px-4 text-[#5C2A35]">{patient.plan}</td>
+                                                        <td className="py-3 px-4 text-[#5C2A35]">{patient.lastContent}</td>
                                                         <td className="py-3 px-4">
-                                                            <div className="flex items-center justify-center gap-2">
+                                                            <div className="flex items-center justify-center gap-1.5">
                                                                 <button
-                                                                    className="h-8 px-3 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors"
+                                                                    className="h-8 px-3 rounded-lg border border-[#F8DCE2] bg-white text-[#5C2A35] text-xs font-bold hover:bg-[#FCEBEF] hover:border-[#D27A8C]/40 transition-all"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         navigate(`/app/chart-view/${patient.id}`);
@@ -474,7 +497,7 @@ export function PatientSearchModal({ isOpen, onClose, onSelectPatient }: Patient
                                                                     차트
                                                                 </button>
                                                                 <button
-                                                                    className="h-8 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors"
+                                                                    className="h-8 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 hover:border-emerald-300 transition-all"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         setSelectedPatientForReception(patient);
@@ -484,16 +507,15 @@ export function PatientSearchModal({ isOpen, onClose, onSelectPatient }: Patient
                                                                     접수
                                                                 </button>
                                                                 <button
-                                                                    className="h-8 px-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition-colors"
+                                                                    className="h-8 px-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-xs font-bold hover:bg-amber-100 hover:border-amber-300 transition-all"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         if (onSelectPatient) {
                                                                             onSelectPatient(patient);
                                                                         } else {
-                                                                            // Navigate to reservation page with patient data
                                                                             navigate('/app/reservation', { state: { reservePatient: patient, _ts: Date.now() } });
                                                                         }
-                                                                        onClose(); // Close search modal
+                                                                        onClose();
                                                                     }}
                                                                 >
                                                                     예약
@@ -503,7 +525,7 @@ export function PatientSearchModal({ isOpen, onClose, onSelectPatient }: Patient
                                                                         e.stopPropagation();
                                                                         handleEditClick(patient);
                                                                     }}
-                                                                    className="h-8 px-3 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-xs font-semibold hover:bg-slate-100 transition-colors"
+                                                                    className="h-8 px-3 rounded-lg border border-[#F8DCE2] bg-[#FCF7F8] text-[#5C2A35] text-xs font-bold hover:bg-[#FCEBEF] hover:border-[#D27A8C]/40 transition-all"
                                                                 >
                                                                     수정
                                                                 </button>
@@ -516,23 +538,36 @@ export function PatientSearchModal({ isOpen, onClose, onSelectPatient }: Patient
                                     </table>
                                 </div>
                             ) : (
-                                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 px-6">
-                                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-5 border border-slate-200">
-                                        <Search size={34} className="text-slate-300" />
+                                <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 bg-gradient-to-b from-white to-[#FCF7F8]/40">
+                                    <div className="relative">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-[#D27A8C]/20 to-[#FCEBEF] blur-xl rounded-full" />
+                                        <div className="relative w-24 h-24 bg-gradient-to-br from-[#FCEBEF] to-white rounded-full flex items-center justify-center mb-6 border border-[#F8DCE2] shadow-[0_8px_28px_rgba(226,107,124,0.18)]">
+                                            <Search size={38} className="text-[#D27A8C]" strokeWidth={2.2} />
+                                        </div>
                                     </div>
-                                    <p className="text-[28px] leading-none mb-3">환자 검색을 시작해 주세요</p>
-                                    <p className="text-base">환자 이름 또는 차트번호, 전화번호를 검색하세요</p>
+                                    <p className="text-[22px] font-extrabold leading-none mb-2.5 text-[#5C2A35] tracking-tight">환자 검색을 시작해 주세요</p>
+                                    <p className="text-[13px] text-[#8B5A66]">환자 이름 또는 차트번호, 전화번호를 입력해 주세요</p>
+                                    <div className="mt-6 flex flex-wrap items-center justify-center gap-2 max-w-[460px]">
+                                        {['이름', '차트번호', '연락처', '생년월일(6자리)', '여권번호'].map((tag) => (
+                                            <span key={tag} className="inline-flex items-center px-2.5 py-1 rounded-full bg-[#FCEBEF] border border-[#F8DCE2] text-[11px] font-semibold text-[#8B3F50]">
+                                                #{tag}
+                                            </span>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>
 
                         {/* Footer Info */}
-                        <div className="px-6 py-4 bg-slate-50/70 border-t border-slate-200 flex items-center justify-between">
-                            <div className="min-w-0">
-                                <div className="text-xs font-semibold text-slate-700">환자번호, 이름, 연락처, 생년월일(6자리), 여권번호로 검색해보세요.</div>
-                                <div className="mt-1 text-[11px] text-slate-500 flex items-center gap-1.5">
-                                    <Info className="w-3.5 h-3.5" />
-                                    등록된 환자가 아니라면 신환등록을 해주세요.
+                        <div className="relative px-7 py-4 bg-gradient-to-r from-[#FCEBEF] via-[#FCF7F8] to-white border-t border-[#F8DCE2] flex items-center justify-between gap-4">
+                            <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-[#D27A8C] to-[#8B3F50]" />
+                            <div className="min-w-0 pl-2">
+                                <div className="text-[12px] font-bold text-[#5C2A35] flex items-center gap-1.5">
+                                    <Info className="w-3.5 h-3.5 text-[#D27A8C]" />
+                                    환자번호 / 이름 / 연락처 / 생년월일(6자리) / 여권번호로 검색해보세요.
+                                </div>
+                                <div className="mt-1 text-[11px] text-[#8B5A66] pl-5">
+                                    등록된 환자가 아니라면 우측의 <span className="font-bold text-[#8B3F50]">신환등록</span>을 이용해 주세요.
                                 </div>
                             </div>
 
@@ -541,9 +576,9 @@ export function PatientSearchModal({ isOpen, onClose, onSelectPatient }: Patient
                                     setModalMode('create');
                                     setIsNewPatientOpen(true);
                                 }}
-                                className="h-11 px-5 rounded-xl bg-[rgb(var(--kkeut-primary))] hover:bg-[rgb(var(--kkeut-primary-strong))] text-white text-sm font-bold shadow-sm transition-colors"
+                                className="h-11 px-6 rounded-xl bg-gradient-to-br from-[#D27A8C] to-[#8B3F50] hover:from-[#D55A6C] hover:to-[#822A41] text-white text-sm font-extrabold shadow-[0_8px_22px_rgba(226,107,124,0.38)] hover:shadow-[0_10px_28px_rgba(226,107,124,0.48)] transition-all hover:-translate-y-[1px] shrink-0"
                             >
-                                신환등록
+                                + 신환등록
                             </button>
                         </div>
                     </div>

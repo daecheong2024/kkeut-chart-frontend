@@ -164,11 +164,56 @@ export default function PatientListPage() {
   // Use patients directly as they are now server-filtered
   const filteredPatients = patients;
 
-  const handleDownload = () => {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
     const selectedSet = new Set(selectedIds);
-    const rows = selectedSet.size > 0
-      ? filteredPatients.filter((p) => selectedSet.has(String(p.id)))
-      : filteredPatients;
+    let rows: any[];
+
+    if (selectedSet.size > 0) {
+      rows = filteredPatients.filter((p) => selectedSet.has(String(p.id)));
+    } else {
+      // Fetch ALL pages with current filters
+      setIsDownloading(true);
+      try {
+        let minAge: number | undefined;
+        let maxAge: number | undefined;
+        if (selectedAge !== "전체") {
+          if (selectedAge === "10대") { minAge = 10; maxAge = 19; }
+          else if (selectedAge === "20대") { minAge = 20; maxAge = 29; }
+          else if (selectedAge === "30대") { minAge = 30; maxAge = 39; }
+          else if (selectedAge === "40대") { minAge = 40; maxAge = 49; }
+          else if (selectedAge === "50대") { minAge = 50; maxAge = 59; }
+          else if (selectedAge === "60대 이상") { minAge = 60; }
+        }
+        const marketingAgreed = selectedMarketing === "전체" ? undefined : selectedMarketing === "동의";
+
+        const accumulated: any[] = [];
+        const bigPageSize = 500;
+        let page = 1;
+        while (true) {
+          const result = await patientService.searchPatients(searchQuery || "", {
+            gender: selectedSex,
+            minAge,
+            maxAge,
+            tag: selectedTag,
+            marketingAgreed
+          }, page, bigPageSize);
+          accumulated.push(...result.items);
+          if (page * bigPageSize >= result.totalCount || result.items.length === 0) break;
+          page++;
+          if (page > 200) break;
+        }
+        rows = accumulated;
+      } catch (error) {
+        console.error("Failed to download all patients:", error);
+        alert("환자 데이터를 불러오지 못했습니다.");
+        setIsDownloading(false);
+        return;
+      } finally {
+        setIsDownloading(false);
+      }
+    }
 
     if (rows.length === 0) {
       alert("다운로드할 환자 데이터가 없습니다.");
@@ -247,7 +292,7 @@ export default function PatientListPage() {
         <aside className="hidden md:flex w-[240px] flex-col border-r border-[#F8DCE2] bg-[#FCF7F8] pt-6">
           <div className="px-5 mb-6 flex items-center justify-between">
             {/* Removed duplicate title */}
-            <button className="text-xs font-medium text-[#E26B7C] hover:text-[#99354E]">조건그룹 등록</button>
+            <button className="text-xs font-medium text-[#D27A8C] hover:text-[#8B3F50]">조건그룹 등록</button>
           </div>
 
           <div className="px-5 mb-2">
@@ -255,9 +300,9 @@ export default function PatientListPage() {
           </div>
 
           <div className="px-3">
-            <div className="flex items-center justify-between rounded-lg bg-[#FCEBEF] px-4 py-3 text-sm font-medium text-[#E26B7C] cursor-pointer">
+            <div className="flex items-center justify-between rounded-lg bg-[#FCEBEF] px-4 py-3 text-sm font-medium text-[#D27A8C] cursor-pointer">
               <span>전체 환자</span>
-              <span className="text-[#E26B7C]">{filteredPatients.length}</span>
+              <span className="text-[#D27A8C] tabular-nums">{totalCount.toLocaleString()}</span>
             </div>
           </div>
         </aside>
@@ -268,9 +313,9 @@ export default function PatientListPage() {
             <div className="flex items-center justify-between">
               <div className="min-w-0">
                 <div className="truncate text-sm font-bold text-gray-900">전체 환자</div>
-                <div className="truncate text-xs text-gray-500">총 {filteredPatients.length}명</div>
+                <div className="truncate text-xs text-gray-500">총 {totalCount.toLocaleString()}명</div>
               </div>
-              <button className="text-xs font-bold text-[#E26B7C]">조건그룹</button>
+              <button className="text-xs font-bold text-[#D27A8C]">조건그룹</button>
             </div>
           </div>
 
@@ -285,7 +330,7 @@ export default function PatientListPage() {
                     onClick={() => setSelectedSex(label)}
                     className={cn(
                       "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-                      selectedSex === label ? "bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]" : "text-gray-500 hover:text-gray-700"
+                      selectedSex === label ? "bg-[#D27A8C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]" : "text-gray-500 hover:text-gray-700"
                     )}
                   >
                     {label}
@@ -353,9 +398,9 @@ export default function PatientListPage() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <Button variant="outline" size="sm" className="gap-2 text-gray-600 font-normal" onClick={handleDownload}>
+              <Button variant="outline" size="sm" className="gap-2 text-gray-600 font-normal" onClick={handleDownload} disabled={isDownloading}>
                 <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">다운로드</span>
+                <span className="hidden sm:inline">{isDownloading ? "준비 중..." : `다운로드${selectedIds.length === 0 ? ` (${totalCount.toLocaleString()})` : ` (${selectedIds.length})`}`}</span>
               </Button>
             </div>
           </div>
@@ -646,10 +691,10 @@ export default function PatientListPage() {
                         return { ...prev, _selectedIds: next };
                       });
                     }}
-                    className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${disabled ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70" : selected ? "border-[#E26B7C] bg-[#FCEBEF] ring-1 ring-[#E26B7C]/30" : allowOverride ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                    className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${disabled ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70" : selected ? "border-[#D27A8C] bg-[#FCEBEF] ring-1 ring-[#D27A8C]/30" : allowOverride ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${disabled ? "border-gray-300 bg-gray-200" : selected ? "border-[#E26B7C] bg-[#E26B7C] text-white" : "border-gray-300 bg-white"}`}>
+                      <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${disabled ? "border-gray-300 bg-gray-200" : selected ? "border-[#D27A8C] bg-[#D27A8C] text-white" : "border-gray-300 bg-white"}`}>
                         {selected && <Check className="h-3 w-3" strokeWidth={3} />}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -707,7 +752,7 @@ export default function PatientListPage() {
                     setQuickTicketBusy(false);
                   }
                 }}
-                className="rounded-lg bg-[#E26B7C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#99354E] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="rounded-lg bg-[#D27A8C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#8B3F50] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 차감하기 ({quickTicketPickerData._selectedIds?.length || 0}건)
               </button>

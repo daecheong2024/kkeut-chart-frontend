@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { TopBar } from "../../components/layout/TopBar";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
@@ -25,84 +25,107 @@ import { NoPermissionOverlay } from "../../components/common/NoPermissionOverlay
 
 const uid = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 
-function hslToHex(h: number, s: number, l: number): string {
-  s /= 100; l /= 100;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, "0");
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
+const STATUS_COLOR_PRESETS: { hex: string; label: string }[] = [
+  { hex: "#D27A8C", label: "로즈" },
+  { hex: "#F49EAF", label: "라이트로즈" },
+  { hex: "#8B3F50", label: "와인" },
+  { hex: "#F59E0B", label: "앰버" },
+  { hex: "#FBBF24", label: "옐로우" },
+  { hex: "#84CC16", label: "라임" },
+  { hex: "#10B981", label: "에메랄드" },
+  { hex: "#14B8A6", label: "틸" },
+  { hex: "#06B6D4", label: "시안" },
+  { hex: "#3B82F6", label: "블루" },
+  { hex: "#6366F1", label: "인디고" },
+  { hex: "#8B5CF6", label: "바이올렛" },
+  { hex: "#A855F7", label: "퍼플" },
+  { hex: "#EC4899", label: "핑크" },
+  { hex: "#6B7280", label: "그레이" },
+  { hex: "#1F2937", label: "다크" },
+];
 
-function hexToHue(hex: string): number {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!m) return 0;
-  const r = parseInt(m[1]!, 16) / 255;
-  const g = parseInt(m[2]!, 16) / 255;
-  const b = parseInt(m[3]!, 16) / 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  if (max === min) return 0;
-  let h = 0;
-  const d = max - min;
-  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
-  else if (max === g) h = ((b - r) / d + 2) * 60;
-  else h = ((r - g) / d + 4) * 60;
-  return h % 360;
+function isValidHex(s: string): boolean {
+  return /^#([0-9A-Fa-f]{6})$/.test(s);
 }
 
 function RadialColorPicker({ value, onChange }: { value: string; onChange: (hex: string) => void }) {
-  const ringRef = useRef<HTMLDivElement>(null);
-  const [dragging, setDragging] = useState(false);
-  const [angle, setAngle] = useState(() => (hexToHue(value) - 90 + 360) % 360);
+  const [hexInput, setHexInput] = useState(value);
 
-  useEffect(() => { setAngle((hexToHue(value) - 90 + 360) % 360); }, [value]);
+  useEffect(() => { setHexInput(value); }, [value]);
 
-  const pickColor = useCallback((e: React.MouseEvent | MouseEvent) => {
-    const el = ringRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const dx = e.clientX - cx;
-    const dy = e.clientY - cy;
-    const a = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
-    setAngle(a);
-    const hue = (a + 90) % 360;
-    onChange(hslToHex(hue, 80, 55));
-  }, [onChange]);
+  const handleHexChange = (raw: string) => {
+    let v = raw.trim();
+    if (v && !v.startsWith("#")) v = "#" + v;
+    setHexInput(v);
+    if (isValidHex(v)) onChange(v.toUpperCase());
+  };
 
-  useEffect(() => {
-    if (!dragging) return;
-    const onMove = (e: MouseEvent) => pickColor(e);
-    const onUp = () => setDragging(false);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-  }, [dragging, pickColor]);
-
-  const rad = (angle * Math.PI) / 180;
-  const indicatorX = 50 + 39.3 * Math.cos(rad);
-  const indicatorY = 50 + 39.3 * Math.sin(rad);
+  const normalizedValue = value.toUpperCase();
 
   return (
-    <div className="flex items-center gap-4">
-      <div
-        ref={ringRef}
-        className="relative h-28 w-28 shrink-0 cursor-crosshair rounded-full"
-        style={{ background: "conic-gradient(from 0deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)" }}
-        onMouseDown={(e) => { setDragging(true); pickColor(e); }}
-      >
-        <div className="absolute inset-3 rounded-full bg-white" />
-        <div
-          className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-lg"
-          style={{ backgroundColor: value, left: `${indicatorX}%`, top: `${indicatorY}%` }}
-        />
+    <div className="space-y-3">
+      {/* Preset palette */}
+      <div className="grid grid-cols-8 gap-2">
+        {STATUS_COLOR_PRESETS.map((c) => {
+          const active = c.hex.toUpperCase() === normalizedValue;
+          return (
+            <button
+              key={c.hex}
+              type="button"
+              onClick={() => onChange(c.hex)}
+              title={`${c.label} ${c.hex}`}
+              className={`relative h-9 w-9 rounded-lg border-2 transition-all hover:scale-110 ${
+                active
+                  ? "border-[#5C2A35] ring-2 ring-[#D27A8C]/40 shadow-md"
+                  : "border-white shadow-sm hover:border-slate-200"
+              }`}
+              style={{ backgroundColor: c.hex }}
+            >
+              {active && (
+                <svg
+                  className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  viewBox="0 0 24 24"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </button>
+          );
+        })}
       </div>
-      <div className="flex flex-col gap-1.5">
-        <div className="h-8 w-8 rounded-lg border border-slate-200 shadow-sm" style={{ backgroundColor: value }} />
-        <div className="text-[11px] font-bold text-slate-500">{value}</div>
+
+      {/* Preview + hex + native picker */}
+      <div className="flex items-center gap-2.5 rounded-lg border border-[rgb(var(--kkeut-border))] bg-[#FCF7F8] px-3 py-2">
+        <div
+          className="h-9 w-9 shrink-0 rounded-lg border border-white shadow-sm"
+          style={{ backgroundColor: value }}
+        />
+        <div className="flex-1">
+          <div className="text-[10px] font-bold text-[#8B3F50] tracking-wider uppercase mb-0.5">HEX</div>
+          <input
+            type="text"
+            value={hexInput}
+            onChange={(e) => handleHexChange(e.target.value)}
+            placeholder="#D27A8C"
+            maxLength={7}
+            className="w-full bg-transparent text-[13px] font-mono font-bold text-[#5C2A35] outline-none uppercase"
+          />
+        </div>
+        <label
+          className="relative cursor-pointer rounded-lg border border-[#F8DCE2] bg-white px-2.5 py-1.5 text-[11px] font-bold text-[#8B3F50] hover:bg-[#FCEBEF] transition-colors"
+          title="커스텀 색상 선택"
+        >
+          + 직접 선택
+          <input
+            type="color"
+            value={isValidHex(value) ? value : "#D27A8C"}
+            onChange={(e) => onChange(e.target.value.toUpperCase())}
+            className="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
+          />
+        </label>
       </div>
     </div>
   );
@@ -1049,9 +1072,9 @@ export default function ChartSettingsPage() {
                 </div>
               </div>
               <div className="rounded-2xl border border-[rgb(var(--kkeut-border))] bg-gray-50 p-3">
-                <div className="text-sm font-extrabold">접수 할당 가능 직군</div>
+                <div className="text-sm font-extrabold">접수 담당의 직군</div>
                 <div className="mt-1 text-xs text-gray-500">
-                  체크된 직군만 접수창의 담당자 드롭다운에 노출됩니다.
+                  체크된 직군에 속한 멤버만 접수창의 <b>담당의</b> 드롭다운에 노출됩니다. (미선택 시 전체 멤버 표시)
                 </div>
                 <div className="mt-3 grid gap-2 md:grid-cols-2">
                   {jobTitles.map((job) => {

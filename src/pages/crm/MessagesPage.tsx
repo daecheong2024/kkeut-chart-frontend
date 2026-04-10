@@ -31,7 +31,7 @@ type CrmTestPatient = {
 
 const TEMPLATE_VARIABLES = [
     { key: "patientName", label: "환자명", sample: "홍길동" },
-    { key: "clinicName", label: "병원명", sample: "끝의원" },
+    { key: "clinicName", label: "병원명", sample: "끗 한의원" },
     { key: "date", label: "날짜", sample: "2026-02-25" },
     { key: "time", label: "시간", sample: "14:00" },
     { key: "ticketName", label: "티켓명", sample: "PDL 레이저" },
@@ -46,6 +46,14 @@ const SAMPLE_TEMPLATE_CONTEXT = TEMPLATE_VARIABLES.reduce<Record<string, string>
     acc[item.key] = item.sample;
     return acc;
 }, {});
+
+/** Build a context dict using actual settings (e.g., real hospital name) where available */
+function buildSampleContextWithSettings(hospitalNameKo?: string): Record<string, string> {
+    return {
+        ...SAMPLE_TEMPLATE_CONTEXT,
+        clinicName: (hospitalNameKo && hospitalNameKo.trim()) || SAMPLE_TEMPLATE_CONTEXT.clinicName,
+    };
+}
 
 const QUICK_CONTENT_SNIPPETS = [
     {
@@ -72,7 +80,7 @@ const TEMPLATE_STATUS_LABEL: Record<MessageTemplateStatus, string> = {
 };
 
 const TEMPLATE_STATUS_STYLE: Record<MessageTemplateStatus, string> = {
-    draft: "bg-[#FCEBEF] text-[#E26B7C]",
+    draft: "bg-[#FCEBEF] text-[#D27A8C]",
     published: "bg-emerald-100 text-emerald-700",
     archived: "bg-amber-100 text-amber-700",
 };
@@ -265,9 +273,9 @@ function PremiumSelect({
     );
 }
 
-function buildTemplateContext(patient: { name: string }) {
+function buildTemplateContext(patient: { name: string }, hospitalNameKo?: string) {
     return {
-        ...SAMPLE_TEMPLATE_CONTEXT,
+        ...buildSampleContextWithSettings(hospitalNameKo),
         patientName: patient.name,
     };
 }
@@ -612,6 +620,8 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
 
 function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: string; testPatients: CrmTestPatient[]; onClose: () => void }) {
     const { templates, updateTemplate, addOutboxItem, patientCommPrefs } = useCrmMessagesStore();
+    const { settings } = useSettingsStore();
+    const sampleContext = useMemo(() => buildSampleContextWithSettings(settings.hospital?.hospitalNameKo), [settings.hospital?.hospitalNameKo]);
     const template = templates.find((item) => item.id === templateId);
     const [data, setData] = useState<MessageTemplate | undefined>(template);
     const [testPhoneInput, setTestPhoneInput] = useState<string>("");
@@ -622,7 +632,7 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
     const normalizedContent = useMemo(() => normalizeTemplateContentSyntax(data.content), [data.content]);
     const variableTokens = useMemo(() => extractTemplateVariableTokens(normalizedContent), [normalizedContent]);
     const unknownVariableKeys = useMemo(() => getUnknownVariableKeys(normalizedContent), [normalizedContent]);
-    const previewContent = useMemo(() => renderTemplate(normalizedContent, SAMPLE_TEMPLATE_CONTEXT), [normalizedContent]);
+    const previewContent = useMemo(() => renderTemplate(normalizedContent, sampleContext), [normalizedContent, sampleContext]);
     const smsByteLength = useMemo(() => getByteLength(normalizedContent), [normalizedContent]);
     const contentLineCount = useMemo(() => Math.max(1, normalizedContent.split(/\r?\n/).length), [normalizedContent]);
 
@@ -760,9 +770,10 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
         const isOptOut = pref && (pref.optOutAll || (data.channel === "sms" ? pref.optOutSms : pref.optOutKakao));
         const contentRendered = renderTemplate(
             normalizedContent,
-            buildTemplateContext({
-                name: patient?.name || "테스트 환자",
-            })
+            buildTemplateContext(
+                { name: patient?.name || "테스트 환자" },
+                settings.hospital?.hospitalNameKo
+            )
         );
         const targetPhone = formatPhoneNumber(normalizedTestPhone);
 
@@ -988,6 +999,7 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
 
 function AutomationsTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
     const { automations, addAutomation, updateAutomation, deleteAutomation, templates, addOutboxItem, patientCommPrefs } = useCrmMessagesStore();
+    const { settings } = useSettingsStore();
     const [editingId, setEditingId] = useState<string | null>(null);
     const availableTemplates = useMemo(
         () => templates.filter((t) => t.enabled && getTemplateStatus(t) === "published"),
@@ -1027,7 +1039,7 @@ function AutomationsTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
         testPatients.forEach((patient) => {
             const pref = patientCommPrefs[String(patient.id)];
             const isOptOut = pref && (pref.optOutAll || (template.channel === "sms" ? pref.optOutSms : pref.optOutKakao));
-            const content = renderTemplate(template.content, buildTemplateContext(patient));
+            const content = renderTemplate(template.content, buildTemplateContext(patient, settings.hospital?.hospitalNameKo));
 
             const outboxItem: OutboxItem = {
                 id: `msg_${Date.now()}_${patient.id}_${Math.random().toString(36).slice(2, 7)}`,

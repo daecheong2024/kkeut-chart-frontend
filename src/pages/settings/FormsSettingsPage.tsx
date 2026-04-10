@@ -172,28 +172,20 @@ export default function FormsSettingsPage() {
   };
 
   const closeEditor = () => {
+    if (editingId === -1 && (editTitle.trim() || editContent.trim() || editRemarks.trim())) {
+      if (!confirm("작성 중인 내용이 저장되지 않습니다. 닫으시겠습니까?")) return;
+    }
     setEditingId(null);
   };
 
-  const handleCreate = async () => {
-    try {
-      setSaving(true);
-      const request: CreateDocumentationRequest = {
-        title: "새 동의서",
-        content: "",
-        contentType: "html",
-        isSignature: true,
-        isActive: false,
-      };
-      const created = await documentationService.create(request);
-      setItems((prev) => [created, ...prev]);
-      openEditor(created);
-    } catch (e) {
-      console.error(e);
-      alert("서식 생성에 실패했습니다.");
-    } finally {
-      setSaving(false);
-    }
+  // ID === -1 means "draft" — not yet persisted to server
+  const handleCreate = () => {
+    setEditingId(-1);
+    setEditTitle("");
+    setEditRemarks("");
+    setEditContent("");
+    setEditIsSignature(true);
+    setEditIsActive(false);
   };
 
   const handleSave = async () => {
@@ -204,16 +196,33 @@ export default function FormsSettingsPage() {
     }
     try {
       setSaving(true);
-      const request: UpdateDocumentationRequest = {
-        title: editTitle,
-        remarks: editRemarks || null,
-        content: editContent || null,
-        isSignature: editIsSignature,
-        isActive: editIsActive,
-      };
-      const updated = await documentationService.update(editingId, request);
-      setItems((prev) => prev.map((it) => (it.id === editingId ? updated : it)));
-      alert("저장되었습니다.");
+      if (editingId === -1) {
+        // Draft → create
+        const request: CreateDocumentationRequest = {
+          title: editTitle,
+          remarks: editRemarks || null,
+          content: editContent || null,
+          contentType: "html",
+          isSignature: editIsSignature,
+          isActive: editIsActive,
+        };
+        const created = await documentationService.create(request);
+        setItems((prev) => [created, ...prev]);
+        setEditingId(created.id);
+        alert("등록되었습니다.");
+      } else {
+        // Existing → update
+        const request: UpdateDocumentationRequest = {
+          title: editTitle,
+          remarks: editRemarks || null,
+          content: editContent || null,
+          isSignature: editIsSignature,
+          isActive: editIsActive,
+        };
+        const updated = await documentationService.update(editingId, request);
+        setItems((prev) => prev.map((it) => (it.id === editingId ? updated : it)));
+        alert("저장되었습니다.");
+      }
     } catch (e) {
       console.error(e);
       alert("저장 실패");
@@ -348,12 +357,12 @@ export default function FormsSettingsPage() {
         </div>
       </div>
 
-      {editingId != null && editingItem && (
+      {editingId != null && (editingId === -1 || editingItem) && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-white animate-in slide-in-from-bottom-10 duration-200">
           <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
             <div>
-              <h2 className="text-xl font-bold">서식 편집</h2>
-              <p className="text-sm text-gray-500">동의서 내용을 작성하고 저장하세요.</p>
+              <h2 className="text-xl font-bold">{editingId === -1 ? "서식 등록" : "서식 편집"}</h2>
+              <p className="text-sm text-gray-500">{editingId === -1 ? "새 동의서를 작성하고 저장하세요." : "동의서 내용을 작성하고 저장하세요."}</p>
             </div>
             <div className="flex items-center gap-2">
               <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${editIsActive ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-700"}`}>
@@ -409,12 +418,14 @@ export default function FormsSettingsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-gray-200 bg-white p-4 text-xs text-gray-500">
-                  <div>작성자: {editingItem.creator}</div>
-                  <div>작성일: {formatDate(editingItem.createTime)}</div>
-                  <div>수정자: {editingItem.modifier}</div>
-                  <div>수정일: {formatDate(editingItem.modifyTime)}</div>
-                </div>
+                {editingItem && (
+                  <div className="rounded-xl border border-gray-200 bg-white p-4 text-xs text-gray-500">
+                    <div>작성자: {editingItem.creator}</div>
+                    <div>작성일: {formatDate(editingItem.createTime)}</div>
+                    <div>수정자: {editingItem.modifier}</div>
+                    <div>수정일: {formatDate(editingItem.modifyTime)}</div>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -726,7 +726,6 @@ export default function MembersSettingsPage() {
                               <div className="mt-1 truncate text-xs font-medium text-slate-600">{u.email || "-"}</div>
                             </button>
                           </div>
-                          <div className="mt-1 text-xs font-semibold text-slate-600">소속지점: {u.branchId ?? "-"}</div>
                         </td>
                         <td className="p-3 text-center">
                           {u.isApproved === false ? (
@@ -753,7 +752,6 @@ export default function MembersSettingsPage() {
                           <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
                             {permMap[u.permissionProfileId]?.name ?? "-"}
                           </div>
-                          <div className="mt-1 text-xs font-semibold text-slate-600">{permMap[u.permissionProfileId]?.branchScope === "all" ? "전체 지점" : "본인 지점"}</div>
                         </td>
                         <td className="p-3 text-center">
                           <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">

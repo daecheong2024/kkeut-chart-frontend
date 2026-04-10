@@ -163,7 +163,7 @@ export default function HospitalSettingsPage() {
   ) => (
     <button
       type="button"
-      className="rounded-2xl border border-[#F8DCE2] bg-white p-4 text-left shadow-sm transition hover:border-[#E26B7C] hover:bg-[#FCEBEF]"
+      className="w-full rounded-2xl border border-[#F8DCE2] bg-white p-4 text-left shadow-sm transition hover:border-[#D27A8C] hover:bg-[#FCEBEF]"
       onClick={() => {
         setEditor({
           mode: "field",
@@ -304,7 +304,7 @@ export default function HospitalSettingsPage() {
                 const [s, e] = refVal.includes("~") ? refVal.split("~").map((v) => v.trim()) : ["", ""];
                 return (
                   <div key={label} className="flex items-center gap-1.5 rounded-lg border border-[#F8DCE2] bg-white px-3 py-1.5">
-                    <span className="text-xs font-bold text-[#E26B7C]">{label}</span>
+                    <span className="text-xs font-bold text-[#D27A8C]">{label}</span>
                     <select
                       className="rounded border border-slate-200 bg-white px-1.5 py-1 text-xs font-semibold text-slate-700 outline-none cursor-pointer"
                       value={s}

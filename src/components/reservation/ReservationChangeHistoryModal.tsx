@@ -26,7 +26,7 @@ const CHANGE_TYPE_LABELS: Record<string, string> = {
 };
 
 const CHANGE_TYPE_COLORS: Record<string, string> = {
-    CREATED: "bg-[#FCEBEF] text-[#E26B7C]",
+    CREATED: "bg-[#FCEBEF] text-[#D27A8C]",
     DATE_CHANGED: "bg-amber-50 text-amber-700",
     CATEGORY_CHANGED: "bg-teal-50 text-teal-700",
     MEMO_CHANGED: "bg-sky-50 text-sky-700",
@@ -34,6 +34,15 @@ const CHANGE_TYPE_COLORS: Record<string, string> = {
     NO_SHOW: "bg-red-50 text-red-600",
     CHECKED_IN: "bg-emerald-50 text-emerald-700",
 };
+
+// Strip legacy "<id> (<name>)" format → keep just "<name>"
+// e.g. "17 (상담)" → "상담", "20 (비대면 진료)" → "비대면 진료"
+// New format ("상담") is left untouched.
+function cleanValue(raw?: string | null): string {
+    if (!raw) return "-";
+    const match = raw.match(/^\d+\s*\((.+)\)\s*$/);
+    return match ? match[1].trim() : raw;
+}
 
 interface Props {
     isOpen: boolean;
@@ -100,10 +109,10 @@ export function ReservationChangeHistoryModal({ isOpen, onClose, reservationId }
                                             </span>
                                         </td>
                                         <td className="py-3 px-4 text-center text-[#616161] break-words whitespace-pre-wrap">
-                                            {item.previousValue || "-"}
+                                            {cleanValue(item.previousValue)}
                                         </td>
                                         <td className="py-3 px-4 text-center text-[#242424] font-medium break-words whitespace-pre-wrap">
-                                            {item.newValue || "-"}
+                                            {cleanValue(item.newValue)}
                                         </td>
                                         <td className="py-3 px-4 text-center text-[#242424] whitespace-nowrap">
                                             {item.changedByUserName || "-"}
