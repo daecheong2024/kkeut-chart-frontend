@@ -193,7 +193,7 @@ export function NoticeSection() {
         {canEditCurrent && (
           <button
             onClick={openAddModal}
-            className="flex items-center gap-1.5 rounded-[8px] bg-[#E26B7C] px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#99354E]"
+            className="flex items-center gap-1.5 rounded-[8px] bg-[#D27A8C] px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#8B3F50]"
           >
             <AddButtonIcon size={16} className={activeTab === "BRANCH" ? "fill-white" : ""} />
             {addButtonLabel}
@@ -208,7 +208,7 @@ export function NoticeSection() {
             onClick={() => setActiveTab(tab.key)}
             className={`border-b-2 px-4 py-3 text-sm font-medium transition-all duration-200 ease-in-out ${
               activeTab === tab.key
-                ? "border-[#E26B7C] text-[#E26B7C]"
+                ? "border-[#D27A8C] text-[#D27A8C]"
                 : "border-transparent text-[#616161] hover:text-[#242424]"
             }`}
           >
@@ -238,7 +238,7 @@ export function NoticeSection() {
                         중요
                       </span>
                     )}
-                    <span className="rounded-[8px] bg-[#FCEBEF] px-2 py-0.5 text-xs font-medium text-[#E26B7C]">
+                    <span className="rounded-[8px] bg-[#FCEBEF] px-2 py-0.5 text-xs font-medium text-[#D27A8C]">
                       {notice.type === "HQ" ? "본사" : "병원"}
                     </span>
                     <span className="text-xs text-[#616161]">{formatTimeAgo(notice.createdAt)}</span>
@@ -247,7 +247,7 @@ export function NoticeSection() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => openEditModal(notice)}
-                        className="p-1 text-[#616161] opacity-0 transition-all duration-200 ease-in-out hover:text-[#E26B7C] group-hover:opacity-100"
+                        className="p-1 text-[#616161] opacity-0 transition-all duration-200 ease-in-out hover:text-[#D27A8C] group-hover:opacity-100"
                       >
                         <Pencil size={16} />
                       </button>
@@ -317,7 +317,7 @@ export function NoticeSection() {
                 id="isImportantCreate"
                 checked={isImportant}
                 onChange={(e) => setIsImportant(e.target.checked)}
-                className="h-4 w-4 rounded border-[#F8DCE2] text-[#E26B7C] focus:ring-[#F49EAF]"
+                className="h-4 w-4 rounded border-[#F8DCE2] text-[#D27A8C] focus:ring-[#F49EAF]"
               />
               <label htmlFor="isImportantCreate" className="text-xs font-medium text-[#242424]">
                 중요 공지로 등록
@@ -335,7 +335,7 @@ export function NoticeSection() {
               <button
                 type="submit"
                 disabled={!newTitle.trim()}
-                className="flex-1 rounded-[8px] bg-[#E26B7C] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#99354E] disabled:opacity-50"
+                className="flex-1 rounded-[8px] bg-[#D27A8C] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#8B3F50] disabled:opacity-50"
               >
                 등록
               </button>
@@ -377,7 +377,7 @@ export function NoticeSection() {
                 id="isImportantEdit"
                 checked={editImportant}
                 onChange={(e) => setEditImportant(e.target.checked)}
-                className="h-4 w-4 rounded border-[#F8DCE2] text-[#E26B7C] focus:ring-[#F49EAF]"
+                className="h-4 w-4 rounded border-[#F8DCE2] text-[#D27A8C] focus:ring-[#F49EAF]"
               />
               <label htmlFor="isImportantEdit" className="text-xs font-medium text-[#242424]">
                 중요 공지로 등록
@@ -395,7 +395,7 @@ export function NoticeSection() {
               <button
                 type="submit"
                 disabled={!editTitle.trim()}
-                className="flex-1 rounded-[8px] bg-[#E26B7C] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#99354E] disabled:opacity-50"
+                className="flex-1 rounded-[8px] bg-[#D27A8C] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#8B3F50] disabled:opacity-50"
               >
                 저장
               </button>

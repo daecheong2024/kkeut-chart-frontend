@@ -101,7 +101,7 @@ export default function TerminalTestPage() {
                     <div className={`w-3 h-3 rounded-full ${connected ? "bg-green-500" : "bg-red-400"}`} />
                     <span className="text-sm font-medium text-[#242424]">{connected ? "연결됨" : "미연결"}</span>
                     {!connected ? (
-                        <button onClick={handleConnect} disabled={loading} className="rounded-lg bg-[#E26B7C] px-4 py-2 text-sm font-medium text-white hover:bg-[#99354E] disabled:opacity-50 transition-all">
+                        <button onClick={handleConnect} disabled={loading} className="rounded-lg bg-[#D27A8C] px-4 py-2 text-sm font-medium text-white hover:bg-[#8B3F50] disabled:opacity-50 transition-all">
                             연결
                         </button>
                     ) : (
@@ -156,7 +156,7 @@ export default function TerminalTestPage() {
                                     setLoading(false);
                                 }}
                                 disabled={loading}
-                                className="rounded-lg bg-[#E26B7C] px-4 py-2 text-sm font-medium text-white hover:bg-[#99354E] disabled:opacity-50 transition-all"
+                                className="rounded-lg bg-[#D27A8C] px-4 py-2 text-sm font-medium text-white hover:bg-[#8B3F50] disabled:opacity-50 transition-all"
                             >
                                 {loading ? "확인 중..." : "연동 확인"}
                             </button>
@@ -191,7 +191,7 @@ export default function TerminalTestPage() {
                         </div>
                         <div className="flex gap-2 pt-2">
                             <button onClick={handlePayment} disabled={loading || !connected}
-                                className="flex-1 rounded-lg bg-[#E26B7C] py-2.5 text-sm font-medium text-white hover:bg-[#99354E] disabled:opacity-50 transition-all">
+                                className="flex-1 rounded-lg bg-[#D27A8C] py-2.5 text-sm font-medium text-white hover:bg-[#8B3F50] disabled:opacity-50 transition-all">
                                 {loading ? "대기 중..." : "결제 요청"}
                             </button>
                             {loading && (
@@ -254,7 +254,7 @@ export default function TerminalTestPage() {
             <div className="rounded-xl border border-[#F8DCE2] overflow-hidden">
                 <div className="px-4 py-3 bg-[#FCF7F8] border-b border-[#F8DCE2] flex items-center justify-between">
                     <div className="text-[14px] font-semibold text-[#5C2A35]">통신 로그</div>
-                    <button onClick={() => setLogs([])} className="text-[11px] text-[#616161] hover:text-[#E26B7C]">초기화</button>
+                    <button onClick={() => setLogs([])} className="text-[11px] text-[#616161] hover:text-[#D27A8C]">초기화</button>
                 </div>
                 <div className="p-4 max-h-[400px] overflow-y-auto bg-[#1a1a2e] rounded-b-xl">
                     {logs.length === 0 && <div className="text-[12px] text-gray-500 text-center py-4">로그가 없습니다.</div>}

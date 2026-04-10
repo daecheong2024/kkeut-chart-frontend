@@ -199,7 +199,7 @@ export function HospitalTaskSection() {
             >
               <button
                 onClick={() => toggleTask(task.id, task.isCompleted)}
-                className={`mt-0.5 shrink-0 transition-all duration-200 ease-in-out ${task.isCompleted ? "text-[#616161]" : "text-[#E26B7C]"}`}
+                className={`mt-0.5 shrink-0 transition-all duration-200 ease-in-out ${task.isCompleted ? "text-[#616161]" : "text-[#D27A8C]"}`}
               >
                 {task.isCompleted ? <CheckCircle2 size={20} className="fill-[#FCEBEF]" /> : <Circle size={20} />}
               </button>
@@ -234,7 +234,7 @@ export function HospitalTaskSection() {
                   setEditingTask(task);
                   setEditContent(task.content || "");
                 }}
-                className="text-[#616161] opacity-0 transition-all duration-200 ease-in-out hover:text-[#E26B7C] group-hover:opacity-100"
+                className="text-[#616161] opacity-0 transition-all duration-200 ease-in-out hover:text-[#D27A8C] group-hover:opacity-100"
               >
                 <Pencil size={16} />
               </button>
@@ -252,7 +252,7 @@ export function HospitalTaskSection() {
       <div className="border-t border-[#F8DCE2] bg-[#FCF7F8] px-6 py-4">
         <button
           onClick={openAddModal}
-          className="ml-auto flex items-center gap-1.5 rounded-[8px] bg-[#E26B7C] px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#99354E]"
+          className="ml-auto flex items-center gap-1.5 rounded-[8px] bg-[#D27A8C] px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#8B3F50]"
         >
           <Plus size={16} />
           병원 업무 등록
@@ -281,7 +281,7 @@ export function HospitalTaskSection() {
               <button
                 type="submit"
                 disabled={!newTaskContent.trim()}
-                className="flex-1 rounded-[8px] bg-[#E26B7C] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#99354E] disabled:opacity-50"
+                className="flex-1 rounded-[8px] bg-[#D27A8C] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#8B3F50] disabled:opacity-50"
               >
                 등록
               </button>
@@ -311,7 +311,7 @@ export function HospitalTaskSection() {
               <button
                 type="submit"
                 disabled={!editContent.trim()}
-                className="flex-1 rounded-[8px] bg-[#E26B7C] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#99354E] disabled:opacity-50"
+                className="flex-1 rounded-[8px] bg-[#D27A8C] py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out hover:bg-[#8B3F50] disabled:opacity-50"
               >
                 저장
               </button>

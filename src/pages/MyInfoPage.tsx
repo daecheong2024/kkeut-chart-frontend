@@ -196,7 +196,6 @@ export default function MyInfoPage() {
 
           <section className="rounded-2xl border border-[rgb(var(--kkeut-border))] bg-white p-6 shadow-sm">
             <div className="text-lg font-extrabold">기본 정보</div>
-            <div className="mt-2 text-sm text-slate-600">목록에서는 읽기만 하고, 수정은 중앙 모달에서 진행합니다.</div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 md:col-span-2">
@@ -229,7 +228,6 @@ export default function MyInfoPage() {
 
           <section className="rounded-2xl border border-[rgb(var(--kkeut-border))] bg-white p-6 shadow-sm">
             <div className="text-lg font-extrabold">비밀번호 변경</div>
-            <div className="mt-2 text-sm text-slate-600">입력은 중앙 모달에서만 진행합니다.</div>
 
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
               보안을 위해 비밀번호는 화면에 표시되지 않습니다.

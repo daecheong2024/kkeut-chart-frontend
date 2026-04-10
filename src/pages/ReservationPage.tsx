@@ -212,7 +212,7 @@ function MobileDayList({
                     </div>
                     <button
                         onClick={onCreate}
-                        className="px-3 py-2 rounded-xl bg-[#E26B7C] text-white text-xs font-bold hover:bg-[#99354E]"
+                        className="px-3 py-2 rounded-xl bg-[#D27A8C] text-white text-xs font-bold hover:bg-[#8B3F50]"
                     >
                         예약 등록
                     </button>
@@ -256,7 +256,7 @@ function MobileDayList({
                             <div key={time} className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
                                 <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
                                     <div className="text-xs font-extrabold text-gray-800">{time}</div>
-                                    <div className="text-[10px] font-bold text-[#E26B7C]">{items.length}건</div>
+                                    <div className="text-[10px] font-bold text-[#D27A8C]">{items.length}건</div>
                                 </div>
                                 <div className="p-3 space-y-2">
                                     {items.map((a) => {
@@ -996,12 +996,12 @@ export default function ReservationPage() {
                             <div className="flex shrink-0 rounded-xl border border-slate-200 bg-[#FCEBEF]/40 p-1">
                                 <button
                                     onClick={() => setGroupingMode('category')}
-                                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${groupingMode === 'category' ? 'bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]' : 'text-slate-600 hover:bg-white'}`}
+                                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${groupingMode === 'category' ? 'bg-[#D27A8C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]' : 'text-slate-600 hover:bg-white'}`}
                                 >
                                     시술별                                </button>
                                 <button
                                     onClick={() => setGroupingMode('visitType')}
-                                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${groupingMode === 'visitType' ? 'bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]' : 'text-slate-600 hover:bg-white'}`}
+                                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${groupingMode === 'visitType' ? 'bg-[#D27A8C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]' : 'text-slate-600 hover:bg-white'}`}
                                 >
                                     초/재진별                                </button>
                             </div>
@@ -1010,17 +1010,17 @@ export default function ReservationPage() {
                         <div className="flex shrink-0 rounded-xl border border-slate-200 bg-[#FCEBEF]/40 p-1">
                             <button
                                 onClick={() => setViewMode('day')}
-                                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${viewMode === 'day' ? 'bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]' : 'text-slate-600 hover:bg-white'}`}
+                                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${viewMode === 'day' ? 'bg-[#D27A8C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]' : 'text-slate-600 hover:bg-white'}`}
                             >
                                 일                            </button>
                             <button
                                 onClick={() => setViewMode('week')}
-                                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${viewMode === 'week' ? 'bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]' : 'text-slate-600 hover:bg-white'}`}
+                                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${viewMode === 'week' ? 'bg-[#D27A8C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]' : 'text-slate-600 hover:bg-white'}`}
                             >
                                 주                            </button>
                             <button
                                 onClick={() => setViewMode('month')}
-                                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${viewMode === 'month' ? 'bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]' : 'text-slate-600 hover:bg-white'}`}
+                                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${viewMode === 'month' ? 'bg-[#D27A8C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]' : 'text-slate-600 hover:bg-white'}`}
                             >
                                 월                            </button>
                         </div>
@@ -1028,7 +1028,7 @@ export default function ReservationPage() {
                         <button
                             onClick={() => { if (permissions["reservation.create"] !== false) { setCreateCellInfo({ date: currentDate }); setIsCreatePanelOpen(true); } }}
                             disabled={permLoaded && !permissions["reservation.create"]}
-                            className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)] transition-all ${permLoaded && !permissions["reservation.create"] ? "bg-[#e0e0e0] text-[#616161] cursor-not-allowed" : "bg-[#E26B7C] hover:bg-[#99354E]"}`}
+                            className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)] transition-all ${permLoaded && !permissions["reservation.create"] ? "bg-[#e0e0e0] text-[#616161] cursor-not-allowed" : "bg-[#D27A8C] hover:bg-[#8B3F50]"}`}
                         >
                             예약 등록
                         </button>
@@ -1075,7 +1075,7 @@ export default function ReservationPage() {
                                     onClick={() => setCurrentDate(day)}
                                     className={`
                                         p-1 rounded-full cursor-pointer hover:bg-[#FCEBEF] aspect-square flex items-center justify-center
-                                        ${isSameDay(day, currentDate) ? 'bg-[#E26B7C] text-white hover:bg-[#99354E]' : ''}
+                                        ${isSameDay(day, currentDate) ? 'bg-[#D27A8C] text-white hover:bg-[#8B3F50]' : ''}
                                         ${!isSameMonth(day, currentDate) ? 'text-gray-300' : ''}
                                     `}
                                 >
@@ -1090,7 +1090,7 @@ export default function ReservationPage() {
                         <button
                             onClick={() => { if (permissions["reservation.create"] !== false) { setCreateCellInfo({ date: currentDate }); setIsCreatePanelOpen(true); } }}
                             disabled={permLoaded && !permissions["reservation.create"]}
-                            className={`w-full py-2 px-3 text-white text-xs font-bold rounded-lg shadow-sm ${permLoaded && !permissions["reservation.create"] ? "bg-[#e0e0e0] text-[#616161] cursor-not-allowed" : "bg-[#E26B7C] hover:bg-[#99354E]"}`}
+                            className={`w-full py-2 px-3 text-white text-xs font-bold rounded-lg shadow-sm ${permLoaded && !permissions["reservation.create"] ? "bg-[#e0e0e0] text-[#616161] cursor-not-allowed" : "bg-[#D27A8C] hover:bg-[#8B3F50]"}`}
                         >
                             예약 등록
                         </button>
@@ -1737,7 +1737,7 @@ function MonthView({ currentDate, appointments, categories }: { currentDate: Dat
                             <div className="flex justify-between items-start mb-2">
                                 <span className={`
                                     text-sm font-bold w-6 h-6 flex items-center justify-center rounded-full
-                                    ${isToday ? 'bg-[#99354E] text-white' : isCurrentMonth ? (isSunday ? 'text-red-500' : 'text-gray-700') : 'text-gray-300'}
+                                    ${isToday ? 'bg-[#8B3F50] text-white' : isCurrentMonth ? (isSunday ? 'text-red-500' : 'text-gray-700') : 'text-gray-300'}
                                 `}>
                                     {format(day, 'd')}
                                 </span>

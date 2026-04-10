@@ -115,7 +115,7 @@ export function ProcedureStatusView() {
         <div className="h-full overflow-y-auto p-2 md:p-3" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
             <div className="mb-3 grid grid-cols-2 gap-2 xl:grid-cols-4">
                 {[
-                    { label: "현재 환자", value: summary.totalPatients, unit: "명", bg: "#FCEBEF", color: "#E26B7C", border: "#F8DCE2" },
+                    { label: "현재 환자", value: summary.totalPatients, unit: "명", bg: "#FCEBEF", color: "#D27A8C", border: "#F8DCE2" },
                     { label: "시술 진행", value: summary.totalDoingPatients, unit: "명", bg: "#E0F7FA", color: "#00838F", border: "#80DEEA" },
                     { label: "평균 대기", value: summary.averageWait, unit: "분", bg: "#FFF8E1", color: "#F57F17", border: "#FFE082" },
                     { label: "혼잡 시술", value: summary.highCongestionCount, unit: "개", bg: "#FCE4EC", color: "#C62828", border: "#EF9A9A" },
@@ -143,7 +143,7 @@ export function ProcedureStatusView() {
                     type="button"
                     onClick={() => { void loadStatusData(); }}
                     className="inline-flex items-center gap-1 rounded-[8px] px-3 py-1.5 text-[11px] font-bold transition-all duration-200"
-                    style={{ backgroundColor: "#FFFFFF", border: "1px solid #F8DCE2", color: "#E26B7C" }}
+                    style={{ backgroundColor: "#FFFFFF", border: "1px solid #F8DCE2", color: "#D27A8C" }}
                     onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#FCEBEF"; }}
                     onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#FFFFFF"; }}
                 >
@@ -155,7 +155,7 @@ export function ProcedureStatusView() {
             <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                 <section className="rounded-[12px] overflow-hidden" style={{ border: "1px solid #F8DCE2" }}>
                     <div className="px-4 py-2.5 flex items-center gap-2" style={{ backgroundColor: "#FCF7F8", borderBottom: "1px solid #FCEBEF" }}>
-                        <Users className="h-4 w-4" style={{ color: "#E26B7C" }} />
+                        <Users className="h-4 w-4" style={{ color: "#D27A8C" }} />
                         <h3 className="text-[13px] font-bold" style={{ color: "#5C2A35" }}>위치별 시술 진행 현황</h3>
                     </div>
 
@@ -164,7 +164,7 @@ export function ProcedureStatusView() {
                             <div key={location.id} className="rounded-[8px] p-2.5" style={{ backgroundColor: "#FAF3F5", border: "1px solid #FCEBEF" }}>
                                 <div className="flex items-center justify-between">
                                     <span className="text-[13px] font-bold" style={{ color: "#5C2A35" }}>{location.label}</span>
-                                    <span className="rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums" style={{ backgroundColor: "#FCEBEF", color: "#E26B7C" }}>
+                                    <span className="rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums" style={{ backgroundColor: "#FCEBEF", color: "#D27A8C" }}>
                                         {location.totalPatients}명
                                     </span>
                                 </div>
@@ -202,7 +202,7 @@ export function ProcedureStatusView() {
 
                 <section className="rounded-[12px] overflow-hidden" style={{ border: "1px solid #F8DCE2" }}>
                     <div className="px-4 py-2.5 flex items-center gap-2" style={{ backgroundColor: "#FCF7F8", borderBottom: "1px solid #FCEBEF" }}>
-                        <Activity className="h-4 w-4" style={{ color: "#E26B7C" }} />
+                        <Activity className="h-4 w-4" style={{ color: "#D27A8C" }} />
                         <h3 className="text-[13px] font-bold" style={{ color: "#5C2A35" }}>시술 그룹별 예상 대기 시간</h3>
                     </div>
 
@@ -257,7 +257,7 @@ export function ProcedureStatusView() {
             </div>
 
             {loading && (
-                <div className="pointer-events-none fixed bottom-6 right-6 z-20 inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-medium backdrop-blur" style={{ backgroundColor: "rgba(255,255,255,0.9)", border: "1px solid #F8DCE2", color: "#E26B7C", boxShadow: "0 4px 12px rgba(226,107,124,0.12)" }}>
+                <div className="pointer-events-none fixed bottom-6 right-6 z-20 inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-medium backdrop-blur" style={{ backgroundColor: "rgba(255,255,255,0.9)", border: "1px solid #F8DCE2", color: "#D27A8C", boxShadow: "0 4px 12px rgba(226,107,124,0.12)" }}>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     현황 갱신 중...
                 </div>

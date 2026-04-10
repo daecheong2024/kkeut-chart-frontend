@@ -446,7 +446,7 @@ export default function TodoStatsPage() {
                 <button
                   key={u}
                   type="button"
-                  className={`px-4 h-10 text-sm font-medium rounded-lg transition-all duration-200 inline-flex items-center ${periodUnit === u ? "bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]" : "text-[#616161] hover:bg-[#FCEBEF] hover:text-[#5C2A35]"}`}
+                  className={`px-4 h-10 text-sm font-medium rounded-lg transition-all duration-200 inline-flex items-center ${periodUnit === u ? "bg-[#D27A8C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]" : "text-[#616161] hover:bg-[#FCEBEF] hover:text-[#5C2A35]"}`}
                   onClick={() => setPeriodUnit(u)}
                 >
                   {u === "day" ? "일별" : u === "week" ? "주별" : "월별"}
@@ -532,9 +532,9 @@ export default function TodoStatsPage() {
                       <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} />
                       <Tooltip formatter={(value: number | string | undefined) => `${fmtCount(Number(value || 0))}건`} />
-                      <Line type="monotone" dataKey="assignedCount" stroke="#E26B7C" strokeWidth={3} dot={{ r: 3 }} name="배정" />
+                      <Line type="monotone" dataKey="assignedCount" stroke="#D27A8C" strokeWidth={3} dot={{ r: 3 }} name="배정" />
                       <Line type="monotone" dataKey="doneCount" stroke="#F49EAF" strokeWidth={3} dot={{ r: 3 }} name="완료" />
-                      <Line type="monotone" dataKey="totalCount" stroke="#99354E" strokeWidth={3} dot={{ r: 3 }} name="전체" />
+                      <Line type="monotone" dataKey="totalCount" stroke="#8B3F50" strokeWidth={3} dot={{ r: 3 }} name="전체" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -590,7 +590,7 @@ export default function TodoStatsPage() {
                       key={j}
                       type="button"
                       onClick={() => setSelectedJob(j)}
-                      className={`h-10 rounded-lg border px-4 text-sm font-medium transition-all duration-200 inline-flex items-center ${selectedJob === j ? "border-[#E26B7C] bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]" : "border-[#F8DCE2] bg-white text-[#616161] hover:bg-[#FCEBEF] hover:text-[#5C2A35]"}`}
+                      className={`h-10 rounded-lg border px-4 text-sm font-medium transition-all duration-200 inline-flex items-center ${selectedJob === j ? "border-[#D27A8C] bg-[#D27A8C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]" : "border-[#F8DCE2] bg-white text-[#616161] hover:bg-[#FCEBEF] hover:text-[#5C2A35]"}`}
                     >
                       {j}
                     </button>
@@ -607,7 +607,7 @@ export default function TodoStatsPage() {
                         <XAxis type="number" />
                         <YAxis type="category" dataKey="name" width={95} tick={{ fontSize: 12 }} interval={0} />
                         <Tooltip formatter={(value: number | string | undefined) => `${fmtCount(Number(value || 0))}건`} />
-                        <Bar dataKey="count" fill="#E26B7C" radius={[0, 6, 6, 0]} />
+                        <Bar dataKey="count" fill="#D27A8C" radius={[0, 6, 6, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

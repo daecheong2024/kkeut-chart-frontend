@@ -818,7 +818,7 @@ const ReservationDetailPanel: React.FC<ReservationDetailPanelProps> = ({ isOpen,
                             <label className="block text-sm font-bold text-gray-500">환자명*</label>
                             <div
                                 onClick={() => setIsPatientSearchOpen(true)}
-                                className="flex items-center gap-3 px-3 py-2.5 border border-gray-200 rounded-lg cursor-pointer hover:border-[#E26B7C] hover:ring-1 hover:ring-[#FCEBEF] transition-all bg-white"
+                                className="flex items-center gap-3 px-3 py-2.5 border border-gray-200 rounded-lg cursor-pointer hover:border-[#D27A8C] hover:ring-1 hover:ring-[#FCEBEF] transition-all bg-white"
                             >
                                 <User className="w-5 h-5 text-gray-400" />
                                 <span className="text-gray-400 text-sm">환자 검색(Ctrl+Shift+f)</span>
@@ -916,7 +916,7 @@ const ReservationDetailPanel: React.FC<ReservationDetailPanelProps> = ({ isOpen,
                                                             disabled
                                                                 ? 'border-gray-300 bg-gray-200 text-transparent'
                                                                 : selected
-                                                                    ? 'border-blue-500 bg-[#E26B7C] text-white'
+                                                                    ? 'border-blue-500 bg-[#D27A8C] text-white'
                                                                     : 'border-gray-300 bg-white text-transparent'
                                                         }`}>
                                                             <Check className="h-3 w-3" strokeWidth={3} />
@@ -996,7 +996,7 @@ const ReservationDetailPanel: React.FC<ReservationDetailPanelProps> = ({ isOpen,
                                                                     onClick={() => setCategoryId(String(cat.id))}
                                                                     className={`rounded-full border px-2 py-1 text-[11px] font-bold transition ${
                                                                         active
-                                                                            ? 'border-[#E26B7C] bg-[#FCEBEF] text-[#E26B7C]'
+                                                                            ? 'border-[#D27A8C] bg-[#FCEBEF] text-[#D27A8C]'
                                                                             : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-100'
                                                                     }`}
                                                                 >
@@ -1025,7 +1025,7 @@ const ReservationDetailPanel: React.FC<ReservationDetailPanelProps> = ({ isOpen,
                                 <select
                                     value={categoryId}
                                     onChange={(e) => setCategoryId(e.target.value)}
-                                    className={`w-full h-10 px-3 border border-gray-200 rounded hover:border-[#E26B7C] focus:border-[#F49EAF] outline-none appearance-none bg-white text-sm ${!categoryId ? 'text-gray-400' : 'text-gray-800'}`}
+                                    className={`w-full h-10 px-3 border border-gray-200 rounded hover:border-[#D27A8C] focus:border-[#F49EAF] outline-none appearance-none bg-white text-sm ${!categoryId ? 'text-gray-400' : 'text-gray-800'}`}
                                 >
                                     <option value="">미지정</option>
                                     {categoryOptions.map((c: any) => (
@@ -1089,7 +1089,7 @@ const ReservationDetailPanel: React.FC<ReservationDetailPanelProps> = ({ isOpen,
                                 <textarea
                                     value={memo}
                                     onChange={(e) => setMemo(e.target.value.slice(0, 600))}
-                                    className="w-full h-48 p-3 border border-gray-200 rounded hover:border-[#E26B7C] focus:border-[#F49EAF] outline-none text-sm resize-none leading-relaxed font-medium text-gray-800"
+                                    className="w-full h-48 p-3 border border-gray-200 rounded hover:border-[#D27A8C] focus:border-[#F49EAF] outline-none text-sm resize-none leading-relaxed font-medium text-gray-800"
                                     placeholder="예약 관련 메모를 입력하세요..."
                                 />
                             </div>
@@ -1102,7 +1102,7 @@ const ReservationDetailPanel: React.FC<ReservationDetailPanelProps> = ({ isOpen,
                                 id="crm"
                                 checked={skipCrmMessage}
                                 onChange={(e) => setSkipCrmMessage(e.target.checked)}
-                                className="w-4 h-4 rounded border-gray-300 text-[#E26B7C] focus:ring-[#F49EAF]"
+                                className="w-4 h-4 rounded border-gray-300 text-[#D27A8C] focus:ring-[#F49EAF]"
                             />
                             <label htmlFor="crm" className="text-sm font-bold text-gray-700 select-none">CRM 메시지 보내지 않기</label>
                             <AlertCircle className="w-4 h-4 text-gray-400" />
@@ -1137,7 +1137,7 @@ const ReservationDetailPanel: React.FC<ReservationDetailPanelProps> = ({ isOpen,
                         <button
                             onClick={handleSave}
                             disabled={isSaving}
-                            className="px-4 py-2 bg-[#E26B7C] text-white font-bold rounded hover:bg-[#99354E] text-sm shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            className="px-4 py-2 bg-[#D27A8C] text-white font-bold rounded hover:bg-[#8B3F50] text-sm shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                         >
                             {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                             {isCreateMode ? "등록" : "수정"}

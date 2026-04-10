@@ -149,7 +149,7 @@ export default function TabletCheckinPage() {
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="환자 이름"
                                 autoComplete="off"
-                                className="w-full h-12 rounded-xl border border-[#F8DCE2] bg-white px-4 text-base font-bold text-[#242424] outline-none focus:border-[#E26B7C] focus:ring-2 focus:ring-[#F49EAF]/20 transition-all"
+                                className="w-full h-12 rounded-xl border border-[#F8DCE2] bg-white px-4 text-base font-bold text-[#242424] outline-none focus:border-[#D27A8C] focus:ring-2 focus:ring-[#F49EAF]/20 transition-all"
                             />
                         </div>
 
@@ -200,7 +200,7 @@ export default function TabletCheckinPage() {
                             <button
                                 onClick={handleSearch}
                                 disabled={loading || !name.trim() || !phone.trim()}
-                                className="flex-1 h-12 rounded-xl bg-[#E26B7C] text-sm font-bold text-white hover:bg-[#99354E] disabled:opacity-50 transition-all duration-200"
+                                className="flex-1 h-12 rounded-xl bg-[#D27A8C] text-sm font-bold text-white hover:bg-[#8B3F50] disabled:opacity-50 transition-all duration-200"
                             >
                                 {loading ? "조회 중..." : "다음"}
                             </button>
@@ -260,7 +260,7 @@ export default function TabletCheckinPage() {
                                             onClick={() => setSelectedReservationId(selectedReservationId === r.id ? null : r.id)}
                                             className={`w-full rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
                                                 selectedReservationId === r.id
-                                                    ? "border-[#E26B7C] bg-[#FCEBEF]"
+                                                    ? "border-[#D27A8C] bg-[#FCEBEF]"
                                                     : "border-[#F8DCE2] bg-white hover:bg-[#FCF7F8]"
                                             }`}
                                         >
@@ -287,7 +287,7 @@ export default function TabletCheckinPage() {
                             </button>
                             <button
                                 onClick={handleProceedToStep3}
-                                className="flex-1 h-12 rounded-xl bg-[#E26B7C] text-sm font-bold text-white hover:bg-[#99354E] transition-all duration-200"
+                                className="flex-1 h-12 rounded-xl bg-[#D27A8C] text-sm font-bold text-white hover:bg-[#8B3F50] transition-all duration-200"
                             >
                                 접수를 진행합니다
                             </button>
@@ -308,7 +308,7 @@ export default function TabletCheckinPage() {
                                 }}
                                 className={`h-16 rounded-xl border text-sm font-bold transition-all duration-200 ${
                                     selectedPurposeIds.length === 0
-                                        ? "border-[#E26B7C] bg-[#FCEBEF] text-[#E26B7C]"
+                                        ? "border-[#D27A8C] bg-[#FCEBEF] text-[#D27A8C]"
                                         : "border-[#F8DCE2] bg-white text-[#616161] hover:bg-[#FCF7F8]"
                                 }`}
                             >
@@ -320,7 +320,7 @@ export default function TabletCheckinPage() {
                                     onClick={() => togglePurpose(vp.id)}
                                     className={`h-16 rounded-xl border text-sm font-bold transition-all duration-200 ${
                                         selectedPurposeIds.includes(vp.id)
-                                            ? "border-[#E26B7C] bg-[#FCEBEF] text-[#E26B7C]"
+                                            ? "border-[#D27A8C] bg-[#FCEBEF] text-[#D27A8C]"
                                             : "border-[#F8DCE2] bg-white text-[#242424] hover:bg-[#FCF7F8]"
                                     }`}
                                 >
@@ -339,7 +339,7 @@ export default function TabletCheckinPage() {
                             <button
                                 onClick={handleCheckin}
                                 disabled={submitting || selectedPurposeIds.length === 0}
-                                className="flex-1 h-12 rounded-xl bg-[#E26B7C] text-sm font-bold text-white hover:bg-[#99354E] disabled:opacity-50 transition-all duration-200"
+                                className="flex-1 h-12 rounded-xl bg-[#D27A8C] text-sm font-bold text-white hover:bg-[#8B3F50] disabled:opacity-50 transition-all duration-200"
                             >
                                 {submitting ? "접수 중..." : "다음"}
                             </button>

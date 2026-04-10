@@ -406,7 +406,7 @@ export function NewPatientModal({ isOpen, onClose, initialData, onConfirm, mode 
                                             <span className="text-gray-400 text-sm px-2 py-1">태그 선택</span>
                                         ) : (
                                             form.tags.map(tag => (
-                                                <span key={tag} className="px-2 py-1 bg-[#FCEBEF] text-[#E26B7C] rounded-lg text-xs font-semibold flex items-center gap-1">
+                                                <span key={tag} className="px-2 py-1 bg-[#FCEBEF] text-[#D27A8C] rounded-lg text-xs font-semibold flex items-center gap-1">
                                                     {tag}
                                                     <button
                                                         onClick={(e) => {
@@ -467,7 +467,7 @@ export function NewPatientModal({ isOpen, onClose, initialData, onConfirm, mode 
                             </h3>
                             <div className="space-y-3">
                                 <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
-                                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${form.agreedRequired ? 'bg-[#E26B7C] border-[#E26B7C]' : 'bg-white border-gray-300'}`}>
+                                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${form.agreedRequired ? 'bg-[#D27A8C] border-[#D27A8C]' : 'bg-white border-gray-300'}`}>
                                         {form.agreedRequired && <Check size={14} className="text-white" />}
                                     </div>
                                     <input type="checkbox" className="hidden" checked={form.agreedRequired} onChange={() => setForm({ ...form, agreedRequired: !form.agreedRequired })} />
@@ -488,7 +488,7 @@ export function NewPatientModal({ isOpen, onClose, initialData, onConfirm, mode 
 
                                 {/* Optional Agreements */}
                                 <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
-                                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${form.agreedOptional ? 'bg-[#E26B7C] border-[#E26B7C]' : 'bg-white border-gray-300'}`}>
+                                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${form.agreedOptional ? 'bg-[#D27A8C] border-[#D27A8C]' : 'bg-white border-gray-300'}`}>
                                         {form.agreedOptional && <Check size={14} className="text-white" />}
                                     </div>
                                     <input type="checkbox" className="hidden" checked={form.agreedOptional} onChange={() => setForm({ ...form, agreedOptional: !form.agreedOptional })} />
@@ -508,7 +508,7 @@ export function NewPatientModal({ isOpen, onClose, initialData, onConfirm, mode 
                                 </label>
 
                                 <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
-                                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${form.refusedTax ? 'bg-[#E26B7C] border-[#E26B7C]' : 'bg-white border-gray-300'}`}>
+                                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${form.refusedTax ? 'bg-[#D27A8C] border-[#D27A8C]' : 'bg-white border-gray-300'}`}>
                                         {form.refusedTax && <Check size={14} className="text-white" />}
                                     </div>
                                     <input type="checkbox" className="hidden" checked={form.refusedTax} onChange={() => setForm({ ...form, refusedTax: !form.refusedTax })} />
@@ -529,7 +529,7 @@ export function NewPatientModal({ isOpen, onClose, initialData, onConfirm, mode 
                         <div className="flex gap-2">
                             {mode !== 'edit' && (
                                 <label className="flex items-center gap-2 px-3 text-sm text-gray-600 cursor-pointer select-none">
-                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${form.checkInAfterRegister ? 'bg-[#E26B7C] border-[#E26B7C]' : 'bg-white border-gray-300'}`}>
+                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${form.checkInAfterRegister ? 'bg-[#D27A8C] border-[#D27A8C]' : 'bg-white border-gray-300'}`}>
                                         {form.checkInAfterRegister && <Check size={14} className="text-white" />}
                                     </div>
                                     <input type="checkbox" className="hidden" checked={form.checkInAfterRegister} onChange={() => setForm({ ...form, checkInAfterRegister: !form.checkInAfterRegister })} />
@@ -539,7 +539,7 @@ export function NewPatientModal({ isOpen, onClose, initialData, onConfirm, mode 
 
                             <button
                                 onClick={handleSubmit}
-                                className="px-8 py-2.5 bg-[#E26B7C] hover:bg-[#99354E] text-white font-bold text-sm rounded-xl shadow-[0_4px_12px_rgba(226,107,124,0.18)] transition-all flex items-center gap-2"
+                                className="px-8 py-2.5 bg-[#D27A8C] hover:bg-[#8B3F50] text-white font-bold text-sm rounded-xl shadow-[0_4px_12px_rgba(226,107,124,0.18)] transition-all flex items-center gap-2"
                             >
                                 {mode === 'edit' ? '수정 저장' : '등록하기'}
                                 <div className="w-0.5 h-3 bg-white/20"></div>
@@ -644,7 +644,7 @@ export function NewPatientModal({ isOpen, onClose, initialData, onConfirm, mode 
                                 <div className="p-4 border-t border-gray-100 flex justify-end">
                                     <button
                                         onClick={() => setViewingTerm(null)}
-                                        className="px-6 py-2 bg-[#E26B7C] text-white font-bold rounded-xl text-sm hover:bg-[#99354E]"
+                                        className="px-6 py-2 bg-[#D27A8C] text-white font-bold rounded-xl text-sm hover:bg-[#8B3F50]"
                                     >
                                         확인
                                     </button>

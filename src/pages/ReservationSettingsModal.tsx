@@ -206,7 +206,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                             value={editForm.name}
                                             onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
                                             placeholder="예: 백신접종, 일반진료"
-                                            className="w-full px-4 py-3 text-sm border border-[#F8DCE2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E26B7C]/20 focus:border-[#E26B7C] transition-all text-[#242424] placeholder:text-[#9E9E9E]"
+                                            className="w-full px-4 py-3 text-sm border border-[#F8DCE2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D27A8C]/20 focus:border-[#D27A8C] transition-all text-[#242424] placeholder:text-[#9E9E9E]"
                                         />
                                     </div>
 
@@ -224,7 +224,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                 </div>
                                                 <label className="flex items-center gap-2 cursor-pointer select-none">
                                                     <div
-                                                        className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${!editForm.useEndDate ? 'bg-[#E26B7C] border border-[#E26B7C]' : 'bg-white border border-[#F8DCE2]'}`}
+                                                        className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${!editForm.useEndDate ? 'bg-[#D27A8C] border border-[#D27A8C]' : 'bg-white border border-[#F8DCE2]'}`}
                                                         onClick={() => setEditForm(prev => ({ ...prev, useEndDate: !prev.useEndDate }))}
                                                     >
                                                         {!editForm.useEndDate && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
@@ -255,14 +255,14 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                         <div className="relative">
                                             <div
                                                 onClick={() => setIsPurposeOpen(!isPurposeOpen)}
-                                                className={`w-full px-4 py-3 text-sm border bg-white flex items-center justify-between cursor-pointer transition-all ${isPurposeOpen ? 'border-[#E26B7C] ring-2 ring-[#E26B7C]/20 rounded-t-xl rounded-b-none' : 'border-[#F8DCE2] rounded-lg'}`}
+                                                className={`w-full px-4 py-3 text-sm border bg-white flex items-center justify-between cursor-pointer transition-all ${isPurposeOpen ? 'border-[#D27A8C] ring-2 ring-[#D27A8C]/20 rounded-t-xl rounded-b-none' : 'border-[#F8DCE2] rounded-lg'}`}
                                             >
                                                 <div className="flex flex-wrap gap-2">
                                                     {(!editForm.visitPurpose || editForm.visitPurpose.length === 0) && (
                                                         <span className="text-[#9E9E9E]">선택해주세요</span>
                                                     )}
                                                     {(editForm.visitPurpose || []).map((purpose) => (
-                                                        <span key={purpose} className="flex items-center gap-1 px-2 py-0.5 bg-[#E26B7C]/10 text-[#E26B7C] rounded text-xs font-bold ring-1 ring-[#E26B7C]/20/50">
+                                                        <span key={purpose} className="flex items-center gap-1 px-2 py-0.5 bg-[#D27A8C]/10 text-[#D27A8C] rounded text-xs font-bold ring-1 ring-[#D27A8C]/20/50">
                                                             {purpose}
                                                             <button
                                                                 onClick={(e) => {
@@ -272,7 +272,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                                         visitPurpose: (prev.visitPurpose || []).filter((p: string) => p !== purpose)
                                                                     }));
                                                                 }}
-                                                                className="hover:text-[#99354E]"
+                                                                className="hover:text-[#8B3F50]"
                                                             >
                                                                 <X className="w-3 h-3" />
                                                             </button>
@@ -284,7 +284,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
 
                                             {/* Dropdown Menu */}
                                             {isPurposeOpen && (
-                                                <div className="absolute top-full left-0 right-0 z-50 bg-white border border-t-0 border-[#E26B7C] rounded-b-xl shadow-lg max-h-48 overflow-y-auto custom-scrollbar">
+                                                <div className="absolute top-full left-0 right-0 z-50 bg-white border border-t-0 border-[#D27A8C] rounded-b-xl shadow-lg max-h-48 overflow-y-auto custom-scrollbar">
                                                     {visitPurposeOptions.map((item) => (
                                                         <div
                                                             key={item}
@@ -298,13 +298,13 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                                     }
                                                                 });
                                                             }}
-                                                            className="flex items-center justify-between px-4 py-3 hover:bg-[#E26B7C]/10 cursor-pointer transition-colors"
+                                                            className="flex items-center justify-between px-4 py-3 hover:bg-[#D27A8C]/10 cursor-pointer transition-colors"
                                                         >
-                                                            <span className={`text-sm ${editForm.visitPurpose?.includes(item) ? 'font-bold text-[#E26B7C]' : 'text-[#242424]'}`}>
+                                                            <span className={`text-sm ${editForm.visitPurpose?.includes(item) ? 'font-bold text-[#D27A8C]' : 'text-[#242424]'}`}>
                                                                 {item}
                                                             </span>
                                                             {editForm.visitPurpose?.includes(item) && (
-                                                                <Check className="w-4 h-4 text-[#E26B7C]" />
+                                                                <Check className="w-4 h-4 text-[#D27A8C]" />
                                                             )}
                                                         </div>
                                                     ))}
@@ -320,7 +320,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                 <select
                                                     value={editForm.interval}
                                                     onChange={(e) => setEditForm(prev => ({ ...prev, interval: Number(e.target.value) }))}
-                                                    className="w-full px-4 py-2.5 text-sm border border-[#F8DCE2] rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#E26B7C]/20 text-[#242424] bg-white"
+                                                    className="w-full px-4 py-2.5 text-sm border border-[#F8DCE2] rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#D27A8C]/20 text-[#242424] bg-white"
                                                 >
                                                     <option value={10}>10분</option>
                                                     <option value={15}>15분</option>
@@ -336,7 +336,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                 <label className="block text-xs font-bold text-[#616161]">예약건 (수)</label>
                                                 <label className="flex items-center gap-1 cursor-pointer">
                                                     <div
-                                                        className={`w-6 h-3.5 rounded-full p-0.5 transition-colors ${editForm.dailyReservationCounts ? 'bg-[#E26B7C]' : 'bg-[#F8DCE2]'}`}
+                                                        className={`w-6 h-3.5 rounded-full p-0.5 transition-colors ${editForm.dailyReservationCounts ? 'bg-[#D27A8C]' : 'bg-[#F8DCE2]'}`}
                                                         onClick={() => setEditForm(prev => ({
                                                             ...prev,
                                                             dailyReservationCounts: prev.dailyReservationCounts ? undefined : Object.fromEntries(
@@ -370,7 +370,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                                 setEditForm(prev => ({ ...prev, reservationCount: 1 }));
                                                             }
                                                         }}
-                                                        className="w-full px-4 pr-8 py-2.5 text-sm border border-[#F8DCE2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E26B7C]/20 focus:border-[#E26B7C] text-[#242424]"
+                                                        className="w-full px-4 pr-8 py-2.5 text-sm border border-[#F8DCE2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D27A8C]/20 focus:border-[#D27A8C] text-[#242424]"
                                                     />
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5">
                                                         <button type="button" onClick={() => setEditForm(prev => ({ ...prev, reservationCount: (prev.reservationCount || 0) + 1 }))} className="text-[#9E9E9E] hover:text-[#616161]"><ChevronDown className="w-3 h-3 rotate-180" /></button>
@@ -396,7 +396,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                         <h3 className="text-base font-semibold text-[#242424]">운영 설정</h3>
                                         <label className="flex items-center gap-3 cursor-pointer">
                                             <div
-                                                className={`w-11 h-6 rounded-full p-1 cursor-pointer transition-colors ${editForm.isPartner ? 'bg-[#E26B7C]' : 'bg-[#F8DCE2]'}`}
+                                                className={`w-11 h-6 rounded-full p-1 cursor-pointer transition-colors ${editForm.isPartner ? 'bg-[#D27A8C]' : 'bg-[#F8DCE2]'}`}
                                                 onClick={() => setEditForm(prev => ({ ...prev, isPartner: !prev.isPartner }))}
                                             >
                                                 <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${editForm.isPartner ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -423,12 +423,12 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                                 });
                                                             }}
                                                             className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${(editForm.days || []).includes(day)
-                                                                ? 'bg-white border-[#E26B7C]/20 text-[#E26B7C] shadow-sm'
+                                                                ? 'bg-white border-[#D27A8C]/20 text-[#D27A8C] shadow-sm'
                                                                 : 'bg-[#FCF7F8] border-transparent text-[#9E9E9E] hover:bg-white hover:border-[#F8DCE2]'
                                                                 }`}
                                                         >
                                                             {day}
-                                                            {(editForm.days || []).includes(day) && <span className="ml-1.5 text-[#E26B7C]/60">×</span>}
+                                                            {(editForm.days || []).includes(day) && <span className="ml-1.5 text-[#D27A8C]/60">×</span>}
                                                         </button>
                                                     ))}
                                                 </div>
@@ -446,7 +446,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                         const [rs, re] = refHours.split('~');
                                                         return (
                                                             <div key={label} className="flex items-center gap-1.5 rounded-lg border border-[#F8DCE2] bg-white px-3 py-1.5">
-                                                                <span className="text-xs font-bold text-[#E26B7C]">{label}</span>
+                                                                <span className="text-xs font-bold text-[#D27A8C]">{label}</span>
                                                                 <select
                                                                     className="rounded border border-slate-200 bg-white px-1.5 py-1 text-xs font-semibold text-slate-700 outline-none cursor-pointer"
                                                                     value={rs || '09:00'}
@@ -507,7 +507,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                                             }
                                                                         }}
                                                                         className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer select-none transition-all ${(editForm.days || []).includes(day)
-                                                                            ? 'bg-white border-[#F8DCE2] hover:border-[#E26B7C]/40 hover:text-[#99354E]'
+                                                                            ? 'bg-white border-[#F8DCE2] hover:border-[#D27A8C]/40 hover:text-[#8B3F50]'
                                                                             : 'bg-[#FCF7F8] border-[#F8DCE2] cursor-not-allowed'
                                                                             }`}
                                                                     >
@@ -546,7 +546,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                                                                 }
                                                                                             }));
                                                                                         }}
-                                                                                        className="w-full pl-3 pr-8 py-2 text-sm border border-[#F8DCE2] rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#E26B7C]/20 text-[#242424] bg-white"
+                                                                                        className="w-full pl-3 pr-8 py-2 text-sm border border-[#F8DCE2] rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#D27A8C]/20 text-[#242424] bg-white"
                                                                                     >
                                                                                         {PROCESS_TIME_SLOTS.map(t => (
                                                                                             <option key={`start-${t}`} value={t}>{t}</option>
@@ -576,7 +576,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                                                                 }
                                                                                             }));
                                                                                         }}
-                                                                                        className="w-full pl-3 pr-8 py-2 text-sm border border-[#F8DCE2] rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#E26B7C]/20 text-[#242424] bg-white"
+                                                                                        className="w-full pl-3 pr-8 py-2 text-sm border border-[#F8DCE2] rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#D27A8C]/20 text-[#242424] bg-white"
                                                                                     >
                                                                                         {PROCESS_TIME_SLOTS.map(t => (
                                                                                             <option key={`end-${t}`} value={t}>{t}</option>
@@ -591,8 +591,8 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
 
                                                                 {/* Daily Count Input (Conditionally Rendered) */}
                                                                 {editForm.dailyReservationCounts && (
-                                                                    <div className={`w-20 px-2 py-2 rounded-lg border flex items-center justify-between ${(editForm.days || []).includes(day) ? 'bg-[#E26B7C]/10 border-[#E26B7C]/20' : 'bg-[#FCF7F8] border-[#F8DCE2] grayscale opacity-50'}`}>
-                                                                        <span className="text-[10px] text-[#E26B7C] font-bold">건수</span>
+                                                                    <div className={`w-20 px-2 py-2 rounded-lg border flex items-center justify-between ${(editForm.days || []).includes(day) ? 'bg-[#D27A8C]/10 border-[#D27A8C]/20' : 'bg-[#FCF7F8] border-[#F8DCE2] grayscale opacity-50'}`}>
+                                                                        <span className="text-[10px] text-[#D27A8C] font-bold">건수</span>
                                                                         <input
                                                                             type="number"
                                                                             value={editForm.dailyReservationCounts[day as keyof typeof editForm.dailyReservationCounts]}
@@ -606,7 +606,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                                                     } : undefined
                                                                                 }));
                                                                             }}
-                                                                            className="w-10 text-right text-xs font-bold text-[#E26B7C] bg-transparent focus:outline-none"
+                                                                            className="w-10 text-right text-xs font-bold text-[#D27A8C] bg-transparent focus:outline-none"
                                                                             disabled={!(editForm.days || []).includes(day)}
                                                                         />
                                                                     </div>
@@ -671,7 +671,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                                                                     }
                                                                                                 }));
                                                                                             }}
-                                                                                            className="w-full pl-3 pr-8 py-2 text-sm border border-[#F8DCE2] rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#E26B7C]/20 text-[#242424] bg-white"
+                                                                                            className="w-full pl-3 pr-8 py-2 text-sm border border-[#F8DCE2] rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#D27A8C]/20 text-[#242424] bg-white"
                                                                                         >
                                                                                             {PROCESS_TIME_SLOTS.map(t => (
                                                                                                 <option key={`break-start-${t}`} value={t}>{t}</option>
@@ -701,7 +701,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                                                                     }
                                                                                                 }));
                                                                                             }}
-                                                                                            className="w-full pl-3 pr-8 py-2 text-sm border border-[#F8DCE2] rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#E26B7C]/20 text-[#242424] bg-white"
+                                                                                            className="w-full pl-3 pr-8 py-2 text-sm border border-[#F8DCE2] rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#D27A8C]/20 text-[#242424] bg-white"
                                                                                         >
                                                                                             {PROCESS_TIME_SLOTS.map(t => (
                                                                                                 <option key={`break-end-${t}`} value={t}>{t}</option>
@@ -757,7 +757,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                             </button>
                             <button
                                 onClick={handleSave}
-                                className="px-6 py-2.5 text-sm font-medium text-white bg-[#E26B7C] rounded-lg hover:bg-[#99354E] transition-all shadow-md shadow-[#E26B7C]/15"
+                                className="px-6 py-2.5 text-sm font-medium text-white bg-[#D27A8C] rounded-lg hover:bg-[#8B3F50] transition-all shadow-md shadow-[#D27A8C]/15"
                             >
                                 등록
                             </button>
@@ -780,7 +780,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                 <p className="text-sm text-[#616161]">총 {orderedProcedureCategories.length}개의 시술 카테고리가 등록되어 있습니다.</p>
                                 <button
                                     onClick={handleCreateNew}
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-[#E26B7C] text-white rounded-lg shadow-md shadow-[#E26B7C]/15 hover:bg-[#99354E] transition-all"
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-[#D27A8C] text-white rounded-lg shadow-md shadow-[#D27A8C]/15 hover:bg-[#8B3F50] transition-all"
                                 >
                                     <Plus className="w-4 h-4" />
                                     <span className="text-sm font-bold">새 시술 카테고리 만들기</span>
@@ -792,14 +792,14 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                     <div
                                         key={category.id}
                                         onClick={() => handleSelectCategory(category)}
-                                        className="group bg-white p-6 rounded-lg border border-[#F8DCE2] hover:border-[#E26B7C]/30 shadow-sm hover:shadow-lg hover:shadow-[#E26B7C]/5 transition-all cursor-pointer relative overflow-hidden"
+                                        className="group bg-white p-6 rounded-lg border border-[#F8DCE2] hover:border-[#D27A8C]/30 shadow-sm hover:shadow-lg hover:shadow-[#D27A8C]/5 transition-all cursor-pointer relative overflow-hidden"
                                     >
-                                        <div className="absolute top-0 left-0 w-1 h-full bg-[#F8DCE2] group-hover:bg-[#E26B7C] transition-colors" />
+                                        <div className="absolute top-0 left-0 w-1 h-full bg-[#F8DCE2] group-hover:bg-[#D27A8C] transition-colors" />
 
                                         <div className="flex justify-between items-start mb-4 pl-2">
                                             <div>
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded bg-[#F0F0F0] text-[#616161] group-hover:bg-[#E26B7C]/10 group-hover:text-[#99354E] transition-colors`}>
+                                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded bg-[#F0F0F0] text-[#616161] group-hover:bg-[#D27A8C]/10 group-hover:text-[#8B3F50] transition-colors`}>
                                                         {category.type}
                                                     </span>
                                                     {category.isPartner && (
@@ -808,7 +808,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                         </span>
                                                     )}
                                                 </div>
-                                                <h3 className="text-lg font-bold text-[#242424] group-hover:text-[#99354E] transition-colors">{category.name}</h3>
+                                                <h3 className="text-lg font-bold text-[#242424] group-hover:text-[#8B3F50] transition-colors">{category.name}</h3>
                                             </div>
                                             <div className="flex gap-2">
                                                 <div className="flex flex-col gap-1">
@@ -818,7 +818,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                             handleMoveCategory(category.id, 'up');
                                                         }}
                                                         disabled={index === 0}
-                                                        className={`h-4 w-8 rounded-md border flex items-center justify-center transition-colors ${index === 0 ? 'cursor-not-allowed border-[#F8DCE2] bg-[#FCF7F8] text-[#9E9E9E]' : 'border-[#F8DCE2] bg-white text-[#616161] hover:border-[#E26B7C]/30 hover:text-[#99354E]'}`}
+                                                        className={`h-4 w-8 rounded-md border flex items-center justify-center transition-colors ${index === 0 ? 'cursor-not-allowed border-[#F8DCE2] bg-[#FCF7F8] text-[#9E9E9E]' : 'border-[#F8DCE2] bg-white text-[#616161] hover:border-[#D27A8C]/30 hover:text-[#8B3F50]'}`}
                                                         title="위로 이동"
                                                     >
                                                         <ChevronUp className="w-3 h-3" />
@@ -829,7 +829,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                             handleMoveCategory(category.id, 'down');
                                                         }}
                                                         disabled={index === orderedProcedureCategories.length - 1}
-                                                        className={`h-4 w-8 rounded-md border flex items-center justify-center transition-colors ${index === orderedProcedureCategories.length - 1 ? 'cursor-not-allowed border-[#F8DCE2] bg-[#FCF7F8] text-[#9E9E9E]' : 'border-[#F8DCE2] bg-white text-[#616161] hover:border-[#E26B7C]/30 hover:text-[#99354E]'}`}
+                                                        className={`h-4 w-8 rounded-md border flex items-center justify-center transition-colors ${index === orderedProcedureCategories.length - 1 ? 'cursor-not-allowed border-[#F8DCE2] bg-[#FCF7F8] text-[#9E9E9E]' : 'border-[#F8DCE2] bg-white text-[#616161] hover:border-[#D27A8C]/30 hover:text-[#8B3F50]'}`}
                                                         title="아래로 이동"
                                                     >
                                                         <ChevronDown className="w-3 h-3" />
@@ -848,8 +848,8 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
-                                                <div className="w-8 h-8 rounded-full bg-[#FCF7F8] flex items-center justify-center group-hover:bg-[#E26B7C]/10 transition-colors">
-                                                    <CalendarIcon className="w-4 h-4 text-[#9E9E9E] group-hover:text-[#E26B7C]" />
+                                                <div className="w-8 h-8 rounded-full bg-[#FCF7F8] flex items-center justify-center group-hover:bg-[#D27A8C]/10 transition-colors">
+                                                    <CalendarIcon className="w-4 h-4 text-[#9E9E9E] group-hover:text-[#D27A8C]" />
                                                 </div>
                                             </div>
                                         </div>
@@ -863,7 +863,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                                         <div className="flex items-center gap-1">
                                                             {Object.entries(category.dailyReservationCounts).map(([day, count]) => (
                                                                 <span key={day} className="inline-flex items-center gap-0.5 rounded bg-[#FCEBEF] px-1.5 py-0.5 text-[10px] font-medium">
-                                                                    <span className="text-[#E26B7C]">{day}</span>
+                                                                    <span className="text-[#D27A8C]">{day}</span>
                                                                     <span className="text-[#242424] font-bold">{count}명</span>
                                                                 </span>
                                                             ))}
@@ -883,7 +883,7 @@ export const ReservationSettingsModal: React.FC<ReservationSettingsModalProps> =
                                             </div>
                                             <div className="flex flex-wrap gap-1 mt-3">
                                                 {(category.days || []).map(day => (
-                                                    <span key={day} className="px-1.5 py-0.5 bg-[#FCF7F8] rounded text-[10px] text-[#616161] group-hover:bg-[#E26B7C]/10 group-hover:text-[#99354E] transition-colors">
+                                                    <span key={day} className="px-1.5 py-0.5 bg-[#FCF7F8] rounded text-[10px] text-[#616161] group-hover:bg-[#D27A8C]/10 group-hover:text-[#8B3F50] transition-colors">
                                                         {day}
                                                     </span>
                                                 ))}

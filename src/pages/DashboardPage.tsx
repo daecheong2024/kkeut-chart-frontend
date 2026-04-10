@@ -19,7 +19,7 @@ export default function DashboardPage() {
 
   if (permLoaded && !permissions["dashboard.view"]) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col bg-[#FAF3F5]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
+      <div className="flex min-h-0 flex-1 flex-col" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif", background: "linear-gradient(135deg, #FCF7F8 0%, #FCEBEF 100%)" }}>
         <TopBar title="대시보드" />
         <NoPermissionOverlay />
       </div>
@@ -27,7 +27,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-[#FAF3F5]" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif" }}>
+    <div className="flex min-h-0 flex-1 flex-col" style={{ fontFamily: "'Noto Sans KR', 'Noto Sans', sans-serif", background: "linear-gradient(135deg, #FCF7F8 0%, #FCEBEF 100%)" }}>
       <TopBar title="대시보드" />
 
       <div className="flex min-h-0 flex-1 overflow-hidden p-6">

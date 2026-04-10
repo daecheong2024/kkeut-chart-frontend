@@ -148,12 +148,13 @@ export function Sidebar({ onNavigate, collapsed = false }: { onNavigate?: () => 
 
   return (
     <aside className="kkeut-sidebar-shell flex h-full w-[264px] flex-col">
-      <div className="relative px-5 py-5 border-b border-white/10 flex items-center justify-center">
-        <BrandMark />
+      <div className="relative px-5 py-3 border-b border-white/10 flex flex-col items-center gap-1">
+        <BrandMark size={84} />
+        <div className="text-[9px] font-bold tracking-[0.22em] text-white/55 uppercase">KKEUT CHART</div>
         {shell && (
           <button
             onClick={() => shell.toggleSidebarCollapsed()}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-white/15 text-white/50 hover:text-white transition-colors"
+            className="absolute right-3 top-3 p-1 rounded hover:bg-white/15 text-white/50 hover:text-white transition-colors"
             title="사이드바 접기"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -338,10 +339,10 @@ export function Sidebar({ onNavigate, collapsed = false }: { onNavigate?: () => 
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
-              "flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors",
+              "flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition-all",
               isActive
-                ? "border-[rgba(var(--kkeut-primary),.45)] bg-[rgba(var(--kkeut-primary),.16)] text-white"
-                : "border-white/20 bg-white/10 text-slate-100 hover:bg-white/15"
+                ? "bg-white/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]"
+                : "bg-white/8 text-white/85 hover:bg-white/15 hover:text-white"
             )
           }
         >
@@ -351,7 +352,7 @@ export function Sidebar({ onNavigate, collapsed = false }: { onNavigate?: () => 
 
         <button
           onClick={logout}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-slate-100 hover:bg-white/15"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/8 px-3 py-2.5 text-sm font-bold text-white/85 hover:bg-white/15 hover:text-white transition-all"
         >
           <LogOut className="h-4 w-4" />
           로그아웃

@@ -63,7 +63,7 @@ export default function ReservationCancelModal({ isOpen, onClose, onConfirm }: R
                             id="noshow"
                             checked={isNoShow}
                             onChange={(e) => setIsNoShow(e.target.checked)}
-                            className="w-5 h-5 rounded border-gray-300 text-[#E26B7C] focus:ring-[#FCEBEF]"
+                            className="w-5 h-5 rounded border-gray-300 text-[#D27A8C] focus:ring-[#FCEBEF]"
                         />
                         <label htmlFor="noshow" className="text-sm font-bold text-gray-800 cursor-pointer">노쇼</label>
                     </div>
@@ -78,7 +78,7 @@ export default function ReservationCancelModal({ isOpen, onClose, onConfirm }: R
                         </button>
                         <button
                             onClick={() => onConfirm(reason, isNoShow)}
-                            className="px-6 py-2 bg-[#E26B7C] text-white font-bold rounded-lg hover:bg-[#99354E] text-sm"
+                            className="px-6 py-2 bg-[#D27A8C] text-white font-bold rounded-lg hover:bg-[#8B3F50] text-sm"
                         >
                             확인
                         </button>

@@ -646,7 +646,7 @@ export function WaitView() {
             <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30">
                 <div className="bg-white rounded-xl border border-[#F8DCE2] p-5 shadow-lg max-w-sm">
                     <div className="text-[13px] text-[#242424] mb-3">{alertMessage}</div>
-                    <button onClick={() => setAlertMessage(null)} className="px-4 py-1.5 bg-[#E26B7C] text-white rounded-lg text-[13px] font-bold">확인</button>
+                    <button onClick={() => setAlertMessage(null)} className="px-4 py-1.5 bg-[#D27A8C] text-white rounded-lg text-[13px] font-bold">확인</button>
                 </div>
             </div>
         )}

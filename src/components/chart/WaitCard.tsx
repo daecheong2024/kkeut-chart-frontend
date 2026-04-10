@@ -317,7 +317,7 @@ export function WaitCard({
           ) : (
             <button
               type="button"
-              className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-[10px] text-[#E5B5C0] hover:text-[#E26B7C] hover:bg-[#FCEBEF] transition-all"
+              className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-[10px] text-[#E5B5C0] hover:text-[#D27A8C] hover:bg-[#FCEBEF] transition-all"
               style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
               onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
             >▶</button>
@@ -353,7 +353,7 @@ export function WaitCard({
               e.stopPropagation();
               navigate(`/app/chart-view/${patient.patientId}`);
             }}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#F8DCE2]/50 bg-white/80 text-[#616161] transition-all duration-200 hover:bg-[#FCEBEF] hover:text-[#E26B7C] hover:border-[#E26B7C]/30"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#F8DCE2]/50 bg-white/80 text-[#616161] transition-all duration-200 hover:bg-[#FCEBEF] hover:text-[#D27A8C] hover:border-[#D27A8C]/30"
             title="차트 보기"
           >
             <FileText className="h-4 w-4" />
@@ -377,7 +377,7 @@ export function WaitCard({
                   }}
                   onMouseEnter={(e) => { e.stopPropagation(); setShowPrintTip(true); }}
                   onMouseLeave={() => setShowPrintTip(false)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#F8DCE2]/50 bg-white/80 text-[#616161] transition-all duration-200 hover:bg-[#FCEBEF] hover:text-[#E26B7C] hover:border-[#E26B7C]/30"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#F8DCE2]/50 bg-white/80 text-[#616161] transition-all duration-200 hover:bg-[#FCEBEF] hover:text-[#D27A8C] hover:border-[#D27A8C]/30"
                 >
                   <Printer className="h-4 w-4" />
                 </button>
@@ -578,13 +578,13 @@ export function WaitCard({
                   }}
                   title={status === "todo" ? "시작" : status === "doing" ? "완료" : "초기화"}
                 >
-                  <circle cx="8" cy="8" r="7" fill="none" stroke={status === "todo" ? "#D1D5DB" : status === "doing" ? "#E26B7C" : "#10B981"} strokeWidth="1.5" />
-                  {status === "doing" && <path d="M8 1 A7 7 0 0 1 8 15 Z" fill="#E26B7C" />}
+                  <circle cx="8" cy="8" r="7" fill="none" stroke={status === "todo" ? "#D1D5DB" : status === "doing" ? "#D27A8C" : "#10B981"} strokeWidth="1.5" />
+                  {status === "doing" && <path d="M8 1 A7 7 0 0 1 8 15 Z" fill="#D27A8C" />}
                   {status === "done" && <circle cx="8" cy="8" r="5.5" fill="#10B981" />}
                 </svg>
                 <span className={`flex-1 min-w-0 truncate text-[11px] ${status === "done" ? "line-through text-gray-400" : ""}`}>{todo.content}</span>
                 {status === "doing" && todo.startedAt && (
-                  <span className="text-[10px] text-[#E26B7C] shrink-0">{format(new Date(todo.startedAt), "HH:mm")}~</span>
+                  <span className="text-[10px] text-[#D27A8C] shrink-0">{format(new Date(todo.startedAt), "HH:mm")}~</span>
                 )}
                 {status === "done" && todo.startedAt && todo.completedAt && (
                   <span className="text-[10px] text-emerald-600 shrink-0">
@@ -804,7 +804,7 @@ export function WaitCard({
                   setIsSavingStatusAlert(false);
                 }
               }}
-              className="h-10 rounded-xl bg-[#E26B7C] px-5 text-sm font-bold text-white shadow-sm hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-10 rounded-xl bg-[#D27A8C] px-5 text-sm font-bold text-white shadow-sm hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSavingStatusAlert ? "저장중..." : "적용"}
             </button>

@@ -314,7 +314,7 @@ export default function RevenueStatsPage() {
             className={
               "px-5 h-12 text-sm font-semibold border-b-2 transition-all duration-200 " +
               (activeTab === tab.key
-                ? "border-[#E26B7C] text-[#E26B7C]"
+                ? "border-[#D27A8C] text-[#D27A8C]"
                 : "border-transparent text-gray-500 hover:text-gray-700")
             }
           >
@@ -341,7 +341,7 @@ export default function RevenueStatsPage() {
                     className={
                       "px-4 h-10 text-sm font-medium rounded-lg transition-all duration-200 inline-flex items-center " +
                       (period === p.key
-                        ? "bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]"
+                        ? "bg-[#D27A8C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]"
                         : "text-[#616161] hover:bg-[#FCEBEF] hover:text-[#5C2A35]")
                     }
                   >
@@ -750,7 +750,7 @@ export default function RevenueStatsPage() {
                         className={
                           "px-4 h-10 text-sm font-medium rounded-lg transition-all duration-200 inline-flex items-center " +
                           (period === p.key
-                            ? "bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]"
+                            ? "bg-[#D27A8C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]"
                             : "text-[#616161] hover:bg-[#FCEBEF] hover:text-[#5C2A35]")
                         }
                       >
@@ -791,7 +791,7 @@ export default function RevenueStatsPage() {
                   className={
                     "w-full rounded-2xl border px-4 py-3 text-left transition-all " +
                     (card.key === receivablesCategory
-                      ? "ring-2 ring-[#E26B7C] ring-offset-1"
+                      ? "ring-2 ring-[#D27A8C] ring-offset-1"
                       : "")
                   }
                   style={{ backgroundColor: card.bg, borderColor: card.border }}
@@ -861,7 +861,7 @@ export default function RevenueStatsPage() {
                                 <td className="py-3 px-2 text-sm text-gray-700 text-center">
                                   {hasDetail ? (
                                     <span className="inline-flex items-center gap-1">
-                                      <ChevronDown className={`h-3.5 w-3.5 text-[#E26B7C] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                      <ChevronDown className={`h-3.5 w-3.5 text-[#D27A8C] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                                       {p.customerId}
                                     </span>
                                   ) : p.customerId}

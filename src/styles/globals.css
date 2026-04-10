@@ -4,15 +4,15 @@
 @tailwind utilities;
 
 :root {
-  --kkeut-primary: 226 107 124;
-  --kkeut-primary-strong: 153 53 78;
-  --kkeut-accent: 244 158 175;
+  --kkeut-primary: 210 122 140;
+  --kkeut-primary-strong: 139 63 80;
+  --kkeut-accent: 230 165 180;
   --kkeut-ink: 42 31 34;
   --kkeut-muted: 124 96 102;
-  --kkeut-border: 248 220 226;
+  --kkeut-border: 240 213 220;
   --kkeut-surface: 252 247 248;
-  --kkeut-sidebar-ink: 251 224 229;
-  --kkeut-sidebar-muted: 217 150 167;
+  --kkeut-sidebar-ink: 246 224 229;
+  --kkeut-sidebar-muted: 207 154 168;
   --kkeut-sidebar-border: 92 42 53;
 }
 
@@ -99,13 +99,13 @@ body {
 }
 
 .kkeut-sidebar-shell {
-  background: linear-gradient(180deg, #3F1F26 0%, #5C2A35 60%, #7A2E3D 100%);
-  border-right: 1px solid rgba(var(--kkeut-sidebar-border), .6);
-  box-shadow: 2px 0 16px rgba(92, 42, 53, .25);
+  background: #7A5560;
+  border-right: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: 2px 0 24px rgba(92, 42, 53, .18);
 }
 
 .kkeut-sidebar-item {
-  color: rgb(var(--kkeut-sidebar-ink));
+  color: rgba(255, 255, 255, .78);
   border: 1px solid transparent;
   background: transparent;
   transition: all .2s ease-in-out;
@@ -113,38 +113,39 @@ body {
 
 .kkeut-sidebar-item:hover {
   color: #FFFFFF;
-  border-color: rgba(248, 220, 226, .22);
-  background: rgba(248, 220, 226, .12);
+  background: rgba(255, 255, 255, .10);
 }
 
 .kkeut-sidebar-item-active {
   color: #FFFFFF;
-  border-color: rgba(244, 158, 175, .45);
-  background: linear-gradient(90deg, rgba(226, 107, 124, .55), rgba(244, 158, 175, .25));
-  box-shadow: 0 4px 14px rgba(92, 42, 53, .35);
+  background: rgba(255, 255, 255, .16);
+  box-shadow: inset 3px 0 0 #F49EAF, 0 4px 14px rgba(0, 0, 0, .12);
+  font-weight: 800;
 }
 
 .kkeut-sidebar-submenu {
-  border: 1px solid rgba(248, 220, 226, .14);
-  background: rgba(63, 31, 38, .35);
+  border: 1px solid rgba(255, 255, 255, .08);
+  background: rgba(0, 0, 0, .12);
   border-radius: 12px;
   padding: 6px;
+  margin-top: 2px;
 }
 
 .kkeut-sidebar-subitem {
-  color: rgb(var(--kkeut-sidebar-muted));
+  color: rgba(255, 255, 255, .64);
   border-radius: 8px;
   transition: all .2s ease-in-out;
 }
 
 .kkeut-sidebar-subitem:hover {
-  color: rgb(var(--kkeut-sidebar-ink));
-  background: rgba(248, 220, 226, .1);
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, .08);
 }
 
 .kkeut-sidebar-subitem-active {
   color: #FFFFFF;
-  background: rgba(244, 158, 175, .28);
+  background: rgba(244, 158, 175, .22);
+  font-weight: 700;
 }
 
 .kkeut-sidebar-scroll {
@@ -197,7 +198,7 @@ body {
 .kkeut-main-stage input:not([type="checkbox"]):not([type="radio"]):focus,
 .kkeut-main-stage select:focus,
 .kkeut-main-stage textarea:focus {
-  border-color: #E26B7C;
+  border-color: #D27A8C;
   box-shadow: 0 0 0 3px rgba(244, 158, 175, .22);
   outline: none;
 }
@@ -236,18 +237,18 @@ body {
 .kkeut-main-stage .bg-blue-600,
 .kkeut-main-stage .hover\:bg-blue-600:hover,
 .kkeut-main-stage .hover\:bg-blue-700:hover {
-  background-color: #E26B7C !important;
+  background-color: #D27A8C !important;
 }
 
 .kkeut-main-stage .text-blue-500,
 .kkeut-main-stage .text-blue-600 {
-  color: #99354E !important;
+  color: #8B3F50 !important;
 }
 
 .kkeut-main-stage .border-blue-500,
 .kkeut-main-stage .focus\:border-blue-500:focus,
 .kkeut-main-stage .hover\:border-blue-500:hover {
-  border-color: #E26B7C !important;
+  border-color: #D27A8C !important;
 }
 
 .kkeut-main-stage .bg-blue-100 {
@@ -272,7 +273,7 @@ body {
 .kkeut-main-stage .bg-violet-500,
 .kkeut-main-stage .bg-violet-600,
 .kkeut-main-stage .hover\:bg-violet-700:hover {
-  background-color: #E26B7C !important;
+  background-color: #D27A8C !important;
 }
 
 .kkeut-main-stage .text-violet-500,
@@ -282,12 +283,12 @@ body {
 .kkeut-main-stage .text-purple-600,
 .kkeut-main-stage .text-purple-700,
 .kkeut-main-stage .text-purple-800 {
-  color: #99354E !important;
+  color: #8B3F50 !important;
 }
 
 .kkeut-main-stage .hover\:text-violet-600:hover,
 .kkeut-main-stage .hover\:text-blue-500:hover {
-  color: #99354E !important;
+  color: #8B3F50 !important;
 }
 
 /* Gray/Slate → Rose palette harmonization */

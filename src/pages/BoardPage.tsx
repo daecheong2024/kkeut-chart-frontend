@@ -111,13 +111,13 @@ export default function BoardPage() {
                             onClick={() => setViewMode(tab.key)}
                             className={`px-4 py-2 min-h-[40px] text-sm font-medium rounded-lg transition-all duration-200 ease-in-out whitespace-nowrap ${
                                 viewMode === tab.key
-                                    ? 'bg-[#E26B7C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]'
+                                    ? 'bg-[#D27A8C] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)]'
                                     : 'text-[#616161] hover:text-[#5C2A35] hover:bg-[#FCEBEF]'
                             }`}
                         >
                             {tab.label}
                             {tab.badge != null && tab.badge > 0 && (
-                                <span className={`ml-1.5 text-xs font-bold ${viewMode === tab.key ? 'text-indigo-200' : 'text-[#E26B7C]'}`}>
+                                <span className={`ml-1.5 text-xs font-bold ${viewMode === tab.key ? 'text-indigo-200' : 'text-[#D27A8C]'}`}>
                                     {tab.badge}
                                 </span>
                             )}
