@@ -57,7 +57,8 @@ export const consentService = {
         const response = await apiClient.post<SendConsentResponse>('/consent/send', {
             branchId: safeBranchId,
             patientId,
-            formTemplateId
+            formTemplateId,
+            baseUrl: window.location.origin,
         });
         return response.data;
     },

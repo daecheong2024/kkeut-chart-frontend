@@ -210,45 +210,54 @@ export default function IntegrationsSettingsPage() {
                 />
               </div>
 
-              {/* 카카오 알림톡 설정 */}
+              {/* Solapi 알림톡/SMS 설정 */}
               <div className="border-t border-gray-200 pt-3 mt-3">
-                <div className="text-xs font-bold text-violet-600 mb-2">📱 카카오 알림톡 설정</div>
+                <div className="text-xs font-bold text-violet-600 mb-2">📱 Solapi 알림톡/SMS 설정</div>
                 <div className="space-y-2">
                   <div>
                     <label className="text-xs font-bold text-gray-500">API Key</label>
                     <Input
                       value={draft.crm.kakao?.apiKey || ""}
-                      onChange={e => update({ crm: { ...draft.crm, kakao: { ...(draft.crm.kakao || { provider: 'aligo', apiKey: '', userId: '', senderKey: '', senderPhone: '' }), apiKey: e.target.value } } })}
-                      placeholder="알리고 API Key"
+                      onChange={e => update({ crm: { ...draft.crm, kakao: { ...(draft.crm.kakao || { provider: 'solapi', apiKey: '', userId: '', senderKey: '', senderPhone: '' }), provider: 'solapi', apiKey: e.target.value } } })}
+                      placeholder="Solapi API Key"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-500">User ID</label>
+                    <label className="text-xs font-bold text-gray-500">API Secret</label>
                     <Input
+                      type="password"
                       value={draft.crm.kakao?.userId || ""}
-                      onChange={e => update({ crm: { ...draft.crm, kakao: { ...(draft.crm.kakao || { provider: 'aligo', apiKey: '', userId: '', senderKey: '', senderPhone: '' }), userId: e.target.value } } })}
-                      placeholder="알리고 사용자 ID"
+                      onChange={e => update({ crm: { ...draft.crm, kakao: { ...(draft.crm.kakao || { provider: 'solapi', apiKey: '', userId: '', senderKey: '', senderPhone: '' }), provider: 'solapi', userId: e.target.value } } })}
+                      placeholder="Solapi API Secret"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-500">Sender Key (발신프로필 키)</label>
+                    <label className="text-xs font-bold text-gray-500">카카오 채널 ID (pfId)</label>
                     <Input
                       value={draft.crm.kakao?.senderKey || ""}
-                      onChange={e => update({ crm: { ...draft.crm, kakao: { ...(draft.crm.kakao || { provider: 'aligo', apiKey: '', userId: '', senderKey: '', senderPhone: '' }), senderKey: e.target.value } } })}
-                      placeholder="카카오 발신프로필 키"
+                      onChange={e => update({ crm: { ...draft.crm, kakao: { ...(draft.crm.kakao || { provider: 'solapi', apiKey: '', userId: '', senderKey: '', senderPhone: '' }), provider: 'solapi', senderKey: e.target.value } } })}
+                      placeholder="KA01PF..."
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500">알림톡 템플릿 ID</label>
+                    <Input
+                      value={(draft.crm.kakao as any)?.templateId || ""}
+                      onChange={e => update({ crm: { ...draft.crm, kakao: { ...(draft.crm.kakao || { provider: 'solapi', apiKey: '', userId: '', senderKey: '', senderPhone: '' }), provider: 'solapi', templateId: e.target.value } as any } })}
+                      placeholder="검수 통과 후 발급되는 템플릿 ID (미입력 시 SMS 발송)"
                     />
                   </div>
                   <div>
                     <label className="text-xs font-bold text-gray-500">발신 전화번호</label>
                     <Input
                       value={draft.crm.kakao?.senderPhone || ""}
-                      onChange={e => update({ crm: { ...draft.crm, kakao: { ...(draft.crm.kakao || { provider: 'aligo', apiKey: '', userId: '', senderKey: '', senderPhone: '' }), senderPhone: e.target.value } } })}
-                      placeholder="010-0000-0000"
+                      onChange={e => update({ crm: { ...draft.crm, kakao: { ...(draft.crm.kakao || { provider: 'solapi', apiKey: '', userId: '', senderKey: '', senderPhone: '' }), provider: 'solapi', senderPhone: e.target.value } } })}
+                      placeholder="02-6959-6080"
                     />
                   </div>
                 </div>
                 <div className="mt-2 text-[10px] text-gray-400">
-                  * 알리고(aligo.in) 가입 후 API Key와 발신프로필 키를 입력하세요.
+                  * solapi.com 가입 후 API Key/Secret 입력. 알림톡은 카카오 채널 연동 + 템플릿 검수 후 사용 가능. 템플릿 미입력 시 SMS로 발송됩니다.
                 </div>
               </div>
             </div>
