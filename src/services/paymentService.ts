@@ -214,6 +214,100 @@ export interface RefundExecuteResult {
     }>;
 }
 
+// ============================================================
+// ISSUE-174: Bulk refund + Membership settlement
+// ============================================================
+
+export interface BulkRefundItem {
+    paymentMasterId: number;
+    paymentDetailId: number;
+    refundType: RefundType;
+    penaltyRate?: number;
+    manualAmount?: number;
+    reason?: string;
+}
+
+export interface BulkRefundRequest {
+    items: BulkRefundItem[];
+    commonReason?: string;
+}
+
+export interface BulkRefundItemResult {
+    paymentDetailId: number;
+    itemName: string;
+    itemType: string;
+    success: boolean;
+    errorMessage?: string;
+    refundAmount: number;
+    penaltyAmount: number;
+    usageDeduction: number;
+    formula: string;
+}
+
+export interface BulkRefundResponse {
+    allSucceeded: boolean;
+    successCount: number;
+    failureCount: number;
+    totalRefundAmount: number;
+    results: BulkRefundItemResult[];
+}
+
+export interface MembershipSettlementLinkedTicket {
+    paymentDetailId: number;
+    paymentMasterId: number;
+    ticketId: number | null;
+    ticketName: string;
+    paidViaMembership: number;
+    paymentType: string;
+    usedCount: number;
+    totalCount: number;
+    remainingCount: number;
+    singleSessionPrice: number | null;
+    estimatedRefund: number;
+    alreadyRefunded: boolean;
+}
+
+export interface MembershipSettlementInfo {
+    membershipRootId: number;
+    membershipDefId: number;
+    membershipName: string;
+    paymentMasterId: number;
+    originPurchasePrice: number;
+    discountedPurchasePrice: number;
+    snapshotBonusPoint: number;
+    currentCashBalance: number;
+    currentPointBalance: number;
+    netCashUsed: number;
+    netPointUsed: number;
+    membershipAlreadyRefunded: boolean;
+    linkedTickets: MembershipSettlementLinkedTicket[];
+    defaultPenaltyRate: number;
+    previewMembershipBalanceRefund: number;
+    previewLinkedTicketsRefundTotal: number;
+    previewMembershipPenalty: number;
+    previewTotalRefund: number;
+    previewFormula: string;
+}
+
+export interface MembershipSettlementExecuteRequest {
+    refundType: RefundType;
+    includedPaymentDetailIds: number[];
+    penaltyRate?: number;
+    manualAmount?: number;
+    reason?: string;
+}
+
+export interface MembershipSettlementExecuteResponse {
+    success: boolean;
+    message: string;
+    membershipBalanceRefund: number;
+    linkedTicketsRefundTotal: number;
+    membershipPenaltyAmount: number;
+    totalRefundAmount: number;
+    ticketResults: BulkRefundItemResult[];
+    formula: string;
+}
+
 export const paymentService = {
     calcActualPaidAmount(record: Partial<PaymentRecord>): number {
         const methodPaid =
@@ -382,5 +476,84 @@ export const paymentService = {
 
     async create(patientId: number, amount: number): Promise<PaymentItem> {
         throw new Error("Manual payment creation endpoint is not implemented. Use cart checkout flow.");
+    },
+
+    async executeBulkRefund(request: BulkRefundRequest): Promise<BulkRefundResponse> {
+        const response = await apiClient.post('/payments/refund/bulk', request);
+        const d = response?.data ?? {};
+        return {
+            allSucceeded: Boolean(d.allSucceeded),
+            successCount: Number(d.successCount || 0),
+            failureCount: Number(d.failureCount || 0),
+            totalRefundAmount: Number(d.totalRefundAmount || 0),
+            results: Array.isArray(d.results) ? d.results : [],
+        };
+    },
+
+    async getMembershipSettlementByPaymentDetail(paymentDetailId: number): Promise<MembershipSettlementInfo> {
+        const response = await apiClient.get(`/payments/memberships/settlement/by-detail/${paymentDetailId}`);
+        const d = response?.data ?? {};
+        return {
+            membershipRootId: Number(d.membershipRootId || 0),
+            membershipDefId: Number(d.membershipDefId || 0),
+            membershipName: String(d.membershipName || ""),
+            paymentMasterId: Number(d.paymentMasterId || 0),
+            originPurchasePrice: Number(d.originPurchasePrice || 0),
+            discountedPurchasePrice: Number(d.discountedPurchasePrice || 0),
+            snapshotBonusPoint: Number(d.snapshotBonusPoint || 0),
+            currentCashBalance: Number(d.currentCashBalance || 0),
+            currentPointBalance: Number(d.currentPointBalance || 0),
+            netCashUsed: Number(d.netCashUsed || 0),
+            netPointUsed: Number(d.netPointUsed || 0),
+            membershipAlreadyRefunded: Boolean(d.membershipAlreadyRefunded),
+            linkedTickets: Array.isArray(d.linkedTickets) ? d.linkedTickets : [],
+            defaultPenaltyRate: Number(d.defaultPenaltyRate || 0),
+            previewMembershipBalanceRefund: Number(d.previewMembershipBalanceRefund || 0),
+            previewLinkedTicketsRefundTotal: Number(d.previewLinkedTicketsRefundTotal || 0),
+            previewMembershipPenalty: Number(d.previewMembershipPenalty || 0),
+            previewTotalRefund: Number(d.previewTotalRefund || 0),
+            previewFormula: String(d.previewFormula || ""),
+        };
+    },
+
+    async getMembershipSettlement(membershipRootId: number): Promise<MembershipSettlementInfo> {
+        const response = await apiClient.get(`/payments/memberships/${membershipRootId}/settlement`);
+        const d = response?.data ?? {};
+        return {
+            membershipRootId: Number(d.membershipRootId || 0),
+            membershipDefId: Number(d.membershipDefId || 0),
+            membershipName: String(d.membershipName || ""),
+            paymentMasterId: Number(d.paymentMasterId || 0),
+            originPurchasePrice: Number(d.originPurchasePrice || 0),
+            discountedPurchasePrice: Number(d.discountedPurchasePrice || 0),
+            snapshotBonusPoint: Number(d.snapshotBonusPoint || 0),
+            currentCashBalance: Number(d.currentCashBalance || 0),
+            currentPointBalance: Number(d.currentPointBalance || 0),
+            netCashUsed: Number(d.netCashUsed || 0),
+            netPointUsed: Number(d.netPointUsed || 0),
+            membershipAlreadyRefunded: Boolean(d.membershipAlreadyRefunded),
+            linkedTickets: Array.isArray(d.linkedTickets) ? d.linkedTickets : [],
+            defaultPenaltyRate: Number(d.defaultPenaltyRate || 0),
+            previewMembershipBalanceRefund: Number(d.previewMembershipBalanceRefund || 0),
+            previewLinkedTicketsRefundTotal: Number(d.previewLinkedTicketsRefundTotal || 0),
+            previewMembershipPenalty: Number(d.previewMembershipPenalty || 0),
+            previewTotalRefund: Number(d.previewTotalRefund || 0),
+            previewFormula: String(d.previewFormula || ""),
+        };
+    },
+
+    async executeMembershipSettlement(membershipRootId: number, request: MembershipSettlementExecuteRequest): Promise<MembershipSettlementExecuteResponse> {
+        const response = await apiClient.post(`/payments/memberships/${membershipRootId}/settlement/execute`, request);
+        const d = response?.data ?? {};
+        return {
+            success: Boolean(d.success),
+            message: String(d.message || ""),
+            membershipBalanceRefund: Number(d.membershipBalanceRefund || 0),
+            linkedTicketsRefundTotal: Number(d.linkedTicketsRefundTotal || 0),
+            membershipPenaltyAmount: Number(d.membershipPenaltyAmount || 0),
+            totalRefundAmount: Number(d.totalRefundAmount || 0),
+            ticketResults: Array.isArray(d.ticketResults) ? d.ticketResults : [],
+            formula: String(d.formula || ""),
+        };
     }
 };

@@ -150,7 +150,7 @@ const USAGE_SUMMARY_SOURCE_STYLES: Record<string, string> = {
 };
 
 const RIGHT_SIDEBAR_TAB_COLORS: Record<string, { bg: string; color: string; activeBg: string; border: string }> = {
-    record: { bg: "#FCEBEF", color: "#E26B7C", activeBg: "#E26B7C", border: "#F8DCE2" },
+    record: { bg: "#FCEBEF", color: "#D27A8C", activeBg: "#D27A8C", border: "#F8DCE2" },
     reservation: { bg: "#E0F7FA", color: "#00838F", activeBg: "#00838F", border: "#80DEEA" },
     membership: { bg: "#EDE7F6", color: "#6A1B9A", activeBg: "#6A1B9A", border: "#CE93D8" },
     ticket: { bg: "#E0F2F1", color: "#00695C", activeBg: "#00695C", border: "#80CBC4" },
@@ -348,6 +348,8 @@ import { ReceptionForm } from "../components/chart/ReceptionForm";
 import { PatientSearchModal } from "../components/common/PatientSearchModal";
 import AddPaymentModal from "../components/AddPaymentModal";
 import { RefundModal } from "../components/refund/RefundModal";
+import { BulkRefundModal, type BulkRefundModalItem } from "../components/refund/BulkRefundModal";
+import { MembershipSettlementModal } from "../components/refund/MembershipSettlementModal";
 import SmartTextarea from "../components/SmartTextarea";
 import { printService, PrintSection } from "../services/printService";
 import { useNavigate, useParams } from "react-router-dom";
@@ -2789,7 +2791,7 @@ export default function PatientChartPage() {
                 <div className="text-xs text-gray-400 bg-gray-100 p-2 rounded max-w-md break-all">{debugLog}</div>
                 <button
                     onClick={refreshChartData}
-                    className="px-4 py-2 bg-[#E26B7C] text-white rounded-lg hover:bg-[#99354E] shadow-sm"
+                    className="px-4 py-2 bg-[#D27A8C] text-white rounded-lg hover:bg-[#8B3F50] shadow-sm"
                 >
                     다시 시도
                 </button>
@@ -2848,14 +2850,14 @@ export default function PatientChartPage() {
                             boxShadow: "0 2px 6px rgba(226, 107, 124, 0.12), inset 0 1px 0 rgba(255,255,255,0.7)",
                         }}
                     >
-                        <User className="w-[18px] h-[18px]" style={{ color: "#99354E" }} />
+                        <User className="w-[18px] h-[18px]" style={{ color: "#8B3F50" }} />
                     </div>
 
                     <div className="flex items-baseline gap-3">
                         <span
                             className="text-[11px] font-mono font-semibold tracking-wider px-2 py-0.5 rounded-md"
                             style={{
-                                color: "#99354E",
+                                color: "#8B3F50",
                                 background: "rgba(244, 158, 175, 0.14)",
                                 border: "1px solid rgba(244, 158, 175, 0.28)",
                             }}
@@ -2910,7 +2912,7 @@ export default function PatientChartPage() {
                                 boxShadow: "0 1px 3px rgba(226, 107, 124, 0.10)",
                             }}
                         >
-                            <CreditCard className="w-3 h-3" style={{ color: "#E26B7C" }} />
+                            <CreditCard className="w-3 h-3" style={{ color: "#D27A8C" }} />
                             누적 {Math.floor(totalPayment / 10000).toLocaleString()}만원
                         </span>
                     </div>
@@ -2931,12 +2933,12 @@ export default function PatientChartPage() {
                         style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FCF7F8 100%)" }}
                     >
                         <div className="flex items-center gap-2">
-                            <span className="w-1 h-4 rounded-full" style={{ background: "linear-gradient(180deg, #E26B7C 0%, #F49EAF 100%)" }} />
+                            <span className="w-1 h-4 rounded-full" style={{ background: "linear-gradient(180deg, #D27A8C 0%, #F49EAF 100%)" }} />
                             <span className="font-bold text-[13px] tracking-[-0.2px]" style={{ color: "#5C2A35" }}>내원이력</span>
                             <span
                                 className="text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
                                 style={{
-                                    color: "#99354E",
+                                    color: "#8B3F50",
                                     background: "rgba(244, 158, 175, 0.14)",
                                     border: "1px solid rgba(244, 158, 175, 0.28)",
                                 }}
@@ -2968,7 +2970,7 @@ export default function PatientChartPage() {
                                     {selectedVisitId === v.id && (
                                         <div
                                             className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
-                                            style={{ background: "linear-gradient(180deg, #E26B7C 0%, #F49EAF 100%)" }}
+                                            style={{ background: "linear-gradient(180deg, #D27A8C 0%, #F49EAF 100%)" }}
                                         />
                                     )}
 
@@ -3026,8 +3028,8 @@ export default function PatientChartPage() {
                                                 );
                                             })}
 
-                                            <div className="rounded-lg border border-[#E26B7C]/20 bg-[#E26B7C]/5">
-                                                <div className="px-2 py-1.5 text-xs font-semibold text-[#E26B7C] border-b border-[#E26B7C]/20 flex items-center gap-1">
+                                            <div className="rounded-lg border border-[#D27A8C]/20 bg-[#D27A8C]/5">
+                                                <div className="px-2 py-1.5 text-xs font-semibold text-[#D27A8C] border-b border-[#D27A8C]/20 flex items-center gap-1">
                                                     <FileText className="w-3 h-3" />
                                                     진료기록
                                                 </div>
@@ -3078,7 +3080,7 @@ export default function PatientChartPage() {
                             style={{
                                 background: isReadOnly
                                     ? "linear-gradient(135deg, #E5B5C0 0%, #D4A5B0 100%)"
-                                    : "linear-gradient(135deg, #E26B7C 0%, #C9485B 100%)",
+                                    : "linear-gradient(135deg, #D27A8C 0%, #C9485B 100%)",
                                 boxShadow: isReadOnly
                                     ? "none"
                                     : "0 4px 14px rgba(226, 107, 124, 0.28), inset 0 1px 0 rgba(255,255,255,0.18)",
@@ -3106,7 +3108,7 @@ export default function PatientChartPage() {
                 {/* Separator 0-1 */}
                 {!isMobile && (
                     <div
-                        className="w-1 shrink-0 cursor-col-resize hover:bg-[#E26B7C]/30 active:bg-[#E26B7C]/50 transition-colors"
+                        className="w-1 shrink-0 cursor-col-resize hover:bg-[#D27A8C]/30 active:bg-[#D27A8C]/50 transition-colors"
                         onMouseDown={(e) => onSepMouseDown(0, e)}
                     />
                 )}
@@ -3124,7 +3126,7 @@ export default function PatientChartPage() {
                                 style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FCF7F8 100%)" }}
                             >
                                 <div className="flex items-center gap-2 text-sm font-semibold min-w-0 flex-wrap gap-y-1.5">
-                                    <span className="w-1 h-4 rounded-full shrink-0" style={{ background: "linear-gradient(180deg, #E26B7C 0%, #F49EAF 100%)" }} />
+                                    <span className="w-1 h-4 rounded-full shrink-0" style={{ background: "linear-gradient(180deg, #D27A8C 0%, #F49EAF 100%)" }} />
                                     <span className="text-[15px] whitespace-nowrap font-bold tracking-[-0.2px]" style={{ color: "#2A1F22" }}>
                                         {(() => {
                                             const d2 = parseScheduledAtLocal(selectedVisit.scheduledAt);
@@ -3144,7 +3146,7 @@ export default function PatientChartPage() {
                                             <button
                                                 type="button"
                                                 disabled={isReadOnly}
-                                                className={`inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#F8DCE2] bg-white px-2.5 text-xs font-semibold text-[#242424] shadow-sm transition whitespace-nowrap ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:border-[#E26B7C]/30 hover:bg-[#E26B7C]/5"}`}
+                                                className={`inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#F8DCE2] bg-white px-2.5 text-xs font-semibold text-[#242424] shadow-sm transition whitespace-nowrap ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:border-[#D27A8C]/30 hover:bg-[#D27A8C]/5"}`}
                                                 onClick={() => {
                                                     if (isReadOnly) return;
                                                     setIsDoctorDropdownOpen(false);
@@ -3165,7 +3167,7 @@ export default function PatientChartPage() {
                                                         type="button"
                                                         className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition ${
                                                             !selectedCounselorId
-                                                                ? "bg-[#E26B7C]/10 text-[#E26B7C]"
+                                                                ? "bg-[#D27A8C]/10 text-[#D27A8C]"
                                                                 : "text-[#616161] hover:bg-[#FCF7F8]"
                                                         }`}
                                                         onClick={() => {
@@ -3184,7 +3186,7 @@ export default function PatientChartPage() {
                                                                 type="button"
                                                                 className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition ${
                                                                     isSelected
-                                                                        ? "bg-[#E26B7C]/10 text-[#E26B7C]"
+                                                                        ? "bg-[#D27A8C]/10 text-[#D27A8C]"
                                                                         : "text-[#616161] hover:bg-[#FCF7F8]"
                                                                 }`}
                                                                 onClick={() => {
@@ -3205,7 +3207,7 @@ export default function PatientChartPage() {
                                             <button
                                                 type="button"
                                                 disabled={isReadOnly}
-                                                className={`inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#F8DCE2] bg-white px-2.5 text-xs font-semibold text-[#242424] shadow-sm transition whitespace-nowrap ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:border-[#E26B7C]/30 hover:bg-[#E26B7C]/5"}`}
+                                                className={`inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#F8DCE2] bg-white px-2.5 text-xs font-semibold text-[#242424] shadow-sm transition whitespace-nowrap ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:border-[#D27A8C]/30 hover:bg-[#D27A8C]/5"}`}
                                                 onClick={() => {
                                                     if (isReadOnly) return;
                                                     setIsCounselorDropdownOpen(false);
@@ -3226,7 +3228,7 @@ export default function PatientChartPage() {
                                                         type="button"
                                                         className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition ${
                                                             !selectedDoctorCounselorId
-                                                                ? "bg-[#E26B7C]/10 text-[#E26B7C]"
+                                                                ? "bg-[#D27A8C]/10 text-[#D27A8C]"
                                                                 : "text-[#616161] hover:bg-[#FCF7F8]"
                                                         }`}
                                                         onClick={() => {
@@ -3245,7 +3247,7 @@ export default function PatientChartPage() {
                                                                 type="button"
                                                                 className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition ${
                                                                     isSelected
-                                                                        ? "bg-[#E26B7C]/10 text-[#E26B7C]"
+                                                                        ? "bg-[#D27A8C]/10 text-[#D27A8C]"
                                                                         : "text-[#616161] hover:bg-[#FCF7F8]"
                                                                 }`}
                                                                 onClick={() => {
@@ -3396,7 +3398,7 @@ export default function PatientChartPage() {
                                         <div className="flex items-center gap-2">
                                             진료기록
                                         </div>
-                                        <ImageIcon className="w-4 h-4 text-[#616161] hover:text-[#E26B7C] cursor-pointer transition-colors" />
+                                        <ImageIcon className="w-4 h-4 text-[#616161] hover:text-[#D27A8C] cursor-pointer transition-colors" />
                                     </div>
                                     {canViewMedicalRecord ? (
                                     <SmartTextarea
@@ -3420,7 +3422,7 @@ export default function PatientChartPage() {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => setIsDocumentModalOpen(true)}
-                                            className="flex-1 py-2 border border-[#F8DCE2] rounded-lg text-xs font-semibold text-[#242424] bg-white hover:bg-[#E26B7C]/5 hover:border-[#E26B7C]/30 flex items-center justify-center gap-1.5 transition-colors"
+                                            className="flex-1 py-2 border border-[#F8DCE2] rounded-lg text-xs font-semibold text-[#242424] bg-white hover:bg-[#D27A8C]/5 hover:border-[#D27A8C]/30 flex items-center justify-center gap-1.5 transition-colors"
                                         >
                                             <FileText className="w-3.5 h-3.5" /> 서류 발급
                                         </button>
@@ -3476,7 +3478,7 @@ export default function PatientChartPage() {
                                     <button
                                         onClick={() => !isReadOnly && setIsLocationDropdownOpen(!isLocationDropdownOpen)}
                                         disabled={isReadOnly}
-                                        className={`px-4 min-h-[40px] py-2 border border-[#F8DCE2] rounded-lg text-xs font-medium text-[#242424] bg-white flex items-center gap-1.5 transition-all duration-200 ease-in-out ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:bg-[#E26B7C]/5 hover:border-[#E26B7C]/30"}`}
+                                        className={`px-4 min-h-[40px] py-2 border border-[#F8DCE2] rounded-lg text-xs font-medium text-[#242424] bg-white flex items-center gap-1.5 transition-all duration-200 ease-in-out ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:bg-[#D27A8C]/5 hover:border-[#D27A8C]/30"}`}
                                     >
                                         {selectedVisit?.room
                                             ? waitLocations.find((l) => l.id === selectedVisit.room)?.label || selectedVisit.room
@@ -3489,10 +3491,10 @@ export default function PatientChartPage() {
                                                 <button
                                                     key={loc.id}
                                                     onClick={() => handleUpdateVisitRoom(loc.id)}
-                                                    className="w-full text-left px-4 py-2 text-xs hover:bg-[#E26B7C]/5 text-[#242424] flex justify-between items-center transition-colors"
+                                                    className="w-full text-left px-4 py-2 text-xs hover:bg-[#D27A8C]/5 text-[#242424] flex justify-between items-center transition-colors"
                                                 >
                                                     {loc.label}
-                                                    {selectedVisit?.room === loc.id && <Check className="w-3 h-3 text-[#E26B7C]" />}
+                                                    {selectedVisit?.room === loc.id && <Check className="w-3 h-3 text-[#D27A8C]" />}
                                                 </button>
                                             ))}
                                         </div>
@@ -3506,7 +3508,7 @@ export default function PatientChartPage() {
                                     style={{
                                         background: isReadOnly
                                             ? "linear-gradient(135deg, #E5B5C0 0%, #D4A5B0 100%)"
-                                            : "linear-gradient(135deg, #E26B7C 0%, #C9485B 100%)",
+                                            : "linear-gradient(135deg, #D27A8C 0%, #C9485B 100%)",
                                         boxShadow: isReadOnly ? "none" : "0 4px 14px rgba(226, 107, 124, 0.28), inset 0 1px 0 rgba(255,255,255,0.18)",
                                     }}
                                     onMouseEnter={(e) => {
@@ -3532,7 +3534,7 @@ export default function PatientChartPage() {
                             {chartVisits.length === 0 && (
                                 <button
                                     onClick={() => setShowReceptionModal(true)}
-                                    className="px-5 py-2.5 bg-[#E26B7C] text-white rounded-lg font-semibold hover:bg-[#99354E] transition-colors shadow-md"
+                                    className="px-5 py-2.5 bg-[#D27A8C] text-white rounded-lg font-semibold hover:bg-[#8B3F50] transition-colors shadow-md"
                                 >
                                     오늘의 차트 작성하기
                                 </button>
@@ -3544,7 +3546,7 @@ export default function PatientChartPage() {
                 {/* Separator 1-2 */}
                 {!isMobile && (
                     <div
-                        className="w-1 shrink-0 cursor-col-resize hover:bg-[#E26B7C]/30 active:bg-[#E26B7C]/50 transition-colors"
+                        className="w-1 shrink-0 cursor-col-resize hover:bg-[#D27A8C]/30 active:bg-[#D27A8C]/50 transition-colors"
                         onMouseDown={(e) => onSepMouseDown(1, e)}
                     />
                 )}
@@ -3559,7 +3561,7 @@ export default function PatientChartPage() {
                         style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FCF7F8 100%)" }}
                     >
                         <div className="flex items-center gap-2">
-                            <span className="w-1 h-4 rounded-full" style={{ background: "linear-gradient(180deg, #E26B7C 0%, #F49EAF 100%)" }} />
+                            <span className="w-1 h-4 rounded-full" style={{ background: "linear-gradient(180deg, #D27A8C 0%, #F49EAF 100%)" }} />
                             <span className="font-bold text-[14px] tracking-[-0.2px]" style={{ color: "#5C2A35" }}>티켓 구매</span>
                         </div>
                     </div>
@@ -3581,7 +3583,7 @@ export default function PatientChartPage() {
                                     setIsSearchOpen(true);
                                 }}
                                 onFocus={(e) => {
-                                    e.currentTarget.style.borderColor = "#E26B7C";
+                                    e.currentTarget.style.borderColor = "#D27A8C";
                                     e.currentTarget.style.boxShadow = "0 0 0 3px rgba(244, 158, 175, 0.18), inset 0 1px 2px rgba(226, 107, 124, 0.04)";
                                     setIsSearchOpen(true);
                                 }}
@@ -3591,13 +3593,13 @@ export default function PatientChartPage() {
                                 }}
                             />
                             <div className="absolute right-0 top-2 flex gap-1.5">
-                                <button className="p-1 rounded-lg hover:bg-[#E26B7C]/10 text-[#9E9E9E] hover:text-[#E26B7C] transition-colors">
+                                <button className="p-1 rounded-lg hover:bg-[#D27A8C]/10 text-[#9E9E9E] hover:text-[#D27A8C] transition-colors">
                                     <Gift className="w-4 h-4" />
                                 </button>
-                                <button className="p-1 rounded-lg hover:bg-[#E26B7C]/10 text-[#9E9E9E] hover:text-[#E26B7C] transition-colors">
+                                <button className="p-1 rounded-lg hover:bg-[#D27A8C]/10 text-[#9E9E9E] hover:text-[#D27A8C] transition-colors">
                                     <CreditCard className="w-4 h-4" />
                                 </button>
-                                <button className="p-1 rounded-lg hover:bg-[#E26B7C]/10 text-[#9E9E9E] hover:text-[#E26B7C] transition-colors">
+                                <button className="p-1 rounded-lg hover:bg-[#D27A8C]/10 text-[#9E9E9E] hover:text-[#D27A8C] transition-colors">
                                     <Plus className="w-4 h-4" />
                                 </button>
                             </div>
@@ -3616,7 +3618,7 @@ export default function PatientChartPage() {
                                                     <div
                                                         key={tab.id}
                                                         onClick={() => setSearchTab(tab.id as any)}
-                                                        className={`px-3 py-2 text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${active ? "text-[#E26B7C] border-b-2 border-[#E26B7C]" : "text-[#616161] hover:text-[#E26B7C] hover:bg-[#E26B7C]/5"
+                                                        className={`px-3 py-2 text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${active ? "text-[#D27A8C] border-b-2 border-[#D27A8C]" : "text-[#616161] hover:text-[#D27A8C] hover:bg-[#D27A8C]/5"
                                                             }`}
                                                     >
                                                         {tab.label}
@@ -3655,16 +3657,16 @@ export default function PatientChartPage() {
                                                     return (
                                                         <div
                                                             key={t.id}
-                                                            className="rounded-lg p-2.5 text-[13px] transition-colors hover:bg-[#E26B7C]/5 cursor-pointer group"
+                                                            className="rounded-lg p-2.5 text-[13px] transition-colors hover:bg-[#D27A8C]/5 cursor-pointer group"
                                                             onClick={() => !isReadOnly && handleAddTicket(t)}
                                                             style={isReadOnly ? { pointerEvents: "none", opacity: 0.5 } : undefined}
                                                         >
                                                             <div className="flex min-w-0 items-center gap-1.5">
-                                                                <Gift className="w-3 h-3 text-[#E26B7C] shrink-0" />
+                                                                <Gift className="w-3 h-3 text-[#D27A8C] shrink-0" />
                                                                 <span className="font-semibold text-[#242424] truncate flex-1 min-w-0">{t.name}</span>
                                                             </div>
                                                             <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px] font-semibold">
-                                                                <span className="bg-[#E26B7C]/10 text-[#E26B7C] px-1.5 rounded-md font-semibold">
+                                                                <span className="bg-[#D27A8C]/10 text-[#D27A8C] px-1.5 rounded-md font-semibold">
                                                                     {t.usageUnit === "session" ? "횟수권" : "기간권"}
                                                                 </span>
                                                                 <span className="rounded-full border border-cyan-200 bg-cyan-50 px-1.5 py-0.5 text-cyan-700">
@@ -3683,7 +3685,7 @@ export default function PatientChartPage() {
                                                                             <span className="font-bold text-[#E74856]">{(t.eventPrice || 0).toLocaleString()}원</span>
                                                                         </>
                                                                     ) : (
-                                                                        <span className="font-bold text-[#E26B7C]">{(t.originalPrice || t.price || 0).toLocaleString()}원</span>
+                                                                        <span className="font-bold text-[#D27A8C]">{(t.originalPrice || t.price || 0).toLocaleString()}원</span>
                                                                     )}
                                                                 </span>
                                                             </div>
@@ -3696,7 +3698,7 @@ export default function PatientChartPage() {
                                                     </div>
                                                 )}
                                                 {overflowCount > 0 && (
-                                                    <div className="mt-1 px-2 py-2 text-center text-[11px] font-medium" style={{ color: "#99354E", background: "rgba(244, 158, 175, 0.10)", border: "1px dashed rgba(244, 158, 175, 0.35)", borderRadius: 8 }}>
+                                                    <div className="mt-1 px-2 py-2 text-center text-[11px] font-medium" style={{ color: "#8B3F50", background: "rgba(244, 158, 175, 0.10)", border: "1px dashed rgba(244, 158, 175, 0.35)", borderRadius: 8 }}>
                                                         +{overflowCount.toLocaleString()}개 더 있음 — 검색어를 입력해 좁혀주세요
                                                     </div>
                                                 )}
@@ -3756,7 +3758,7 @@ export default function PatientChartPage() {
                                         key={item.id}
                                         className="flex items-center gap-2 text-[12px] p-2.5 bg-white hover:bg-[#FCF7F8] rounded-lg border border-[#F8DCE2] shadow-sm group transition-colors"
                                     >
-                                        <span className={`font-bold px-1.5 py-0.5 rounded-md text-[12px] shrink-0 ${item.itemType === "membership" ? "bg-violet-100 text-violet-700" : "bg-[#E26B7C]/10 text-[#E26B7C]"}`}>
+                                        <span className={`font-bold px-1.5 py-0.5 rounded-md text-[12px] shrink-0 ${item.itemType === "membership" ? "bg-violet-100 text-violet-700" : "bg-[#D27A8C]/10 text-[#D27A8C]"}`}>
                                             {item.itemType === "membership" ? "회원권" : "티켓"}
                                         </span>
 
@@ -3827,9 +3829,9 @@ export default function PatientChartPage() {
                                             onClick={() => handleToggleTodo(todo)}
                                             title={todoStatus === "todo" ? "시작" : todoStatus === "doing" ? "완료" : "초기화"}
                                         >
-                                            <circle cx="8" cy="8" r="7" fill="none" stroke={todoStatus === "todo" ? "#D1D5DB" : todoStatus === "doing" ? "#E26B7C" : "#10B981"} strokeWidth="1.5" />
+                                            <circle cx="8" cy="8" r="7" fill="none" stroke={todoStatus === "todo" ? "#D1D5DB" : todoStatus === "doing" ? "#D27A8C" : "#10B981"} strokeWidth="1.5" />
                                             {todoStatus === "doing" && (
-                                                <path d="M8 1 A7 7 0 0 1 8 15 Z" fill="#E26B7C" />
+                                                <path d="M8 1 A7 7 0 0 1 8 15 Z" fill="#D27A8C" />
                                             )}
                                             {todoStatus === "done" && (
                                                 <circle cx="8" cy="8" r="5.5" fill="#10B981" />
@@ -3837,7 +3839,7 @@ export default function PatientChartPage() {
                                         </svg>
                                         <span className={`flex-1 min-w-0 truncate ${todoStatus === "done" ? "line-through text-gray-400" : ""}`}>{todo.content}</span>
                                         {todoStatus === "doing" && (todo as any).startedAt && (
-                                            <span className="text-[11px] text-[#E26B7C] flex-shrink-0">{format(new Date((todo as any).startedAt), "HH:mm:ss")} ~</span>
+                                            <span className="text-[11px] text-[#D27A8C] flex-shrink-0">{format(new Date((todo as any).startedAt), "HH:mm:ss")} ~</span>
                                         )}
                                         {todoStatus === "done" && (todo as any).startedAt && (todo as any).completedAt && (
                                             <span className="text-[11px] text-emerald-600 flex-shrink-0">
@@ -3849,7 +3851,7 @@ export default function PatientChartPage() {
                                                 data-assign-todo={todo.id}
                                                 onClick={() => setAssigningTodoId(assigningTodoId === todo.id ? null : todo.id)}
                                                 className={`w-5 h-5 flex items-center justify-center rounded-full transition-colors ${
-                                                    todo.assignee ? "bg-[#E26B7C]/15 text-[#E26B7C]" : "text-gray-300 hover:text-[#E26B7C] hover:bg-[#E26B7C]/10"
+                                                    todo.assignee ? "bg-[#D27A8C]/15 text-[#D27A8C]" : "text-gray-300 hover:text-[#D27A8C] hover:bg-[#D27A8C]/10"
                                                 }`}
                                                 title={todo.assignee || "담당자 지정"}
                                             >
@@ -3881,8 +3883,8 @@ export default function PatientChartPage() {
                                                             {group.users.map((u) => (
                                                                 <button
                                                                     key={u.id}
-                                                                    className={`w-full px-3 py-1.5 text-left text-[12px] hover:bg-[#E26B7C]/10 transition-colors ${
-                                                                        todo.assigneeUserId === u.id ? "text-[#E26B7C] font-bold bg-[#E26B7C]/5" : "text-gray-700"
+                                                                    className={`w-full px-3 py-1.5 text-left text-[12px] hover:bg-[#D27A8C]/10 transition-colors ${
+                                                                        todo.assigneeUserId === u.id ? "text-[#D27A8C] font-bold bg-[#D27A8C]/5" : "text-gray-700"
                                                                     }`}
                                                                     onClick={() => handleAssignTodoUser(todo.id, u.id, u.name)}
                                                                 >
@@ -3896,7 +3898,7 @@ export default function PatientChartPage() {
                                             )}
                                         </div>
                                         {todo.assignee && (
-                                            <span className="text-[11px] text-[#E26B7C] font-semibold flex-shrink-0">{todo.assignee}</span>
+                                            <span className="text-[11px] text-[#D27A8C] font-semibold flex-shrink-0">{todo.assignee}</span>
                                         )}
                                         <Trash
                                             className="w-3 h-3 text-gray-300 cursor-pointer hover:text-red-500 opacity-0 group-hover:opacity-100 flex-shrink-0"
@@ -3906,7 +3908,7 @@ export default function PatientChartPage() {
                                     );
                                 })}
                             </div>
-                            <button onClick={handleAddTodo} className="w-full mt-2 py-1.5 bg-[#E26B7C]/10 hover:bg-[#E26B7C]/20 text-[13px] text-[#E26B7C] font-semibold rounded-lg transition-colors">
+                            <button onClick={handleAddTodo} className="w-full mt-2 py-1.5 bg-[#D27A8C]/10 hover:bg-[#D27A8C]/20 text-[13px] text-[#D27A8C] font-semibold rounded-lg transition-colors">
                                 등록
                             </button>
                         </div>
@@ -3932,7 +3934,7 @@ export default function PatientChartPage() {
                                         </span>
                                     </div>
                                     <select
-                                        className="w-full text-[13px] border border-violet-200 rounded-lg px-2.5 py-2 bg-white focus:ring-2 focus:ring-[#E26B7C]/30 focus:border-[#E26B7C] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full text-[13px] border border-violet-200 rounded-lg px-2.5 py-2 bg-white focus:ring-2 focus:ring-[#D27A8C]/30 focus:border-[#D27A8C] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={isReadOnly}
                                         value={selectedMembershipId ?? ""}
                                         onChange={(e) => {
@@ -4100,21 +4102,21 @@ export default function PatientChartPage() {
 
                             {/* === 최종결제금액 === */}
                             <div
-                                className="rounded-2xl border border-[#E26B7C] bg-[#FCEBEF] px-3 py-2 cursor-pointer select-none transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)]"
+                                className="rounded-2xl border border-[#D27A8C] bg-[#FCEBEF] px-3 py-2 cursor-pointer select-none transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)]"
                                 onClick={() => setIsFinalAmountExpanded(prev => !prev)}
                             >
                                 <div className="flex justify-between items-center">
-                                    <span className="text-[13px] font-bold text-[#E26B7C] flex items-center gap-1">
+                                    <span className="text-[13px] font-bold text-[#D27A8C] flex items-center gap-1">
                                         최종결제금액
                                         {isFinalAmountExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                                     </span>
                                     <span className="text-[14px] font-extrabold text-[#5C2A35] tabular-nums">{(cartPreview?.totalCashRequired ?? remaining ?? 0).toLocaleString()}원</span>
                                 </div>
                                 {isFinalAmountExpanded && (
-                                    <div className="mt-1.5 space-y-1 border-t border-[#E26B7C]/20 pt-1.5">
+                                    <div className="mt-1.5 space-y-1 border-t border-[#D27A8C]/20 pt-1.5">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[12px] font-medium text-[#E26B7C]">회원권차감금액</span>
-                                            <span className="text-[12px] font-bold text-[#E26B7C] tabular-nums">-{(cartPreview?.balanceDeduction ?? 0).toLocaleString()}원</span>
+                                            <span className="text-[12px] font-medium text-[#D27A8C]">회원권차감금액</span>
+                                            <span className="text-[12px] font-bold text-[#D27A8C] tabular-nums">-{(cartPreview?.balanceDeduction ?? 0).toLocaleString()}원</span>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span className="text-[12px] font-medium text-[#5C2A35]">결제금액</span>
@@ -4148,11 +4150,11 @@ export default function PatientChartPage() {
                                                     onClick={() => setDailySummaryTab(tab.key)}
                                                     className={`flex-1 rounded-lg px-2 py-1.5 text-[12px] font-medium transition-all duration-200 ${
                                                         active
-                                                            ? "bg-[#E26B7C] text-white shadow-[0_2px_8px_rgba(226,107,124,0.2)]"
+                                                            ? "bg-[#D27A8C] text-white shadow-[0_2px_8px_rgba(226,107,124,0.2)]"
                                                             : "text-[#616161] hover:bg-[#FCEBEF]"
                                                     }`}
                                                 >
-                                                    {tab.label} <span className={`font-bold ${active ? "text-indigo-200" : "text-[#E26B7C]"}`}>{tab.items.length}</span>
+                                                    {tab.label} <span className={`font-bold ${active ? "text-indigo-200" : "text-[#D27A8C]"}`}>{tab.items.length}</span>
                                                 </button>
                                             );
                                         })}
@@ -4203,7 +4205,7 @@ export default function PatientChartPage() {
                                                                     </span>
                                                                 ))}
                                                                 {item.sourceType === "ticket_usage" && (
-                                                                    <span className="shrink-0 text-[11px] font-bold text-[#E26B7C] tabular-nums">
+                                                                    <span className="shrink-0 text-[11px] font-bold text-[#D27A8C] tabular-nums">
                                                                         {item.usedRound ?? item.quantity}회차{item.totalCount ? `/${item.totalCount}회` : ""}
                                                                     </span>
                                                                 )}
@@ -4219,7 +4221,7 @@ export default function PatientChartPage() {
                                                             {item.sourceType === "membership_new" && (
                                                                 <div className="mt-0.5 flex items-center gap-2 text-[10px]">
                                                                     {item.originalPrice != null && <span className="text-[#616161]">정가 {item.originalPrice.toLocaleString()}원</span>}
-                                                                    {(item.bonusPoint ?? 0) > 0 && <span className="text-[#E26B7C] font-bold">+{item.bonusPoint?.toLocaleString()}P 적립</span>}
+                                                                    {(item.bonusPoint ?? 0) > 0 && <span className="text-[#D27A8C] font-bold">+{item.bonusPoint?.toLocaleString()}P 적립</span>}
                                                                 </div>
                                                             )}
                                                             {item.sourceType === "ticket_usage" && (
@@ -4237,7 +4239,7 @@ export default function PatientChartPage() {
                                                                     <div className="text-[#616161]">차감금액: <span className="font-bold text-rose-600">{(item.usedCashAmount ?? 0).toLocaleString()}원</span></div>
                                                                     <div className="text-[#616161]">차감포인트: <span className="font-bold text-rose-600">{(item.usedPointAmount ?? 0).toLocaleString()}P</span></div>
                                                                     <div className="text-[#616161]">잔여금액: <span className="font-bold text-[#242424]">{(item.remainingCashAmount ?? 0).toLocaleString()}원</span></div>
-                                                                    <div className="text-[#616161]">잔여포인트: <span className="font-bold text-[#E26B7C]">{(item.remainingPointAmount ?? 0).toLocaleString()}P</span></div>
+                                                                    <div className="text-[#616161]">잔여포인트: <span className="font-bold text-[#D27A8C]">{(item.remainingPointAmount ?? 0).toLocaleString()}P</span></div>
                                                                 </div>
                                                             )}
                                                             {(item.sourceType === "refund" || item.sourceType === "ticket_refund") && (item as any).refundDetails?.length > 0 && (
@@ -4246,7 +4248,7 @@ export default function PatientChartPage() {
                                                                         type="button"
                                                                         onClick={(e) => { e.stopPropagation(); setExpandedRefundId(prev => prev === item.id ? null : item.id); }}
                                                                         className="text-[10px] font-bold transition-all duration-200"
-                                                                        style={{ color: "#E26B7C" }}
+                                                                        style={{ color: "#D27A8C" }}
                                                                     >
                                                                         {expandedRefundId === item.id ? "접기 ▲" : "상세펼치기 ▼"}
                                                                     </button>
@@ -4279,7 +4281,7 @@ export default function PatientChartPage() {
                                 disabled={cartItems.length === 0 || isReadOnly || !canEditPayment}
                                 className={`w-full min-h-[40px] py-2.5 font-medium rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition-all duration-200 ease-in-out ${cartItems.length === 0 || isReadOnly || !canEditPayment
                                     ? "bg-[#e0e0e0] text-[#616161] cursor-not-allowed"
-                                    : "bg-[#E26B7C] hover:bg-[#99354E] active:bg-[#5C2A35] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)] hover:shadow-[0_6px_16px_rgba(226,107,124,0.25)]"
+                                    : "bg-[#D27A8C] hover:bg-[#8B3F50] active:bg-[#5C2A35] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)] hover:shadow-[0_6px_16px_rgba(226,107,124,0.25)]"
                                     }`}
                             >
                                 <CreditCard className="w-3.5 h-3.5" /> 수납 추가
@@ -4292,7 +4294,7 @@ export default function PatientChartPage() {
                 {/* Separator 2-3 */}
                 {!isMobile && (
                     <div
-                        className="w-1 shrink-0 cursor-col-resize hover:bg-[#E26B7C]/30 active:bg-[#E26B7C]/50 transition-colors"
+                        className="w-1 shrink-0 cursor-col-resize hover:bg-[#D27A8C]/30 active:bg-[#D27A8C]/50 transition-colors"
                         onMouseDown={(e) => onSepMouseDown(2, e)}
                     />
                 )}
@@ -4361,7 +4363,7 @@ export default function PatientChartPage() {
                                 {canEditMemo && (
                                 <div className="flex items-center gap-2 mb-2">
                                     <input
-                                        className="flex-1 bg-[#FCF7F8] border border-[#F8DCE2] rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-[#E26B7C] focus:ring-1 focus:ring-[#E26B7C]/20 transition-all"
+                                        className="flex-1 bg-[#FCF7F8] border border-[#F8DCE2] rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:border-[#D27A8C] focus:ring-1 focus:ring-[#D27A8C]/20 transition-all"
                                         placeholder="메모 입력..."
                                         value={recordInput}
                                         onChange={(e) => setRecordInput(e.target.value)}
@@ -4372,7 +4374,7 @@ export default function PatientChartPage() {
                                             }
                                         }}
                                     />
-                                    <button onClick={handleAddRecord} className="p-1.5 bg-[#E26B7C] text-white rounded-lg hover:bg-[#99354E] shadow-sm transition-colors">
+                                    <button onClick={handleAddRecord} className="p-1.5 bg-[#D27A8C] text-white rounded-lg hover:bg-[#8B3F50] shadow-sm transition-colors">
                                         <Plus className="w-3 h-3" />
                                     </button>
                                 </div>
@@ -4408,7 +4410,7 @@ export default function PatientChartPage() {
                                                         >
                                                             <Pin className="w-3 h-3" />
                                                         </button>
-                                                        <span className="text-[15px] font-bold text-[#E26B7C] bg-[#E26B7C]/10 px-1 rounded">
+                                                        <span className="text-[15px] font-bold text-[#D27A8C] bg-[#D27A8C]/10 px-1 rounded">
                                                             {rec.createdByName}
                                                         </span>
                                                         {!isReadOnly && (
@@ -4448,7 +4450,7 @@ export default function PatientChartPage() {
                                                             </span>
                                                             <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{
                                                                 backgroundColor: isCheckedIn ? "#E8F5E9" : isFuture ? "#FCEBEF" : "#FFF8E1",
-                                                                color: isCheckedIn ? "#2E7D32" : isFuture ? "#E26B7C" : "#F57F17",
+                                                                color: isCheckedIn ? "#2E7D32" : isFuture ? "#D27A8C" : "#F57F17",
                                                                 border: `1px solid ${isCheckedIn ? "#A5D6A7" : isFuture ? "#F8DCE2" : "#FFE082"}`,
                                                             }}>
                                                                 {isCheckedIn ? "접수완료" : isFuture ? "예약대기" : "미접수"}
@@ -4464,7 +4466,7 @@ export default function PatientChartPage() {
                                                     </div>
                                                     <div className="px-3 py-2 space-y-1" style={{ backgroundColor: "#FFFFFF" }}>
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="rounded-[6px] px-1.5 py-0.5 text-[11px] font-bold" style={{ backgroundColor: "#FCEBEF", color: "#E26B7C" }}>
+                                                            <span className="rounded-[6px] px-1.5 py-0.5 text-[11px] font-bold" style={{ backgroundColor: "#FCEBEF", color: "#D27A8C" }}>
                                                                 {rsv.reservCategoryName || "미분류"}
                                                             </span>
                                                         </div>
@@ -4480,7 +4482,7 @@ export default function PatientChartPage() {
                                                         )}
                                                         <button
                                                             onClick={() => setChangeHistoryReservId(rsv.id)}
-                                                            className="mt-1.5 text-[10px] font-medium text-[#E26B7C] hover:underline"
+                                                            className="mt-1.5 text-[10px] font-medium text-[#D27A8C] hover:underline"
                                                         >
                                                             수정이력 보기
                                                         </button>
@@ -4525,7 +4527,7 @@ export default function PatientChartPage() {
 
                                 <div className="flex border border-[#F8DCE2] rounded-xl mb-2 overflow-hidden">
                                     <button
-                                        className={`flex-1 py-1.5 text-[13px] font-semibold transition-colors ${ticketTab === "active" ? "bg-[#E26B7C]/10 text-[#E26B7C]" : "text-[#616161] hover:bg-[#FCF7F8]"}`}
+                                        className={`flex-1 py-1.5 text-[13px] font-semibold transition-colors ${ticketTab === "active" ? "bg-[#D27A8C]/10 text-[#D27A8C]" : "text-[#616161] hover:bg-[#FCF7F8]"}`}
                                         onClick={() => setTicketTab("active")}
                                     >
                                         사용가능 ({tickets.filter((t) => (getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null).length})
@@ -4551,10 +4553,10 @@ export default function PatientChartPage() {
                                             const statusClass =
                                                 remain === 0
                                                     ? "bg-gray-100 text-gray-600"
-                                                    : "bg-[#E26B7C]/15 text-[#E26B7C]";
+                                                    : "bg-[#D27A8C]/15 text-[#D27A8C]";
 
                                             return (
-                                                <div key={t.id} className="border border-[#F8DCE2] rounded-2xl bg-white p-2.5 text-[13px] hover:border-[#E26B7C]/30 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] transition-all duration-200 ease-in-out group">
+                                                <div key={t.id} className="border border-[#F8DCE2] rounded-2xl bg-white p-2.5 text-[13px] hover:border-[#D27A8C]/30 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] transition-all duration-200 ease-in-out group">
                                                     <div className="flex justify-between items-start gap-2 mb-1">
                                                         <span className="font-semibold text-[#242424] flex-1 min-w-0 break-words">{t.itemName}</span>
                                                         <span className={`shrink-0 whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-bold tracking-[0.1px] ${statusClass}`}>{statusText}</span>
@@ -4563,7 +4565,7 @@ export default function PatientChartPage() {
                                                     <div className="flex justify-between items-center text-gray-500 mb-1">
                                                         <span>
                                                             남은횟수:{" "}
-                                                            <span className="text-[#E26B7C] font-bold">
+                                                            <span className="text-[#D27A8C] font-bold">
                                                                 {remain !== null ? `${remain}회` : "무제한"}
                                                             </span>
                                                         </span>
@@ -4602,7 +4604,7 @@ export default function PatientChartPage() {
                                                         <div className="flex gap-1 mt-2">
                                                             <button
                                                                 onClick={() => handleUseTicket(t)}
-                                                                className="flex-1 bg-[#E26B7C] text-white rounded-lg py-1 hover:bg-[#99354E] font-bold text-[15px]"
+                                                                className="flex-1 bg-[#D27A8C] text-white rounded-lg py-1 hover:bg-[#8B3F50] font-bold text-[15px]"
                                                             >
                                                                 사용하기
                                                             </button>
@@ -4611,7 +4613,7 @@ export default function PatientChartPage() {
 
                                                     <button
                                                         onClick={() => handleToggleTicketHistory(t.id)}
-                                                        className="mt-2 w-full rounded-lg border border-[#F8DCE2] bg-[#FCF7F8] py-1 text-[15px] font-semibold text-[#616161] hover:bg-[#E26B7C]/5 hover:border-[#E26B7C]/30 transition-colors"
+                                                        className="mt-2 w-full rounded-lg border border-[#F8DCE2] bg-[#FCF7F8] py-1 text-[15px] font-semibold text-[#616161] hover:bg-[#D27A8C]/5 hover:border-[#D27A8C]/30 transition-colors"
                                                     >
                                                         사용 이력 {isTicketHistoryOpen ? "접기" : "열기"}
                                                     </button>
@@ -4693,13 +4695,13 @@ export default function PatientChartPage() {
                                 <div className="flex items-center rounded-[8px] bg-[#FAF3F5] p-0.5 gap-0.5">
                                     <button
                                         onClick={() => { setMembershipFilter('active'); setExpandedMembershipId(null); }}
-                                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${membershipFilter === 'active' ? 'bg-white text-[#E26B7C] shadow-sm border border-[#F8DCE2]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
+                                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${membershipFilter === 'active' ? 'bg-white text-[#D27A8C] shadow-sm border border-[#F8DCE2]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
                                     >
                                         사용중 ({memberships.filter(m => m.status === 'active').length})
                                     </button>
                                     <button
                                         onClick={() => { setMembershipFilter('completed'); setExpandedMembershipId(null); }}
-                                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${membershipFilter === 'completed' ? 'bg-white text-[#E26B7C] shadow-sm border border-[#F8DCE2]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
+                                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${membershipFilter === 'completed' ? 'bg-white text-[#D27A8C] shadow-sm border border-[#F8DCE2]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
                                     >
                                         사용완료 ({memberships.filter(m => m.status !== 'active').length})
                                     </button>
@@ -4723,7 +4725,7 @@ export default function PatientChartPage() {
                                             >
                                                 <div className="flex items-center gap-2 min-w-0">
                                                     <span className={`text-[15px] font-bold leading-[1.2] truncate ${m.status === 'active' ? 'text-[#5C2A35]' : 'text-[#616161]'}`}>{m.membershipName}</span>
-                                                    <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium tracking-[0.1px] ${m.status === 'active' ? 'bg-[#FCEBEF] text-[#E26B7C]' : 'bg-[#F0F0F0] text-[#616161]'}`}>
+                                                    <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium tracking-[0.1px] ${m.status === 'active' ? 'bg-[#FCEBEF] text-[#D27A8C]' : 'bg-[#F0F0F0] text-[#616161]'}`}>
                                                         {m.status === 'active' ? '사용중' : m.status === 'expired' ? '만료' : m.status === 'refunded' ? '환불' : '완료'}
                                                     </span>
                                                 </div>
@@ -4737,7 +4739,7 @@ export default function PatientChartPage() {
                                                     <span className="text-[13px] text-[#616161]">
                                                         {m.purchaseDate ? `${format(new Date(m.purchaseDate), "yyyy-MM-dd", { locale: ko })} 구매` : "구매일 미상"}
                                                     </span>
-                                                    <span className="inline-flex items-center rounded-[8px] border border-[#F8DCE2] bg-[#FCEBEF] px-2 py-0.5 text-[12px] font-medium text-[#E26B7C]">
+                                                    <span className="inline-flex items-center rounded-[8px] border border-[#F8DCE2] bg-[#FCEBEF] px-2 py-0.5 text-[12px] font-medium text-[#D27A8C]">
                                                         {m.discountPercent}% 할인
                                                     </span>
                                                 </div>
@@ -4813,7 +4815,7 @@ export default function PatientChartPage() {
                                                                                     </div>
                                                                                 )}
                                                                                 {(h.usedPointAmount ?? 0) > 0 && (
-                                                                                    <div className={`text-[14px] font-bold tabular-nums ${h.isCancelled ? 'text-[#616161] line-through' : isCharge ? 'text-emerald-700' : 'text-[#E26B7C]'}`}>
+                                                                                    <div className={`text-[14px] font-bold tabular-nums ${h.isCancelled ? 'text-[#616161] line-through' : isCharge ? 'text-emerald-700' : 'text-[#D27A8C]'}`}>
                                                                                         {isCharge ? '+' : '-'}{(h.usedPointAmount ?? 0).toLocaleString()}<span className="text-[12px] font-medium ml-0.5">P</span>
                                                                                     </div>
                                                                                 )}
@@ -4847,7 +4849,7 @@ export default function PatientChartPage() {
                                     <div className="p-4">
                                         <button
                                             onClick={() => setIsConsentSendModalOpen(true)}
-                                            className="w-full py-2.5 bg-[#E26B7C] hover:bg-[#99354E] text-white rounded-lg text-[13px] font-medium tracking-[0.1px] transition-all duration-200 flex items-center justify-center gap-1.5"
+                                            className="w-full py-2.5 bg-[#D27A8C] hover:bg-[#8B3F50] text-white rounded-lg text-[13px] font-medium tracking-[0.1px] transition-all duration-200 flex items-center justify-center gap-1.5"
                                         >
                                             <Plus className="w-4 h-4" />
                                             새 동의서 요청
@@ -4901,17 +4903,17 @@ export default function PatientChartPage() {
                                 className="flex flex-col items-center justify-center gap-1 py-2 transition-all"
                                 style={{
                                     background: active ? "linear-gradient(180deg, #FCEBEF 0%, #FFFFFF 100%)" : "transparent",
-                                    borderTop: active ? "2px solid #E26B7C" : "2px solid transparent",
+                                    borderTop: active ? "2px solid #D27A8C" : "2px solid transparent",
                                 }}
                             >
                                 <IconComp
                                     className="w-5 h-5"
                                     strokeWidth={active ? 2.4 : 1.8}
-                                    style={{ color: active ? "#E26B7C" : "#7C6066" }}
+                                    style={{ color: active ? "#D27A8C" : "#7C6066" }}
                                 />
                                 <span
                                     className="text-[10px] font-bold tracking-[0.1px]"
-                                    style={{ color: active ? "#99354E" : "#7C6066" }}
+                                    style={{ color: active ? "#8B3F50" : "#7C6066" }}
                                 >
                                     {tab.label}
                                 </span>
@@ -4956,7 +4958,7 @@ export default function PatientChartPage() {
                                                         [section.id]: e.target.checked,
                                                     }))
                                                 }
-                                                className="h-4 w-4 rounded border-[#F8DCE2] text-[#E26B7C] focus:ring-[#FCEBEF]"
+                                                className="h-4 w-4 rounded border-[#F8DCE2] text-[#D27A8C] focus:ring-[#FCEBEF]"
                                             />
                                             내원이력 노출
                                         </label>
@@ -4974,7 +4976,7 @@ export default function PatientChartPage() {
                                     />
                                 </div>
                             ))}
-                            <div className="rounded-lg border border-[#F8DCE2] bg-[#FCEBEF]/50 px-4 py-3 text-[10px] text-[#E26B7C]">
+                            <div className="rounded-lg border border-[#F8DCE2] bg-[#FCEBEF]/50 px-4 py-3 text-[10px] text-[#D27A8C]">
                                 진료기록 카드는 항상 표시됩니다.
                             </div>
                         </div>
@@ -4991,7 +4993,7 @@ export default function PatientChartPage() {
                             <button
                                 type="button"
                                 onClick={handleSaveMemoSectionSettings}
-                                className="min-h-[40px] rounded-lg bg-[#E26B7C] px-6 text-[12px] font-medium text-white hover:bg-[#99354E] shadow-[0_4px_12px_rgba(226,107,124,0.18)] transition-all duration-200 disabled:opacity-50"
+                                className="min-h-[40px] rounded-lg bg-[#D27A8C] px-6 text-[12px] font-medium text-white hover:bg-[#8B3F50] shadow-[0_4px_12px_rgba(226,107,124,0.18)] transition-all duration-200 disabled:opacity-50"
                                 disabled={memoSectionSaving}
                             >
                                 {memoSectionSaving ? "저장중..." : "저장"}
@@ -5042,7 +5044,7 @@ export default function PatientChartPage() {
                                     <div key={item.id} className="rounded-xl border border-gray-200 bg-gray-50/40 p-4">
                                         <div className="flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-2">
-                                                <span className="rounded-full bg-[#E26B7C]/15 px-2 py-0.5 text-[10px] font-bold text-[#E26B7C]">
+                                                <span className="rounded-full bg-[#D27A8C]/15 px-2 py-0.5 text-[10px] font-bold text-[#D27A8C]">
                                                     {actionLabel}
                                                 </span>
                                                 {item.isNoShow ? (
@@ -5171,10 +5173,10 @@ export default function PatientChartPage() {
                                                 return { ...prev, _selectedIds: next };
                                             });
                                         }}
-                                        className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${disabled ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70" : selected ? "border-[#E26B7C] bg-[#FCEBEF] ring-1 ring-[#E26B7C]/30" : allowOverride ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                                        className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${disabled ? "cursor-not-allowed border-red-200 bg-red-50/50 text-slate-400 opacity-70" : selected ? "border-[#D27A8C] bg-[#FCEBEF] ring-1 ring-[#D27A8C]/30" : allowOverride ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
                                     >
                                         <div className="flex items-start justify-between gap-3">
-                                            <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${disabled ? "border-gray-300 bg-gray-200" : selected ? "border-[#E26B7C] bg-[#E26B7C] text-white" : "border-gray-300 bg-white"}`}>
+                                            <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${disabled ? "border-gray-300 bg-gray-200" : selected ? "border-[#D27A8C] bg-[#D27A8C] text-white" : "border-gray-300 bg-white"}`}>
                                                 {selected && <Check className="h-3 w-3" strokeWidth={3} />}
                                             </div>
                                             <div className="min-w-0 flex-1">
@@ -5222,7 +5224,7 @@ export default function PatientChartPage() {
                                         setQuickTicketBusy(false);
                                     }
                                 }}
-                                className="rounded-lg bg-[#E26B7C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#99354E] disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="rounded-lg bg-[#D27A8C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#8B3F50] disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 차감하기 ({quickTicketPickerData._selectedIds?.length || 0}건)
                             </button>
@@ -5341,7 +5343,7 @@ export default function PatientChartPage() {
                                                     disabled={refundModal.isSubmitting}
                                                     className="rounded-[12px] border px-4 py-3 text-left transition-all duration-200"
                                                     style={{
-                                                        borderColor: active ? "#E26B7C" : "#F8DCE2",
+                                                        borderColor: active ? "#D27A8C" : "#F8DCE2",
                                                         backgroundColor: active ? "#FCEBEF" : "#FFFFFF",
                                                         boxShadow: active ? "0 0 0 2px rgba(226,107,124,0.15)" : "none",
                                                     }}
@@ -5351,8 +5353,8 @@ export default function PatientChartPage() {
                                                     <div className="flex items-center justify-between gap-3">
                                                         <div className="text-[14px] font-bold" style={{ color: "#242424" }}>{option.title}</div>
                                                         <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border" style={{
-                                                            borderColor: active ? "#E26B7C" : "#F8DCE2",
-                                                            backgroundColor: active ? "#E26B7C" : "transparent",
+                                                            borderColor: active ? "#D27A8C" : "#F8DCE2",
+                                                            backgroundColor: active ? "#D27A8C" : "transparent",
                                                         }}>
                                                             {active ? <Check className="h-3.5 w-3.5" style={{ color: "#FFFFFF" }} /> : null}
                                                         </span>
@@ -5708,7 +5710,7 @@ export default function PatientChartPage() {
                                         type="checkbox"
                                         checked={printConfigDraft[item.key] !== false}
                                         onChange={(e) => setPrintConfigDraft((prev) => ({ ...prev, [item.key]: e.target.checked }))}
-                                        className="h-4 w-4 rounded border-[#F8DCE2] text-[#E26B7C] focus:ring-[#FCEBEF]"
+                                        className="h-4 w-4 rounded border-[#F8DCE2] text-[#D27A8C] focus:ring-[#FCEBEF]"
                                     />
                                     <span className="text-[13px] font-medium text-[#242424]">{item.label}</span>
                                 </label>
@@ -5734,7 +5736,7 @@ export default function PatientChartPage() {
                                         setPrintConfigSaving(false);
                                     }
                                 }}
-                                className="min-h-[40px] rounded-lg bg-[#E26B7C] px-5 text-[12px] font-medium text-white hover:bg-[#99354E] shadow-[0_4px_12px_rgba(226,107,124,0.18)] transition-all duration-200 disabled:opacity-50"
+                                className="min-h-[40px] rounded-lg bg-[#D27A8C] px-5 text-[12px] font-medium text-white hover:bg-[#8B3F50] shadow-[0_4px_12px_rgba(226,107,124,0.18)] transition-all duration-200 disabled:opacity-50"
                             >
                                 {printConfigSaving ? "저장중..." : "저장"}
                             </button>
@@ -5787,7 +5789,7 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
         if (normalized === 'signed') return <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-[11px] font-semibold text-green-700 border border-green-200">서명완료</span>;
         if (normalized === 'cancelled') return <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600 border border-rose-200">취소됨</span>;
         if (normalized === 'expired') return <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-[#616161] border border-gray-300">만료</span>;
-        return <span className="inline-flex items-center rounded-md bg-[#FCEBEF] px-2 py-0.5 text-[11px] font-semibold text-[#E26B7C] border border-[#F8DCE2]">대기중</span>;
+        return <span className="inline-flex items-center rounded-md bg-[#FCEBEF] px-2 py-0.5 text-[11px] font-semibold text-[#D27A8C] border border-[#F8DCE2]">대기중</span>;
     };
 
     const getConsentUrl = async (item: any): Promise<string | null> => {
@@ -5935,7 +5937,7 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
                                     <div className="flex flex-wrap gap-1.5 mt-2">
                                         {canOpenCompleted && (
                                             <button type="button" disabled={isRunning}
-                                                className="rounded-lg border border-[#F8DCE2] bg-white px-2.5 py-1 text-[11px] font-medium text-[#E26B7C] hover:bg-[#FCEBEF] disabled:opacity-50 transition-all duration-200"
+                                                className="rounded-lg border border-[#F8DCE2] bg-white px-2.5 py-1 text-[11px] font-medium text-[#D27A8C] hover:bg-[#FCEBEF] disabled:opacity-50 transition-all duration-200"
                                                 onClick={() => void handleOpenCompleted(item)}>
                                                 완료본 보기
                                             </button>
@@ -5943,12 +5945,12 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
                                         {canOpenQr && (
                                             <>
                                                 <button type="button" disabled={isRunning}
-                                                    className="rounded-lg border border-[#F8DCE2] bg-white px-2.5 py-1 text-[11px] font-medium text-[#E26B7C] hover:bg-[#FCEBEF] disabled:opacity-50 transition-all duration-200"
+                                                    className="rounded-lg border border-[#F8DCE2] bg-white px-2.5 py-1 text-[11px] font-medium text-[#D27A8C] hover:bg-[#FCEBEF] disabled:opacity-50 transition-all duration-200"
                                                     onClick={() => void handleOpenConsentPage(item)}>
                                                     동의서 열기
                                                 </button>
                                                 <button type="button" disabled={isRunning}
-                                                    className="rounded-lg border border-[#F8DCE2] bg-white px-2.5 py-1 text-[11px] font-medium text-[#E26B7C] hover:bg-[#FCEBEF] disabled:opacity-50 transition-all duration-200"
+                                                    className="rounded-lg border border-[#F8DCE2] bg-white px-2.5 py-1 text-[11px] font-medium text-[#D27A8C] hover:bg-[#FCEBEF] disabled:opacity-50 transition-all duration-200"
                                                     onClick={() => void handleOpenQrCode(item)}>
                                                     QR 열기
                                                 </button>
@@ -6125,9 +6127,13 @@ function RefundHistoryList({
     const [loadingGroupId, setLoadingGroupId] = useState<string | null>(null);
     const [refundCheckByRecordId, setRefundCheckByRecordId] = useState<Record<number, RefundCheckRow>>({});
     const [refundCheckByGroupId, setRefundCheckByGroupId] = useState<Record<string, RefundCheckRow>>({});
-    const [refundRateByCardId, setRefundRateByCardId] = useState<Record<string, string>>({});
     const [ticketHistoryByTicketId, setTicketHistoryByTicketId] = useState<Record<number, TicketHistory[]>>({});
     const [refundModalState, setRefundModalState] = useState<{ paymentMasterId: number; paymentDetailId: number; itemName: string; itemType: string } | null>(null);
+
+    // ISSUE-174: bulk refund + membership settlement
+    const [selectedCardKeys, setSelectedCardKeys] = useState<Set<string>>(new Set());
+    const [bulkModalState, setBulkModalState] = useState<BulkRefundModalItem[] | null>(null);
+    const [settlementModalState, setSettlementModalState] = useState<{ paymentDetailId: number; membershipName: string } | null>(null);
 
     const normalizeItemKey = (value?: string) =>
         String(value || "")
@@ -6585,6 +6591,42 @@ function RefundHistoryList({
     const ticketCardCount = useMemo(() => nonRefundedCards.filter(c => c.itemType === 'ticket').length, [nonRefundedCards]);
     const membershipCardCount = useMemo(() => nonRefundedCards.filter(c => c.itemType === 'membership').length, [nonRefundedCards]);
 
+    // ISSUE-174 helpers
+    const eligibleCardsForBulk = filteredCards.filter((c) => {
+        if (c.status === "refunded") return false;
+        if (getRefundClientBlockReason(c.record)) return false;
+        if (!c.itemPaymentDetails[0]?.id) return false;
+        return c.itemType === "ticket" || c.itemType === "membership";
+    });
+    const allEligibleSelected = eligibleCardsForBulk.length > 0 && eligibleCardsForBulk.every((c) => selectedCardKeys.has(c.id));
+    const selectedCount = eligibleCardsForBulk.filter((c) => selectedCardKeys.has(c.id)).length;
+
+    const toggleCardSelected = (cardId: string) => {
+        setSelectedCardKeys((prev) => {
+            const next = new Set(prev);
+            if (next.has(cardId)) next.delete(cardId); else next.add(cardId);
+            return next;
+        });
+    };
+    const toggleAllSelected = () => {
+        if (allEligibleSelected) {
+            setSelectedCardKeys(new Set());
+        } else {
+            setSelectedCardKeys(new Set(eligibleCardsForBulk.map((c) => c.id)));
+        }
+    };
+    const openBulkRefund = () => {
+        const selected = eligibleCardsForBulk.filter((c) => selectedCardKeys.has(c.id));
+        if (selected.length === 0) return;
+        const items: BulkRefundModalItem[] = selected.map((c) => ({
+            paymentMasterId: c.record.paymentMasterId || c.record.id,
+            paymentDetailId: c.itemPaymentDetails[0].id,
+            itemName: c.itemName,
+            itemType: c.itemType,
+        }));
+        setBulkModalState(items);
+    };
+
     return (
         <div className="space-y-3">
             <div className="flex items-center rounded-[8px] bg-[#FAF3F5] p-0.5 gap-0.5">
@@ -6595,13 +6637,43 @@ function RefundHistoryList({
                 ] as const).map(tab => (
                     <button
                         key={tab.key}
-                        onClick={() => { setRefundFilterTab(tab.key); setExpandedGroupId(null); }}
-                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${refundFilterTab === tab.key ? 'bg-white text-[#E26B7C] shadow-sm border border-[#F8DCE2]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
+                        onClick={() => { setRefundFilterTab(tab.key); setExpandedGroupId(null); setSelectedCardKeys(new Set()); }}
+                        className={`flex-1 rounded-[6px] px-3 py-1.5 text-[13px] font-medium tracking-[0.1px] transition-all duration-200 ${refundFilterTab === tab.key ? 'bg-white text-[#D27A8C] shadow-sm border border-[#F8DCE2]' : 'text-[#616161] border border-transparent hover:text-[#242424]'}`}
                     >
                         {tab.label} ({tab.count})
                     </button>
                 ))}
             </div>
+
+            {/* ISSUE-174: Bulk action toolbar */}
+            {!isReadOnly && eligibleCardsForBulk.length > 0 && (
+                <div className="flex items-center justify-between gap-2 rounded-[10px] border border-[#F8DCE2] bg-gradient-to-r from-[#FCEBEF]/40 to-[#FCF7F8] px-3 py-2">
+                    <button
+                        type="button"
+                        onClick={toggleAllSelected}
+                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8B3F50] hover:underline"
+                    >
+                        <span className={`flex h-4 w-4 items-center justify-center rounded border ${allEligibleSelected ? "border-[#D27A8C] bg-[#D27A8C]" : "border-[#F8DCE2] bg-white"}`}>
+                            {allEligibleSelected && <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>}
+                        </span>
+                        {allEligibleSelected ? "전체 해제" : "전체 선택"}
+                    </button>
+                    <button
+                        type="button"
+                        disabled={selectedCount === 0}
+                        onClick={openBulkRefund}
+                        className="rounded-lg px-3 py-1.5 text-[11px] font-extrabold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-[1px] disabled:hover:translate-y-0"
+                        style={{
+                            background: selectedCount === 0
+                                ? "linear-gradient(135deg, #E5B5C0 0%, #D4A5B0 100%)"
+                                : "linear-gradient(135deg, #D27A8C 0%, #8B3F50 100%)",
+                            boxShadow: selectedCount === 0 ? "none" : "0 4px 12px rgba(210, 122, 140, 0.32)",
+                        }}
+                    >
+                        선택 환불 ({selectedCount})
+                    </button>
+                </div>
+            )}
 
             <div className="space-y-2">
                 {filteredCards.length === 0 ? (
@@ -6620,45 +6692,83 @@ function RefundHistoryList({
                             className={`rounded-[16px] border overflow-hidden transition-all duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] ${isRefunded ? "border-red-200 bg-red-50/30" : "border-[#F8DCE2]"}`}
                         >
                             <div className={`px-4 py-3 flex items-center justify-between gap-2 border-b ${isRefunded ? "bg-red-50 border-red-200" : "bg-[#FCF7F8] border-[#FCEBEF]"}`}>
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className={`inline-flex items-center rounded-[8px] px-2 py-0.5 text-[11px] font-bold tracking-[0.1px] leading-none ${isTicket ? "bg-[#FCEBEF] text-[#E26B7C]" : isMembership ? "bg-violet-100 text-violet-700" : "bg-[#F0F0F0] text-[#616161]"}`}>
-                                            {isTicket ? "티켓" : isMembership ? "회원권" : "결제"}
-                                        </span>
-                                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none ${isRefunded ? "bg-red-100 text-red-600" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
-                                            {isRefunded ? "환불" : "정상"}
-                                        </span>
-                                    </div>
-                                    <div className={`mt-1.5 text-[14px] font-bold leading-[1.2] ${isRefunded ? "text-red-400 line-through" : "text-[#5C2A35]"}`}>
-                                        {card.itemName}{card.quantity > 1 ? ` x${card.quantity}` : ""}
-                                    </div>
-                                    <div className="text-[11px] text-[#616161] mt-1 font-medium tracking-[0.1px]">
-                                        {new Date(card.paidAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                                        {card.collectorName ? ` · ${card.collectorName}` : ""}
+                                <div className="flex items-start gap-2 min-w-0 flex-1">
+                                    {/* ISSUE-174: bulk select checkbox */}
+                                    {!isRefunded && !clientBlockReason && !isReadOnly && card.itemPaymentDetails[0]?.id && (isTicket || isMembership) && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); toggleCardSelected(card.id); }}
+                                            className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all ${
+                                                selectedCardKeys.has(card.id)
+                                                    ? "border-[#D27A8C] bg-[#D27A8C]"
+                                                    : "border-[#F8DCE2] bg-white hover:border-[#D27A8C]"
+                                            }`}
+                                            title={selectedCardKeys.has(card.id) ? "선택 해제" : "일괄 환불 대상으로 선택"}
+                                        >
+                                            {selectedCardKeys.has(card.id) && (
+                                                <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                                                    <polyline points="20 6 9 17 4 12" />
+                                                </svg>
+                                            )}
+                                        </button>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className={`inline-flex items-center rounded-[8px] px-2 py-0.5 text-[11px] font-bold tracking-[0.1px] leading-none ${isTicket ? "bg-[#FCEBEF] text-[#D27A8C]" : isMembership ? "bg-violet-100 text-violet-700" : "bg-[#F0F0F0] text-[#616161]"}`}>
+                                                {isTicket ? "티켓" : isMembership ? "회원권" : "결제"}
+                                            </span>
+                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none ${isRefunded ? "bg-red-100 text-red-600" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
+                                                {isRefunded ? "환불" : "정상"}
+                                            </span>
+                                        </div>
+                                        <div className={`mt-1.5 text-[14px] font-bold leading-[1.2] ${isRefunded ? "text-red-400 line-through" : "text-[#5C2A35]"}`}>
+                                            {card.itemName}{card.quantity > 1 ? ` x${card.quantity}` : ""}
+                                        </div>
+                                        <div className="text-[11px] text-[#616161] mt-1 font-medium tracking-[0.1px]">
+                                            {new Date(card.paidAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                                            {card.collectorName ? ` · ${card.collectorName}` : ""}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="shrink-0 flex flex-col items-end gap-1.5">
                                     {!isRefunded && !clientBlockReason && !isReadOnly && (
-                                        <button
-                                            type="button"
-                                            className="rounded-full border border-red-300 bg-red-50 px-3 py-1 text-[11px] font-bold text-red-600 hover:bg-red-100 hover:border-red-400 transition-all duration-200 disabled:opacity-50 min-h-[28px]"
-                                            disabled={refundingPaymentId === card.record.id}
-                                            onClick={() => {
-                                                const detailId = card.itemPaymentDetails[0]?.id;
-                                                if (!detailId) {
-                                                    void onRefund(card.record, card.itemName, 0);
-                                                    return;
-                                                }
-                                                setRefundModalState({
-                                                    paymentMasterId: card.record.paymentMasterId || card.record.id,
-                                                    paymentDetailId: detailId,
-                                                    itemName: card.itemName,
-                                                    itemType: card.itemType,
-                                                });
-                                            }}
-                                        >
-                                            환불
-                                        </button>
+                                        <>
+                                            {isMembership && card.itemPaymentDetails[0]?.id && (
+                                                <button
+                                                    type="button"
+                                                    className="rounded-full border border-[#D27A8C] bg-[#FCEBEF] px-3 py-1 text-[11px] font-bold text-[#8B3F50] hover:bg-[#F8DCE2] transition-all duration-200 min-h-[28px]"
+                                                    onClick={() => {
+                                                        setSettlementModalState({
+                                                            paymentDetailId: card.itemPaymentDetails[0].id,
+                                                            membershipName: card.itemName,
+                                                        });
+                                                    }}
+                                                    title="회원권 잔액 + 연결 티켓 일괄 환불"
+                                                >
+                                                    회원권 정산
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className="rounded-full border border-red-300 bg-red-50 px-3 py-1 text-[11px] font-bold text-red-600 hover:bg-red-100 hover:border-red-400 transition-all duration-200 disabled:opacity-50 min-h-[28px]"
+                                                disabled={refundingPaymentId === card.record.id}
+                                                onClick={() => {
+                                                    const detailId = card.itemPaymentDetails[0]?.id;
+                                                    if (!detailId) {
+                                                        void onRefund(card.record, card.itemName, 0);
+                                                        return;
+                                                    }
+                                                    setRefundModalState({
+                                                        paymentMasterId: card.record.paymentMasterId || card.record.id,
+                                                        paymentDetailId: detailId,
+                                                        itemName: card.itemName,
+                                                        itemType: card.itemType,
+                                                    });
+                                                }}
+                                            >
+                                                환불
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -6757,81 +6867,11 @@ function RefundHistoryList({
                                                     </span>
                                                 </div>
                                             )}
-                                            {!isRefunded && matchedItem && (() => {
-                                                const isMembershipItem = String(matchedItem.itemType || "").toLowerCase() === "membership";
-                                                const penaltyAmt = matchedItem.penaltyAmount;
-
-                                                if (isMembershipItem) {
-                                                    const netUsed = matchedItem.usedAmountAtOriginalPrice;
-                                                    const currentBalance = Math.max(0, matchedItem.paidAmount - netUsed);
-                                                    const estimated = Math.max(0, currentBalance - penaltyAmt);
-                                                    return (
-                                                        <div className="border-t border-dashed border-[#F8DCE2] pt-2 mt-2 space-y-2">
-                                                            <div className="rounded-lg bg-[#FAF3F5] px-3 py-2 space-y-0.5">
-                                                                <div className="text-[10px] text-[#9E9E9E]">
-                                                                    현재잔액(실결제 - 순사용) - 위약금
-                                                                </div>
-                                                                <div className="text-[11px] font-semibold tabular-nums text-[#616161]">
-                                                                    {currentBalance.toLocaleString()} - {penaltyAmt.toLocaleString()} = {estimated.toLocaleString()}원
-                                                                </div>
-                                                                <div className="text-[10px] text-[#9E9E9E] mt-0.5">
-                                                                    실결제 {matchedItem.paidAmount.toLocaleString()}원 / 순사용 {netUsed.toLocaleString()}원
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-[13px] font-semibold text-red-600">환불 예상액</span>
-                                                                <span className="text-[15px] font-extrabold tabular-nums text-red-600">
-                                                                    {estimated.toLocaleString()}원
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                }
-
-                                                const rateStr = refundRateByCardId[card.id] ?? "";
-                                                const rateVal = rateStr ? parseFloat(rateStr) : 0;
-                                                const validRate = Number.isFinite(rateVal) && rateVal >= 0 && rateVal < 1 ? rateVal : 0;
-                                                const usedDeduction = Math.round(matchedItem.paidAmount * validRate * matchedItem.usedCount);
-                                                const estimated = Math.max(0, matchedItem.paidAmount - usedDeduction - penaltyAmt);
-
-                                                return (
-                                                    <div className="border-t border-dashed border-[#F8DCE2] pt-2 mt-2 space-y-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-[11px] text-[#616161] font-medium shrink-0">환불변수</span>
-                                                            <input
-                                                                type="number"
-                                                                step="0.001"
-                                                                min="0"
-                                                                max="0.999"
-                                                                placeholder="0.000"
-                                                                value={rateStr}
-                                                                onChange={(e) => {
-                                                                    const v = e.target.value;
-                                                                    if (v === "" || (/^\d*\.?\d{0,3}$/.test(v) && parseFloat(v || "0") < 1)) {
-                                                                        setRefundRateByCardId(prev => ({ ...prev, [card.id]: v }));
-                                                                    }
-                                                                }}
-                                                                className="w-20 rounded-lg border border-[#F8DCE2] bg-white px-2 py-1 text-[12px] text-center tabular-nums outline-none focus:border-[#F49EAF] focus:ring-1 focus:ring-[#F49EAF]/20 transition-all duration-200"
-                                                            />
-                                                            <span className="text-[10px] text-[#9E9E9E]">사용 {matchedItem.usedCount}회</span>
-                                                        </div>
-                                                        <div className="rounded-lg bg-[#FAF3F5] px-3 py-2 space-y-0.5">
-                                                            <div className="text-[10px] text-[#9E9E9E]">
-                                                                최종구매가 - (최종구매가×환불변수×사용) - 위약금
-                                                            </div>
-                                                            <div className="text-[11px] font-semibold tabular-nums text-[#616161]">
-                                                                {matchedItem.paidAmount.toLocaleString()} - {usedDeduction.toLocaleString()} - {penaltyAmt.toLocaleString()} = {estimated.toLocaleString()}원
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex justify-between items-center">
-                                                            <span className="text-[13px] font-semibold text-red-600">환불 예상액</span>
-                                                            <span className="text-[15px] font-extrabold tabular-nums text-red-600">
-                                                                {estimated.toLocaleString()}원
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
+                                            {!isRefunded && matchedItem && (
+                                                <div className="text-[10px] text-[#9E9E9E] italic pt-1">
+                                                    사용 {matchedItem.usedCount}회 · 위약금/환불액은 환불 모달에서 확인
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })()}
@@ -6856,6 +6896,42 @@ function RefundHistoryList({
                     onClose={() => setRefundModalState(null)}
                     onRefunded={() => {
                         setRefundModalState(null);
+                        setRefundCheckByRecordId({});
+                        setRefundCheckByGroupId({});
+                        if (typeof onRefundCompleted === "function") {
+                            void onRefundCompleted();
+                        }
+                    }}
+                />
+            )}
+
+            {/* ISSUE-174: Bulk refund modal */}
+            {bulkModalState && (
+                <BulkRefundModal
+                    open
+                    items={bulkModalState}
+                    onClose={() => setBulkModalState(null)}
+                    onRefunded={() => {
+                        setBulkModalState(null);
+                        setSelectedCardKeys(new Set());
+                        setRefundCheckByRecordId({});
+                        setRefundCheckByGroupId({});
+                        if (typeof onRefundCompleted === "function") {
+                            void onRefundCompleted();
+                        }
+                    }}
+                />
+            )}
+
+            {/* ISSUE-174: Membership settlement modal */}
+            {settlementModalState && (
+                <MembershipSettlementModal
+                    open
+                    paymentDetailId={settlementModalState.paymentDetailId}
+                    membershipName={settlementModalState.membershipName}
+                    onClose={() => setSettlementModalState(null)}
+                    onRefunded={() => {
+                        setSettlementModalState(null);
                         setRefundCheckByRecordId({});
                         setRefundCheckByGroupId({});
                         if (typeof onRefundCompleted === "function") {
