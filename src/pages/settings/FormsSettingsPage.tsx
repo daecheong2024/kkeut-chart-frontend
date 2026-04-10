@@ -437,23 +437,38 @@ export default function FormsSettingsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-4">
-                  <div className="text-sm font-bold text-gray-800">변수 삽입</div>
-                  <div className="text-xs text-gray-500">클릭하면 본문 끝에 토큰이 추가됩니다.</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {VARIABLE_TOKENS.map((item) => (
-                      <button
-                        key={item.token}
-                        type="button"
-                        onClick={() => insertVariable(item.token)}
-                        className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                        title={`${item.label} (${item.token})`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
+                {editStructureType === "html" ? (
+                  <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-4">
+                    <div className="text-sm font-bold text-gray-800">변수 삽입</div>
+                    <div className="text-xs text-gray-500">클릭하면 본문 끝에 토큰이 추가됩니다.</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {VARIABLE_TOKENS.map((item) => (
+                        <button
+                          key={item.token}
+                          type="button"
+                          onClick={() => insertVariable(item.token)}
+                          className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                          title={`${item.label} (${item.token})`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-2 rounded-xl border border-[#F8DCE2] bg-[#FCF7F8] p-4">
+                    <div className="text-sm font-bold text-[#5C2A35]">📋 블록 빌더 안내</div>
+                    <div className="text-[11px] text-[#8B5A66] leading-relaxed">
+                      각 섹션 하단의 <b>"+ 필드 추가"</b> 영역에서 블록을 추가해 동의서를 구성하세요. 환자 정보(이름·생년월일·연락처 등)는 <b>환자가 서명할 때 자동으로 채워집니다</b> — 별도 변수 삽입이 필요 없습니다.
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-[#F8DCE2] text-[10px] text-[#8B5A66] space-y-0.5">
+                      <div>· <b>날짜 입력란</b> — 환자가 서명 시 입력</div>
+                      <div>· <b>서술형 작성란</b> — 차트에서 직원이 입력</div>
+                      <div>· <b>서술형 내용</b> — 고정 안내문 (변수 X)</div>
+                      <div>· <b>선택형 내용</b> — 단일/복수 선택지</div>
+                    </div>
+                  </div>
+                )}
 
                 {editingItem && (
                   <div className="rounded-xl border border-gray-200 bg-white p-4 text-xs text-gray-500">

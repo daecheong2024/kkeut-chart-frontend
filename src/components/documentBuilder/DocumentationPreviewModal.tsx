@@ -4,8 +4,9 @@ import type {
     DocumentationStructured,
     DocumentationBlock,
     DocumentationSection,
+    SignatureConfig,
 } from "../../types/documentationBuilder";
-import { SECTION_LABELS } from "../../types/documentationBuilder";
+import { SECTION_LABELS, textContentStyleClass, isSignatureSection } from "../../types/documentationBuilder";
 
 interface Props {
     open: boolean;
@@ -59,28 +60,26 @@ export function DocumentationPreviewModal({ open, title, structured, onClose }: 
                         </div>
                     </div>
 
-                    {/* Render each section */}
-                    {structured.sections.map((section) => (
+                    {/* Render each non-signature section */}
+                    {structured.sections.filter((s) => !isSignatureSection(s.key)).map((section) => (
                         <PreviewSection key={section.key} section={section} />
                     ))}
 
-                    {/* Signature footer */}
-                    <div className="mt-6 rounded-lg border border-[#F8DCE2] bg-white p-4">
-                        <div className="text-[12px] font-bold text-[#5C2A35] mb-3">서명란 (예시)</div>
-                        <div className="grid grid-cols-2 gap-4 text-[11px]">
-                            <div>
-                                <div className="text-[#8B5A66] mb-1">환자 서명</div>
-                                <div className="h-16 rounded border border-dashed border-[#F8DCE2] bg-[#FCF7F8]" />
-                            </div>
-                            <div>
-                                <div className="text-[#8B5A66] mb-1">담당의 서명</div>
-                                <div className="h-16 rounded border border-dashed border-[#F8DCE2] bg-[#FCF7F8]" />
-                            </div>
-                        </div>
-                    </div>
+                    {/* Doctor signature panel */}
+                    <DoctorSignaturePreview config={structured.signatureConfig} />
 
-                    <div className="mt-4 text-center text-[10px] text-[#C9A0A8]">
-                        ⓘ 미리보기 — 실제 서명 페이지에서는 환자 정보가 자동 연동되고 입력 필드가 활성화됩니다.
+                    {/* Patient signature panel */}
+                    <PatientSignaturePreview config={structured.signatureConfig} />
+
+                    {/* Submission date footer */}
+                    <div className="mt-4 rounded-lg border border-[#F8DCE2] bg-white p-4 flex items-center justify-end gap-4 text-[12px]">
+                        <span className="font-bold text-[#5C2A35]">작성일시:</span>
+                        <span className="text-[#8B5A66]">년</span>
+                        <span className="text-[#8B5A66]">월</span>
+                        <span className="text-[#8B5A66]">일</span>
+                    </div>
+                    <div className="mt-1 text-[10px] text-[#C9A0A8] flex items-center gap-1">
+                        <span>ⓘ</span> 작성일시는 환자의 서명 완료 시 자동 입력됩니다.
                     </div>
                 </div>
 
@@ -161,7 +160,7 @@ function PreviewBlock({ block }: { block: DocumentationBlock }) {
         return (
             <div className="rounded-lg border border-[#F8DCE2] bg-white px-4 py-3">
                 {titleEl}
-                <div className="text-[12px] text-[#2A1F22] leading-relaxed whitespace-pre-wrap">
+                <div className={`leading-relaxed whitespace-pre-wrap ${textContentStyleClass(block)}`}>
                     {block.content || <span className="text-[#C9A0A8] italic">내용이 비어 있습니다.</span>}
                 </div>
             </div>
@@ -200,4 +199,108 @@ function PreviewBlock({ block }: { block: DocumentationBlock }) {
     }
 
     return null;
+}
+
+function DoctorSignaturePreview({ config }: { config: SignatureConfig }) {
+    const { primary, explainer } = config.doctor;
+    const noneSelected = !primary && !explainer;
+
+    return (
+        <div className="mb-5">
+            <div className="text-[12px] font-extrabold text-[#8B3F50] mb-2 pl-1 border-l-[3px] border-[#D27A8C]">
+                의사 서명란
+            </div>
+            <div className="rounded-lg border border-[#F8DCE2] bg-white px-4 py-4">
+                {noneSelected ? (
+                    <div className="text-[11px] text-[#8B5A66] italic text-center py-4">
+                        담당의, 설명자 서명 모두 받지 않습니다.
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {primary && (
+                            <div className="flex items-center justify-between gap-4">
+                                <span className="text-[12px] font-bold text-[#5C2A35]">담당의 서명:</span>
+                                <span className="text-[11px] text-[#C9A0A8]">서명(인)</span>
+                            </div>
+                        )}
+                        {explainer && (
+                            <div className="flex items-center justify-between gap-4">
+                                <span className="text-[12px] font-bold text-[#5C2A35]">설명자 서명:</span>
+                                <span className="text-[11px] text-[#C9A0A8]">서명(인)</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function PatientSignaturePreview({ config }: { config: SignatureConfig }) {
+    const { relation, patient, legalGuardian, legalGuardianReasons } = config.patient;
+    const noneSelected = !relation && !patient && !legalGuardian;
+
+    return (
+        <div className="mb-5">
+            <div className="text-[12px] font-extrabold text-[#8B3F50] mb-2 pl-1 border-l-[3px] border-[#D27A8C]">
+                환자 서명란
+            </div>
+            <div className="rounded-lg border border-[#F8DCE2] bg-white px-4 py-4">
+                {noneSelected ? (
+                    <div className="text-[11px] text-[#8B5A66] italic text-center py-4">
+                        환자 서명 항목이 없습니다.
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {relation && (
+                            <div className="flex items-center justify-between gap-4">
+                                <span className="text-[12px] font-bold text-[#5C2A35]">환자와의 관계:</span>
+                                <input
+                                    type="text"
+                                    disabled
+                                    placeholder="환자와의 관계 입력"
+                                    className="w-40 text-[11px] text-[#C9A0A8] bg-[#FCF7F8] border-b border-[#F8DCE2] px-2 py-0.5 outline-none text-right"
+                                />
+                            </div>
+                        )}
+                        {patient && (
+                            <div className="flex items-center justify-between gap-4">
+                                <span className="text-[12px] font-bold text-[#5C2A35]">환자 서명:</span>
+                                <span className="text-[11px] text-[#C9A0A8]">서명(인)</span>
+                            </div>
+                        )}
+                        {legalGuardian && (
+                            <>
+                                <div className="flex items-center justify-between gap-4">
+                                    <span className="text-[12px] font-bold text-[#5C2A35]">법정 대리인 서명:</span>
+                                    <span className="text-[11px] text-[#C9A0A8]">서명(인)</span>
+                                </div>
+                                {legalGuardianReasons.length > 0 && (
+                                    <div className="pt-3 mt-3 border-t border-[#F8DCE2]">
+                                        <div className="text-[11px] font-bold text-[#5C2A35] mb-2">대리인 서명 이유</div>
+                                        <div className="space-y-1.5">
+                                            {legalGuardianReasons.map((opt) => (
+                                                <label key={opt.id} className="flex items-center gap-2 text-[11px] text-[#2A1F22] cursor-not-allowed">
+                                                    <input type="checkbox" disabled className="accent-[#D27A8C]" />
+                                                    <span>{opt.label || <span className="text-[#C9A0A8] italic">옵션</span>}</span>
+                                                    {opt.hasNote && (
+                                                        <input
+                                                            type="text"
+                                                            disabled
+                                                            placeholder="비고"
+                                                            className="ml-2 flex-1 text-[10px] text-[#C9A0A8] bg-[#FCF7F8] border-b border-[#F8DCE2] px-1 outline-none"
+                                                        />
+                                                    )}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 }

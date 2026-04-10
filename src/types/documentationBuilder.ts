@@ -28,6 +28,10 @@ export interface TextChartBlock {
     placeholder?: string;
 }
 
+export type TextSize = "sm" | "base" | "lg";
+export type TextWeight = "normal" | "bold";
+export type TextColor = "default" | "muted" | "danger" | "primary";
+
 export interface TextContentBlock {
     id: string;
     type: "text_content";
@@ -35,6 +39,10 @@ export interface TextContentBlock {
     required: boolean;
     /** 고정 안내 문구 본문 */
     content: string;
+    /** 본문 스타일 옵션 (글씨 크기/굵기/색상) */
+    fontSize?: TextSize;
+    fontWeight?: TextWeight;
+    color?: TextColor;
 }
 
 export interface ChoiceOption {
@@ -60,8 +68,34 @@ export interface DocumentationSection {
     blocks: DocumentationBlock[];
 }
 
+/** 의사 서명란 설정 */
+export interface DoctorSignatureConfig {
+    /** 담당의 서명 받기 */
+    primary: boolean;
+    /** 설명자 서명 받기 */
+    explainer: boolean;
+}
+
+/** 환자 서명란 설정 */
+export interface PatientSignatureConfig {
+    /** 환자와의 관계 입력 받기 */
+    relation: boolean;
+    /** 환자 서명 받기 */
+    patient: boolean;
+    /** 법정 대리인 서명 받기 */
+    legalGuardian: boolean;
+    /** 대리인 사유 옵션 (체크박스) */
+    legalGuardianReasons: ChoiceOption[];
+}
+
+export interface SignatureConfig {
+    doctor: DoctorSignatureConfig;
+    patient: PatientSignatureConfig;
+}
+
 export interface DocumentationStructured {
     sections: DocumentationSection[];
+    signatureConfig: SignatureConfig;
 }
 
 // ============================================================
@@ -82,13 +116,18 @@ export const SECTION_DESCRIPTIONS: Record<SectionKey, string> = {
     patient_sign: "환자/법정 대리인 서명 + 대리 사유",
 };
 
-/** 섹션별로 허용되는 블록 타입 */
+/** 섹션별로 허용되는 블록 타입 (signature 섹션은 별도 panel 사용) */
 export const ALLOWED_BLOCK_TYPES_BY_SECTION: Record<SectionKey, BlockType[]> = {
     body: ["date", "text_chart", "text_content", "choice"],
     patient_input: ["text_chart", "text_content", "choice"],
-    doctor_sign: ["text_chart"],
-    patient_sign: ["choice", "text_chart"],
+    doctor_sign: [],
+    patient_sign: [],
 };
+
+/** signature 섹션 여부 — 별도 패널 렌더링 */
+export function isSignatureSection(key: SectionKey): boolean {
+    return key === "doctor_sign" || key === "patient_sign";
+}
 
 export const BLOCK_LABELS: Record<BlockType, string> = {
     date: "날짜 입력란",
@@ -116,7 +155,16 @@ export function createBlock(type: BlockType): DocumentationBlock {
         case "text_chart":
             return { id, type, title: baseTitle, required: false };
         case "text_content":
-            return { id, type, title: baseTitle, required: false, content: "" };
+            return {
+                id,
+                type,
+                title: baseTitle,
+                required: false,
+                content: "",
+                fontSize: "base",
+                fontWeight: "normal",
+                color: "default",
+            };
         case "choice":
             return {
                 id,
@@ -129,7 +177,19 @@ export function createBlock(type: BlockType): DocumentationBlock {
     }
 }
 
-/** 빈 동의서 구조 (4 섹션, 빈 블록 배열) */
+/** 기본 대리인 사유 옵션 6개 */
+export function createDefaultLegalGuardianReasons(): ChoiceOption[] {
+    return [
+        { id: newOptionId(), label: "신체적 정신적 장애로 또는 미성년자로 내용에 대해서 이해하지 못함", hasNote: false },
+        { id: newOptionId(), label: "환자 본인이 승낙에 대한 권한을 특정인에게 위임함", hasNote: false },
+        { id: newOptionId(), label: "환자가 미성년자로서 설명내용에 대하여 이해하지 못함", hasNote: false },
+        { id: newOptionId(), label: "전화동의 (환자의 의식이 없고 환자보호자 현장 부재시)", hasNote: false },
+        { id: newOptionId(), label: "환자의 의식이 없고 응급상태인 경우", hasNote: false },
+        { id: newOptionId(), label: "기타", hasNote: true },
+    ];
+}
+
+/** 빈 동의서 구조 (4 섹션, 빈 블록 배열, 기본 서명 설정) */
 export function createEmptyStructured(): DocumentationStructured {
     return {
         sections: [
@@ -138,6 +198,15 @@ export function createEmptyStructured(): DocumentationStructured {
             { key: "doctor_sign", blocks: [] },
             { key: "patient_sign", blocks: [] },
         ],
+        signatureConfig: {
+            doctor: { primary: false, explainer: false },
+            patient: {
+                relation: true,
+                patient: true,
+                legalGuardian: true,
+                legalGuardianReasons: createDefaultLegalGuardianReasons(),
+            },
+        },
     };
 }
 
@@ -157,12 +226,29 @@ export function parseStructured(content: string | null | undefined): Documentati
             });
         }
 
-        // Ensure all 4 sections exist
         const sections: DocumentationSection[] = (["body", "patient_input", "doctor_sign", "patient_sign"] as SectionKey[]).map(
             (key) => sectionMap.get(key) ?? { key, blocks: [] }
         );
 
-        return { sections };
+        const defaultEmpty = createEmptyStructured();
+        const signatureConfig: SignatureConfig = parsed.signatureConfig
+            ? {
+                doctor: {
+                    primary: Boolean(parsed.signatureConfig.doctor?.primary),
+                    explainer: Boolean(parsed.signatureConfig.doctor?.explainer),
+                },
+                patient: {
+                    relation: parsed.signatureConfig.patient?.relation ?? true,
+                    patient: parsed.signatureConfig.patient?.patient ?? true,
+                    legalGuardian: parsed.signatureConfig.patient?.legalGuardian ?? true,
+                    legalGuardianReasons: Array.isArray(parsed.signatureConfig.patient?.legalGuardianReasons)
+                        ? parsed.signatureConfig.patient.legalGuardianReasons
+                        : createDefaultLegalGuardianReasons(),
+                },
+            }
+            : defaultEmpty.signatureConfig;
+
+        return { sections, signatureConfig };
     } catch {
         return createEmptyStructured();
     }
@@ -171,4 +257,28 @@ export function parseStructured(content: string | null | undefined): Documentati
 /** DocumentationStructured → JSON string (저장용) */
 export function serializeStructured(structured: DocumentationStructured): string {
     return JSON.stringify(structured);
+}
+
+/** TextContentBlock 스타일 → CSS 클래스 (미리보기/실제 렌더 공용) */
+export function textContentStyleClass(block: TextContentBlock): string {
+    const sizeClass: Record<TextSize, string> = {
+        sm: "text-[12px]",
+        base: "text-[13px]",
+        lg: "text-[16px]",
+    };
+    const weightClass: Record<TextWeight, string> = {
+        normal: "font-normal",
+        bold: "font-bold",
+    };
+    const colorClass: Record<TextColor, string> = {
+        default: "text-[#2A1F22]",
+        muted: "text-[#8B5A66]",
+        danger: "text-[#C53030]",
+        primary: "text-[#8B3F50]",
+    };
+    return [
+        sizeClass[block.fontSize ?? "base"],
+        weightClass[block.fontWeight ?? "normal"],
+        colorClass[block.color ?? "default"],
+    ].join(" ");
 }

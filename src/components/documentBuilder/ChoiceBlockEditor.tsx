@@ -32,6 +32,7 @@ export function ChoiceBlockEditor({ block, onChange, onDelete, onMoveUp, onMoveD
 
     return (
         <BlockCard
+            typeLabel={block.selectionType === "single" ? "단일 선택" : "복수 선택"}
             onDelete={onDelete}
             onMoveUp={onMoveUp}
             onMoveDown={onMoveDown}
@@ -44,35 +45,39 @@ export function ChoiceBlockEditor({ block, onChange, onDelete, onMoveUp, onMoveD
                 type="text"
                 value={block.title}
                 onChange={(e) => onChange({ ...block, title: e.target.value })}
-                placeholder="제목을 입력하세요"
-                className="w-full text-[14px] font-bold text-[#2A1F22] bg-transparent border-0 border-b border-[#F8DCE2] focus:border-[#D27A8C] focus:ring-0 outline-none pb-1.5 mb-3"
+                placeholder="제목 (예: 대리인 서명 사유)"
+                className="w-full text-[15px] font-extrabold text-[#2A1F22] placeholder:text-[#C9A0A8] placeholder:font-medium bg-transparent border-0 outline-none mb-2.5"
             />
 
-            {/* Selection type */}
-            <div className="flex items-center gap-3 mb-3">
-                <label className="flex items-center gap-1.5 cursor-pointer text-[12px] text-[#5C2A35]">
-                    <input
-                        type="radio"
-                        checked={block.selectionType === "single"}
-                        onChange={() => onChange({ ...block, selectionType: "single" })}
-                        className="accent-[#D27A8C]"
-                    />
-                    단수 선택
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer text-[12px] text-[#5C2A35]">
-                    <input
-                        type="radio"
-                        checked={block.selectionType === "multi"}
-                        onChange={() => onChange({ ...block, selectionType: "multi" })}
-                        className="accent-[#D27A8C]"
-                    />
+            {/* Selection type — segmented */}
+            <div className="inline-flex items-center rounded-lg bg-[#FCF7F8] border border-[#F8DCE2] p-0.5 mb-3">
+                <button
+                    type="button"
+                    onClick={() => onChange({ ...block, selectionType: "single" })}
+                    className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${
+                        block.selectionType === "single"
+                            ? "bg-white text-[#8B3F50] shadow-sm"
+                            : "text-[#8B5A66] hover:text-[#5C2A35]"
+                    }`}
+                >
+                    단일 선택
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onChange({ ...block, selectionType: "multi" })}
+                    className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${
+                        block.selectionType === "multi"
+                            ? "bg-white text-[#8B3F50] shadow-sm"
+                            : "text-[#8B5A66] hover:text-[#5C2A35]"
+                    }`}
+                >
                     복수 선택
-                </label>
+                </button>
             </div>
 
             {/* Options */}
-            <div className="space-y-2">
-                <div className="text-[11px] font-bold text-[#8B3F50]">문항 *</div>
+            <div className="space-y-1.5">
+                <div className="text-[11px] font-bold text-[#8B3F50]">선택 항목</div>
                 {block.options.length === 0 && (
                     <div className="text-[11px] text-[#C9A0A8] italic px-2 py-2 rounded border border-dashed border-[#F8DCE2] text-center">
                         옵션을 추가해 주세요.
