@@ -17,7 +17,7 @@ import type {
     AutomationRule,
     MessageChannel,
     OutboxItem,
-    MessageTemplateStatus,
+
 } from "../../types/crm";
 import { useSettingsStore } from "../../stores/useSettingsStore";
 import { useCurrentUserPermissions } from "../../hooks/useCurrentUserPermissions";
@@ -59,38 +59,124 @@ const QUICK_CONTENT_SNIPPETS = [
     {
         id: "reservation_confirm",
         label: "예약 확정형",
-        content: "[{{clinicName}}] {{patientName}}님, {{date}} {{time}} 예약이 확정되었습니다. 변동 시 연락 부탁드립니다.",
+        content: "안녕하세요 {{patientName}}님 :)\n{{clinicName}}입니다.\n{{patientName}}님의 예약일은 {{date}} {{time}}입니다.\n예약일에 뵙겠습니다. 감사합니다 :)",
     },
     {
         id: "reservation_reminder",
         label: "예약 리마인드형",
-        content: "[{{clinicName}}] {{patientName}}님, 내일({{date}}) {{time}} 예약이 있습니다. 늦지 않게 내원해주세요.",
+        content: "안녕하세요 {{patientName}}님 :)\n{{clinicName}}입니다.\n내일 {{time}} 예약입니다. 조심히 내원해주세요 :)",
     },
     {
         id: "ticket_used",
         label: "차감 안내형",
         content: "{{patientName}}님, '{{ticketName}}' 1회가 차감되었습니다. 잔여 {{remainCount}}회입니다.",
     },
+    {
+        id: "reception_confirm",
+        label: "접수 완료형",
+        content: "안녕하세요 {{patientName}}님.\n진료 접수가 완료되었습니다.\n궁금하신 사항이 있으시면 편하게 말씀해주세요.",
+    },
 ];
 
-const TEMPLATE_STATUS_LABEL: Record<MessageTemplateStatus, string> = {
-    draft: "초안",
-    published: "배포",
-    archived: "보관",
-};
+/** 기존 차트 DB 데이터 기반 기본 자동발송 규칙 */
+function createDefaultAutomations(): AutomationRule[] {
+    return [
+        {
+            id: "auto_default_reservation",
+            name: "예약 확정 시 안내 발송",
+            enabled: true,
+            trigger: "reservationCreated",
+            schedule: { type: "immediate" },
+            templateId: "tmpl_default_reservation",
+            filters: { branchScope: "all", excludeOptOut: true },
+        },
+        {
+            id: "auto_default_reminder",
+            name: "내원 전날 리마인드",
+            enabled: true,
+            trigger: "reservationReminder",
+            schedule: { type: "before", days: 1 },
+            templateId: "tmpl_default_reminder",
+            filters: { branchScope: "all", excludeOptOut: true },
+        },
+        {
+            id: "auto_default_ticket",
+            name: "시술 차감 시 안내 발송",
+            enabled: true,
+            trigger: "ticketUsed",
+            schedule: { type: "immediate" },
+            templateId: "tmpl_default_ticket",
+            filters: { branchScope: "all", excludeOptOut: true },
+        },
+        {
+            id: "auto_default_survey",
+            name: "시술 후 만족도 조사",
+            enabled: false,
+            trigger: "visitCompleted",
+            schedule: { type: "after", hours: 2 },
+            templateId: "tmpl_default_survey",
+            filters: { branchScope: "all", excludeOptOut: true },
+        },
+    ];
+}
 
-const TEMPLATE_STATUS_STYLE: Record<MessageTemplateStatus, string> = {
-    draft: "bg-[#FCEBEF] text-[#D27A8C]",
-    published: "bg-emerald-100 text-emerald-700",
-    archived: "bg-amber-100 text-amber-700",
-};
+/** 기존 차트 DB 데이터 기반 기본 템플릿 (템플릿이 없을 때 자동 생성) */
+function createDefaultTemplates(nowIso: string): MessageTemplate[] {
+    return [
+        {
+            id: "tmpl_default_reservation",
+            name: "예약 안내",
+            channel: "sms",
+            category: "예약",
+            enabled: true,
+            content: "안녕하세요 {{patientName}}님 :)\n{{clinicName}}입니다.\n{{patientName}}님의 예약일은 {{date}} {{time}}입니다.\n예약일에 뵙겠습니다. 감사합니다 :)\n\n궁금하신 사항 있으시면 편하게 연락주세요.",
+            variables: ["patientName", "clinicName", "date", "time"],
+            updatedAt: nowIso,
+        },
+        {
+            id: "tmpl_default_reminder",
+            name: "내원 전날 리마인드",
+            channel: "sms",
+            category: "예약",
+            enabled: true,
+            content: "안녕하세요 {{patientName}}님 :)\n{{clinicName}}입니다.\n내일 {{time}} 예약입니다. 조심히 내원해주세요 :)\n\n변동 사항이 있으시면 미리 연락 부탁드립니다.",
+            variables: ["patientName", "clinicName", "time"],
+            updatedAt: nowIso,
+        },
+        {
+            id: "tmpl_default_reception",
+            name: "접수 안내",
+            channel: "sms",
+            category: "접수",
+            enabled: true,
+            content: "안녕하세요 {{patientName}}님.\n{{clinicName}} 진료 접수가 완료되었습니다.\n\n궁금하신 사항이 있으시면 편하게 말씀해주세요.",
+            variables: ["patientName", "clinicName"],
+            updatedAt: nowIso,
+        },
+        {
+            id: "tmpl_default_ticket",
+            name: "시술 차감 안내",
+            channel: "sms",
+            category: "시술",
+            enabled: true,
+            content: "안녕하세요 {{patientName}}님.\n{{clinicName}}입니다.\n'{{ticketName}}' 1회가 차감되었습니다.\n잔여 {{remainCount}}회입니다.\n\n궁금하신 사항 있으시면 편하게 연락주세요. 감사합니다.",
+            variables: ["patientName", "clinicName", "ticketName", "remainCount"],
+            updatedAt: nowIso,
+        },
+        {
+            id: "tmpl_default_survey",
+            name: "고객만족도 조사",
+            channel: "sms",
+            category: "사후관리",
+            enabled: false,
+            content: "안녕하세요 {{patientName}}님.\n{{clinicName}}입니다.\n오늘 받으신 시술(관리)은 만족하셨을까요?\n\n소중한 의견을 남겨주시면 더 나은 서비스를 위해 노력하겠습니다.\n감사합니다 :)",
+            variables: ["patientName", "clinicName"],
+            updatedAt: nowIso,
+        },
+    ];
+}
 
 type Tab = "templates" | "automations" | "outbox" | "optout";
-
-function getTemplateStatus(template: MessageTemplate): MessageTemplateStatus {
-    if (template.status) return template.status;
-    return template.enabled ? "published" : "draft";
-}
 
 function getChannelLabel(channel: MessageChannel) {
     return channel === "kakao" ? "알림톡" : "SMS";
@@ -322,8 +408,14 @@ export default function MessagesPage() {
                 const config = await crmMessagesConfigService.get(branchId);
                 if (cancelled) return;
 
-                setTemplates(config.templates);
-                setAutomations(config.automations);
+                const loadedTemplates = config.templates.length > 0
+                    ? config.templates
+                    : createDefaultTemplates(createNowIso());
+                const loadedAutomations = config.automations.length > 0
+                    ? config.automations
+                    : createDefaultAutomations();
+                setTemplates(loadedTemplates);
+                setAutomations(loadedAutomations);
                 setOutbox(config.outbox);
 
                 try {
@@ -443,16 +535,15 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
     const { templates, addTemplate, updateTemplate, deleteTemplate } = useCrmMessagesStore();
     const [search, setSearch] = useState("");
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [pendingNewTemplate, setPendingNewTemplate] = useState<MessageTemplate | null>(null);
 
     const filtered = templates.filter((t) => {
         const keyword = search.trim();
         if (!keyword) return true;
-        const status = getTemplateStatus(t);
         return (
             t.name.includes(keyword) ||
             t.category.includes(keyword) ||
-            t.content.includes(keyword) ||
-            TEMPLATE_STATUS_LABEL[status].includes(keyword)
+            t.content.includes(keyword)
         );
     });
 
@@ -469,8 +560,7 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
             status: "draft",
             version: 0,
         };
-        addTemplate(newItem);
-        setEditingId(newItem.id);
+        setPendingNewTemplate(newItem);
     };
 
     const handleCopy = (template: MessageTemplate) => {
@@ -484,25 +574,11 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
             publishedAt: undefined,
             updatedAt: createNowIso(),
         };
-        addTemplate(copied);
+        setPendingNewTemplate(copied);
     };
 
     const handleToggleEnabled = (template: MessageTemplate, enabled: boolean) => {
-        const currentStatus = getTemplateStatus(template);
-        if (enabled) {
-            updateTemplate(template.id, {
-                enabled: true,
-                status: "published",
-                version: Math.max(1, template.version ?? 0),
-                publishedAt: template.publishedAt || createNowIso(),
-            });
-            return;
-        }
-
-        updateTemplate(template.id, {
-            enabled: false,
-            status: currentStatus === "published" ? "draft" : currentStatus,
-        });
+        updateTemplate(template.id, { enabled });
     };
 
     return (
@@ -525,14 +601,12 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
                             <th className="px-6 py-3 font-medium">채널</th>
                             <th className="px-6 py-3 font-medium">카테고리</th>
                             <th className="px-6 py-3 font-medium">내용(미리보기)</th>
-                            <th className="px-6 py-3 font-medium">상태/버전</th>
                             <th className="px-6 py-3 font-medium">사용</th>
                             <th className="px-6 py-3 text-right font-medium">관리</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {filtered.map((template) => {
-                            const status = getTemplateStatus(template);
                             return (
                                 <tr key={template.id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 font-bold text-gray-800">{template.name}</td>
@@ -544,14 +618,6 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
                                     <td className="px-6 py-4 text-gray-600">{template.category}</td>
                                     <td className="max-w-xs truncate px-6 py-4 text-gray-500">{template.content}</td>
                                     <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${TEMPLATE_STATUS_STYLE[status]}`}>
-                                                {TEMPLATE_STATUS_LABEL[status]}
-                                            </span>
-                                            <span className="text-xs text-gray-400">v{template.version ?? 0}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
                                         <Switch checked={template.enabled} onCheckedChange={(v) => handleToggleEnabled(template, v)} />
                                     </td>
                                     <td className="px-6 py-4 text-right">
@@ -562,7 +628,12 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
                                             <button onClick={() => setEditingId(template.id)} className="p-1 text-gray-400 hover:text-blue-600">
                                                 <Edit2 className="h-4 w-4" />
                                             </button>
-                                            <button onClick={() => deleteTemplate(template.id)} className="p-1 text-gray-400 hover:text-red-600">
+                                            <button
+                                                onClick={() => {
+                                                    if (window.confirm(`"${template.name}" 템플릿을 삭제하시겠습니까?`)) deleteTemplate(template.id);
+                                                }}
+                                                className="p-1 text-gray-400 hover:text-red-600"
+                                            >
                                                 <Trash2 className="h-4 w-4" />
                                             </button>
                                         </div>
@@ -575,7 +646,6 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
 
                 <div className="divide-y divide-gray-100 md:hidden">
                     {filtered.map((template) => {
-                        const status = getTemplateStatus(template);
                         return (
                             <div key={template.id} className="flex flex-col gap-3 p-4">
                                 <div className="flex items-start justify-between">
@@ -586,9 +656,6 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
                                                 {getChannelLabel(template.channel)}
                                             </span>
                                             <span className="text-xs text-gray-500">{template.category}</span>
-                                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${TEMPLATE_STATUS_STYLE[status]}`}>
-                                                {TEMPLATE_STATUS_LABEL[status]} v{template.version ?? 0}
-                                            </span>
                                         </div>
                                     </div>
                                     <Switch checked={template.enabled} onCheckedChange={(v) => handleToggleEnabled(template, v)} />
@@ -603,7 +670,12 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
                                     <button onClick={() => setEditingId(template.id)} className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600">
                                         <Edit2 className="h-3 w-3" /> 수정
                                     </button>
-                                    <button onClick={() => deleteTemplate(template.id)} className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
+                                    <button
+                                        onClick={() => {
+                                            if (window.confirm(`"${template.name}" 템플릿을 삭제하시겠습니까?`)) deleteTemplate(template.id);
+                                        }}
+                                        className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
+                                    >
                                         <Trash2 className="h-3 w-3" /> 삭제
                                     </button>
                                 </div>
@@ -613,16 +685,36 @@ function TemplatesTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
                 </div>
             </div>
 
-            {editingId && <TemplateEditModal templateId={editingId} testPatients={testPatients} onClose={() => setEditingId(null)} />}
+            {editingId && (
+                <TemplateEditModal templateId={editingId} testPatients={testPatients} onClose={() => setEditingId(null)} />
+            )}
+            {pendingNewTemplate && (
+                <TemplateEditModal
+                    newTemplate={pendingNewTemplate}
+                    testPatients={testPatients}
+                    onClose={() => setPendingNewTemplate(null)}
+                />
+            )}
         </div>
     );
 }
 
-function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: string; testPatients: CrmTestPatient[]; onClose: () => void }) {
-    const { templates, updateTemplate, addOutboxItem, patientCommPrefs } = useCrmMessagesStore();
+function TemplateEditModal({
+    templateId,
+    newTemplate,
+    testPatients,
+    onClose,
+}: {
+    templateId?: string;
+    newTemplate?: MessageTemplate;
+    testPatients: CrmTestPatient[];
+    onClose: () => void;
+}) {
+    const { templates, updateTemplate, addTemplate, addOutboxItem, patientCommPrefs } = useCrmMessagesStore();
     const { settings } = useSettingsStore();
     const sampleContext = useMemo(() => buildSampleContextWithSettings(settings.hospital?.hospitalNameKo), [settings.hospital?.hospitalNameKo]);
-    const template = templates.find((item) => item.id === templateId);
+    const isNewMode = !!newTemplate;
+    const template = isNewMode ? newTemplate : templates.find((item) => item.id === templateId);
     const [data, setData] = useState<MessageTemplate | undefined>(template);
     const [testPhoneInput, setTestPhoneInput] = useState<string>("");
     const contentInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -636,7 +728,6 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
     const smsByteLength = useMemo(() => getByteLength(normalizedContent), [normalizedContent]);
     const contentLineCount = useMemo(() => Math.max(1, normalizedContent.split(/\r?\n/).length), [normalizedContent]);
 
-    const status = getTemplateStatus(data);
     const channelOptions: PremiumSelectOption[] = useMemo(
         () => [
             { value: "kakao", label: "알림톡", description: "카카오 채널 발송" },
@@ -653,8 +744,8 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
     const errors = useMemo(() => {
         const result: string[] = [];
         if (!data.name.trim()) result.push("템플릿 이름은 필수입니다.");
-        if ((status === "published" || data.enabled) && !normalizedContent.trim()) {
-            result.push("배포/사용 상태 템플릿은 본문이 비어 있을 수 없습니다.");
+        if (data.enabled && !normalizedContent.trim()) {
+            result.push("사용 중인 템플릿은 본문이 비어 있을 수 없습니다.");
         }
         if (unknownVariableKeys.length > 0) {
             result.push(`알 수 없는 변수: ${unknownVariableKeys.join(", ")}`);
@@ -663,7 +754,7 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
             result.push(`SMS/LMS 최대 ${SMS_HARD_LIMIT}byte를 초과했습니다.`);
         }
         return result;
-    }, [data, normalizedContent, smsByteLength, status, unknownVariableKeys]);
+    }, [data, normalizedContent, smsByteLength, unknownVariableKeys]);
 
     const warnings = useMemo(() => {
         const result: string[] = [];
@@ -712,45 +803,24 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
         insertAtCursor(`${prefix}${snippet}`);
     };
 
-    const handlePublish = () => {
-        setData({
-            ...data,
-            status: "published",
-            enabled: true,
-            version: Math.max(1, (data.version ?? 0) + 1),
-            publishedAt: createNowIso(),
-        });
-    };
-
     const handleSave = () => {
         if (errors.length > 0) {
             alert(`저장할 수 없습니다.\n${errors.map((error) => `- ${error}`).join("\n")}`);
             return;
         }
 
-        let nextStatus = getTemplateStatus(data);
-        let nextEnabled = data.enabled;
-        let nextVersion = data.version ?? 0;
-        let nextPublishedAt = data.publishedAt;
-
-        if (nextStatus === "archived") nextEnabled = false;
-        if (nextEnabled && nextStatus !== "published") nextStatus = "published";
-        if (!nextEnabled && nextStatus === "published") nextStatus = "draft";
-        if (nextStatus === "published") {
-            nextVersion = Math.max(1, nextVersion);
-            nextPublishedAt = nextPublishedAt || createNowIso();
-        }
-
-        updateTemplate(templateId, {
+        const finalData = {
             ...data,
             category: (data.category ?? "").trim() || "기타",
             content: normalizedContent,
             variables: variableTokens,
-            status: nextStatus,
-            enabled: nextEnabled,
-            version: nextVersion,
-            publishedAt: nextPublishedAt,
-        });
+        };
+
+        if (isNewMode) {
+            addTemplate(finalData);
+        } else {
+            updateTemplate(templateId!, finalData);
+        }
         onClose();
     };
 
@@ -806,19 +876,9 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
             <div className="mx-auto flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
                 <div className="flex items-center justify-between border-b border-[#F8DCE2] bg-[#FCF7F8] px-6 py-4">
                     <div>
-                        <h3 className="text-lg font-bold">템플릿 편집</h3>
-                        <div className="mt-1 flex items-center gap-2">
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${TEMPLATE_STATUS_STYLE[status]}`}>
-                                {TEMPLATE_STATUS_LABEL[status]}
-                            </span>
-                            <span className="text-xs text-gray-400">v{data.version ?? 0}</span>
-                            <span className="text-xs text-gray-400">최근 배포: {toDateOnly(data.publishedAt)}</span>
-                        </div>
+                        <h3 className="text-lg font-bold">{isNewMode ? "새 템플릿 등록" : "템플릿 편집"}</h3>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={handlePublish}>
-                            배포(v+1)
-                        </Button>
                         <Button variant="outline" onClick={onClose}>
                             취소
                         </Button>
@@ -846,13 +906,7 @@ function TemplateEditModal({ templateId, testPatients, onClose }: { templateId: 
                             <div className="col-span-2 flex items-center gap-2 pt-1">
                                 <Switch
                                     checked={data.enabled}
-                                    onCheckedChange={(enabled) => {
-                                        if (enabled) {
-                                            setData({ ...data, enabled: true, status: "published", version: Math.max(1, data.version ?? 0) });
-                                            return;
-                                        }
-                                        setData({ ...data, enabled: false, status: status === "published" ? "draft" : status });
-                                    }}
+                                    onCheckedChange={(enabled) => setData({ ...data, enabled })}
                                 />
                                 <span className="pb-1 text-sm font-bold text-gray-700">사용 여부</span>
                             </div>
@@ -1001,8 +1055,9 @@ function AutomationsTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
     const { automations, addAutomation, updateAutomation, deleteAutomation, templates, addOutboxItem, patientCommPrefs } = useCrmMessagesStore();
     const { settings } = useSettingsStore();
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [pendingNewAutomation, setPendingNewAutomation] = useState<AutomationRule | null>(null);
     const availableTemplates = useMemo(
-        () => templates.filter((t) => t.enabled && getTemplateStatus(t) === "published"),
+        () => templates.filter((t) => t.enabled),
         [templates]
     );
 
@@ -1016,8 +1071,7 @@ function AutomationsTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
             templateId: availableTemplates[0]?.id || templates[0]?.id || "",
             filters: { branchScope: "all", excludeOptOut: true },
         };
-        addAutomation(newItem);
-        setEditingId(newItem.id);
+        setPendingNewAutomation(newItem);
     };
 
     const handleSimulate = (rule: AutomationRule) => {
@@ -1026,8 +1080,8 @@ function AutomationsTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
             alert("템플릿이 존재하지 않습니다.");
             return;
         }
-        if (!template.enabled || getTemplateStatus(template) !== "published") {
-            alert("배포 + 사용 상태 템플릿만 테스트 발송할 수 있습니다.");
+        if (!template.enabled) {
+            alert("사용 중인 템플릿만 테스트 발송할 수 있습니다.");
             return;
         }
         if (testPatients.length === 0) {
@@ -1066,7 +1120,7 @@ function AutomationsTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
             <div className="rounded-xl border border-[#F8DCE2] bg-white p-4">
                 <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-500">
-                        자동발송 규칙은 <span className="font-bold text-gray-700">배포 + 사용</span> 템플릿만 연결하는 것을 권장합니다.
+                        자동발송 규칙은 <span className="font-bold text-gray-700">사용 중인</span> 템플릿만 연결할 수 있습니다.
                     </div>
                     <Button variant="primary" onClick={handleCreate}>
                         + 새 규칙
@@ -1108,7 +1162,12 @@ function AutomationsTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
                                         <button onClick={() => setEditingId(automation.id)} className="p-1 text-gray-400 hover:text-blue-600">
                                             <Edit2 className="h-4 w-4" />
                                         </button>
-                                        <button onClick={() => deleteAutomation(automation.id)} className="p-1 text-gray-400 hover:text-red-600">
+                                        <button
+                                            onClick={() => {
+                                                if (window.confirm(`"${automation.name}" 규칙을 삭제하시겠습니까?`)) deleteAutomation(automation.id);
+                                            }}
+                                            className="p-1 text-gray-400 hover:text-red-600"
+                                        >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
                                     </div>
@@ -1148,7 +1207,12 @@ function AutomationsTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
                                 <button onClick={() => setEditingId(automation.id)} className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600">
                                     <Edit2 className="h-3 w-3" /> 수정
                                 </button>
-                                <button onClick={() => deleteAutomation(automation.id)} className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
+                                <button
+                                    onClick={() => {
+                                        if (window.confirm(`"${automation.name}" 규칙을 삭제하시겠습니까?`)) deleteAutomation(automation.id);
+                                    }}
+                                    className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
+                                >
                                     <Trash2 className="h-3 w-3" /> 삭제
                                 </button>
                             </div>
@@ -1158,29 +1222,41 @@ function AutomationsTab({ testPatients }: { testPatients: CrmTestPatient[] }) {
             </div>
 
             {editingId && <AutomationEditModal id={editingId} onClose={() => setEditingId(null)} />}
+            {pendingNewAutomation && (
+                <AutomationEditModal
+                    newAutomation={pendingNewAutomation}
+                    onClose={() => setPendingNewAutomation(null)}
+                />
+            )}
         </div>
     );
 }
 
-function AutomationEditModal({ id, onClose }: { id: string; onClose: () => void }) {
-    const { automations, updateAutomation, templates } = useCrmMessagesStore();
-    const [data, setData] = useState(automations.find((item) => item.id === id));
+function AutomationEditModal({ id, newAutomation, onClose }: { id?: string; newAutomation?: AutomationRule; onClose: () => void }) {
+    const { automations, updateAutomation, addAutomation, templates } = useCrmMessagesStore();
+    const isNewMode = !!newAutomation;
+    const source = isNewMode ? newAutomation : automations.find((item) => item.id === id);
+    const [data, setData] = useState(source);
 
     if (!data) return null;
 
     const templateOptions = templates.filter(
-        (template) => template.id === data.templateId || (template.enabled && getTemplateStatus(template) === "published")
+        (template) => template.id === data.templateId || template.enabled
     );
 
     const handleSave = () => {
-        updateAutomation(id, data);
+        if (isNewMode) {
+            addAutomation(data);
+        } else {
+            updateAutomation(id!, data);
+        }
         onClose();
     };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
-                <h3 className="mb-4 text-lg font-bold">자동발송 규칙 편집</h3>
+                <h3 className="mb-4 text-lg font-bold">{isNewMode ? "새 자동발송 규칙" : "자동발송 규칙 편집"}</h3>
                 <div className="space-y-4">
                     <div>
                         <label className="block text-xs font-bold text-gray-500">규칙명</label>
@@ -1191,10 +1267,16 @@ function AutomationEditModal({ id, onClose }: { id: string; onClose: () => void 
                         <div>
                             <label className="block text-xs font-bold text-gray-500">트리거</label>
                             <Select value={data.trigger} onChange={(e) => setData({ ...data, trigger: e.target.value as AutomationRule["trigger"] })}>
-                                <option value="reservationCreated">예약 생성 시</option>
-                                <option value="reservationReminder">예약 리마인드</option>
-                                <option value="visitCompleted">내원(수납) 완료</option>
-                                <option value="ticketUsed">티켓 소진 시</option>
+                                <option value="reservationCreated">예약 생성</option>
+                                <option value="reservationChanged">예약 변경</option>
+                                <option value="reservationCancelled">예약 취소</option>
+                                <option value="reservationReminder">전일 안내 (리마인드)</option>
+                                <option value="sameDayReminder">당일 안내</option>
+                                <option value="receptionCreated">접수</option>
+                                <option value="visitCompleted">내원 완료</option>
+                                <option value="paymentCompleted">수납</option>
+                                <option value="ticketUsed">티켓 사용</option>
+                                <option value="birthday">생일 축하</option>
                                 <option value="manual">수동 실행</option>
                             </Select>
                         </div>

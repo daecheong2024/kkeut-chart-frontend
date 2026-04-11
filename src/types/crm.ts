@@ -1,6 +1,6 @@
 export type MessageChannel = "sms" | "kakao";
 export type MessageStatus = "queued" | "sent" | "failed" | "skipped";
-export type AutomationTrigger = "reservationCreated" | "reservationReminder" | "visitCompleted" | "ticketUsed" | "manual";
+export type AutomationTrigger = "reservationCreated" | "reservationChanged" | "reservationCancelled" | "reservationReminder" | "sameDayReminder" | "receptionCreated" | "visitCompleted" | "paymentCompleted" | "ticketUsed" | "birthday" | "manual";
 export type AutomationScheduleType = "immediate" | "before" | "after";
 export type MessageTemplateStatus = "draft" | "published" | "archived";
 
