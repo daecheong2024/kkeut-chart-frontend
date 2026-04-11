@@ -1267,17 +1267,33 @@ function AutomationEditModal({ id, newAutomation, onClose }: { id?: string; newA
                         <div>
                             <label className="block text-xs font-bold text-gray-500">트리거</label>
                             <Select value={data.trigger} onChange={(e) => setData({ ...data, trigger: e.target.value as AutomationRule["trigger"] })}>
-                                <option value="reservationCreated">예약 생성</option>
-                                <option value="reservationChanged">예약 변경</option>
-                                <option value="reservationCancelled">예약 취소</option>
-                                <option value="reservationReminder">전일 안내 (리마인드)</option>
-                                <option value="sameDayReminder">당일 안내</option>
-                                <option value="receptionCreated">접수</option>
-                                <option value="visitCompleted">내원 완료</option>
-                                <option value="paymentCompleted">수납</option>
-                                <option value="ticketUsed">티켓 사용</option>
-                                <option value="birthday">생일 축하</option>
-                                <option value="manual">수동 실행</option>
+                                <optgroup label="예약">
+                                    <option value="reservationCreated">예약 생성</option>
+                                    <option value="reservationChanged">예약 변경</option>
+                                    <option value="reservationCancelled">예약 취소</option>
+                                    <option value="sameDayReminder">당일 안내</option>
+                                    <option value="reservationReminder">전일 안내 (리마인드)</option>
+                                </optgroup>
+                                <optgroup label="접수/내원">
+                                    <option value="receptionCreated">접수</option>
+                                    <option value="visitCompleted">내원 완료</option>
+                                    <option value="locationChanged">환자동선 변경</option>
+                                </optgroup>
+                                <optgroup label="수납/회원권">
+                                    <option value="paymentCompleted">수납</option>
+                                    <option value="membershipCharged">회원권 충전</option>
+                                    <option value="membershipUsed">회원권 사용</option>
+                                    <option value="membershipRefunded">회원권 환불</option>
+                                </optgroup>
+                                <optgroup label="티켓">
+                                    <option value="ticketPurchased">티켓 구매</option>
+                                    <option value="ticketUsed">티켓 사용</option>
+                                    <option value="ticketExpiring">티켓 만료 임박</option>
+                                </optgroup>
+                                <optgroup label="기타">
+                                    <option value="birthday">생일 축하</option>
+                                    <option value="manual">수동 실행</option>
+                                </optgroup>
                             </Select>
                         </div>
                         <div>
