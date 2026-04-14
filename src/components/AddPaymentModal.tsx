@@ -875,26 +875,32 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-500">승인번호</label>
-                    <input
-                      value={approvalNumber}
-                      onChange={(e) => setApprovalNumber(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
-                      placeholder="단말기 자동입력 또는 수기 입력"
-                    />
+                {(category === "card" || category === "pay") && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-500">
+                        승인번호 {requiresManualTerminalInput && <span className="text-rose-500">*</span>}
+                      </label>
+                      <input
+                        value={approvalNumber}
+                        onChange={(e) => setApprovalNumber(e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                        placeholder={requiresManualTerminalInput ? "영수증의 승인번호 입력" : "단말기 자동입력 또는 수기 입력"}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-500">
+                        VANKEY {requiresManualTerminalInput && <span className="text-rose-500">*</span>}
+                      </label>
+                      <input
+                        value={vanKeyInput}
+                        onChange={(e) => setVanKeyInput(e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                        placeholder={requiresManualTerminalInput ? "영수증의 VANKEY 입력" : "단말기 자동입력 또는 수기 입력"}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-500">VANKEY</label>
-                    <input
-                      value={vanKeyInput}
-                      onChange={(e) => setVanKeyInput(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
-                      placeholder="단말기 자동입력 또는 수기 입력"
-                    />
-                  </div>
-                </div>
+                )}
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <div className="mb-2 text-xs font-semibold text-slate-500">등록된 분할결제</div>
