@@ -336,11 +336,20 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
   const taxSupply = useMemo(() => Math.round(taxableAmount / 1.1), [taxableAmount]);
   const taxVat = useMemo(() => taxableAmount - taxSupply, [taxableAmount, taxSupply]);
 
+  // 단말기 미연동 + 카드/페이는 승인번호 / VANKEY 수기 입력 필수 (환불 2단계 패턴 가능 조건)
+  const requiresManualTerminalInput =
+    !terminalConnected
+    && (category === "card" || category === "pay");
+  const manualTerminalInputProvided =
+    !requiresManualTerminalInput
+    || (!!approvalNumber.trim() && !!vanKeyInput.trim());
+
   const lineCanAdd =
     lineAmount > 0 &&
     lineAmount <= remainingAmount &&
     !!subMethod &&
-    (category !== "card" || !!cardCompany.trim());
+    (category !== "card" || !!cardCompany.trim()) &&
+    manualTerminalInputProvided;
 
   if (!isOpen) return null;
 
@@ -368,6 +377,11 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
     setTaxFreeInput(String(Math.max(0, totalAmount - next)));
   };
 
+  const todayYYYYMMDD = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+  })();
+
   const buildCurrentLine = (forcedAmount?: number): SplitPaymentLine => ({
     method: category,
     paymentCategory: category,
@@ -379,6 +393,10 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
     cardCompany: cardCompany.trim() || undefined,
     installment: installment.trim() || undefined,
     approvalNumber: approvalNumber.trim() || undefined,
+    terminalAuthNo: approvalNumber.trim() || undefined,
+    terminalAuthDate: requiresManualTerminalInput && approvalNumber.trim()
+      ? todayYYYYMMDD
+      : undefined,
     terminalVanKey: vanKeyInput.trim() || undefined,
     cashReceipt:
       category === "cash"
@@ -682,8 +700,10 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                     })}
                   </div>
                   {(category === "card" || category === "pay") && !terminalConnected && (
-                    <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
-                      ⚠ KIS 단말기가 연결되어 있지 않습니다. 단말기 자동 승인이 불가하니 단말기 에이전트(localhost:1516) 실행을 확인하거나 승인번호/VANKEY를 수기 입력해 주세요.
+                    <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700 leading-snug">
+                      ⚠ 단말기가 연결되어 있지 않습니다.<br/>
+                      단말기에서 카드 처리한 뒤 <b>승인번호 / VANKEY</b> 를 아래 칸에 직접 입력해 주세요. (필수 — 입력해야 추가 가능)<br/>
+                      <span className="text-rose-500">거래일자는 오늘 날짜로 자동 저장됩니다. 다른 날 거래라면 결제 후 [수납 정보 보기]에서 수정 가능.</span>
                     </div>
                   )}
                 </div>
