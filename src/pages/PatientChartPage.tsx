@@ -6877,15 +6877,62 @@ function RefundHistoryList({
                                         </div>
                                         {(() => {
                                             const memDeduct = groupEntry.cards[0]?.group.totalMembershipDeduction ?? 0;
-                                            if (memDeduct > 0) {
-                                                return (
-                                                    <div className="mt-1 text-[11px] text-violet-700">
-                                                        <span className="font-semibold">회원권 차감</span>
-                                                        <span className="ml-1 tabular-nums">{memDeduct.toLocaleString()}원</span>
-                                                    </div>
-                                                );
+                                            // 그룹 내 모든 PaymentDetail (수납 수단 chip 렌더용) — id 중복 제거
+                                            const seenDetailIds = new Set<number>();
+                                            const groupDetails: PaymentDetailBreakdown[] = [];
+                                            for (const c of groupEntry.cards) {
+                                                for (const pd of c.itemPaymentDetails) {
+                                                    if (!seenDetailIds.has(pd.id)) {
+                                                        seenDetailIds.add(pd.id);
+                                                        groupDetails.push(pd);
+                                                    }
+                                                }
                                             }
-                                            return null;
+                                            // 회원권 차감(MEMBERSHIP_*) 제외 — 실제 수납 수단만 chip 으로 표시
+                                            const realPaymentChips = groupDetails.filter(
+                                                pd => pd.paymentType !== "MEMBERSHIP_CASH" && pd.paymentType !== "MEMBERSHIP_POINT"
+                                            );
+                                            const headRecord = groupEntry.cards[0]?.record;
+                                            const labelMap: Record<string, string> = {
+                                                CARD: "카드", PAY: "간편결제", CASH: "현금", BANKING: "계좌이체",
+                                                MEMBERSHIP_CASH: "회원권 잔액", MEMBERSHIP_POINT: "회원권 포인트",
+                                            };
+                                            return (
+                                                <>
+                                                    {realPaymentChips.length > 0 && (
+                                                        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                                                            {realPaymentChips.map(pd => (
+                                                                <button
+                                                                    key={pd.id}
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setPaymentInfoModal({
+                                                                            detail: pd,
+                                                                            paymentTime: headRecord?.paidAt,
+                                                                            receiptUserName: headRecord?.collectorName,
+                                                                        });
+                                                                    }}
+                                                                    className="inline-flex items-center gap-1 rounded-full border border-[#F8DCE2] bg-white px-2 py-0.5 text-[10px] font-bold text-[#5C2A35] hover:bg-[#FCEBEF] hover:border-[#D27A8C] transition-colors"
+                                                                    title={`수납 정보 보기 — ${labelMap[pd.paymentType] || pd.paymentType}`}
+                                                                >
+                                                                    <span>{labelMap[pd.paymentType] || pd.paymentType}</span>
+                                                                    <span className="tabular-nums text-[#8B3F50]">{pd.amount.toLocaleString()}원</span>
+                                                                    {pd.paymentType === "CARD" && !pd.terminalAuthNo && (
+                                                                        <span className="ml-0.5 text-rose-500" title="단말기 정보 미등록">⚠</span>
+                                                                    )}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {memDeduct > 0 && (
+                                                        <div className="mt-1 text-[11px] text-violet-700">
+                                                            <span className="font-semibold">회원권 차감</span>
+                                                            <span className="ml-1 tabular-nums">{memDeduct.toLocaleString()}원</span>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            );
                                         })()}
                                     </div>
                                 </div>
