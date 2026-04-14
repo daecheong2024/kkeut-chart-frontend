@@ -349,7 +349,6 @@ import { PatientSearchModal } from "../components/common/PatientSearchModal";
 import AddPaymentModal from "../components/AddPaymentModal";
 import { RefundModal } from "../components/refund/RefundModal";
 import { PaymentInfoModal } from "../components/refund/PaymentInfoModal";
-import type { PaymentDetailBreakdown } from "../services/paymentService";
 import { BulkRefundModal, type BulkRefundModalItem } from "../components/refund/BulkRefundModal";
 import { MembershipSettlementModal } from "../components/refund/MembershipSettlementModal";
 import { RefundDetailModal } from "../components/refund/RefundDetailModal";
