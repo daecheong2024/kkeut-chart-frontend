@@ -312,7 +312,7 @@ export function MembershipSettlementModal({
         } catch (e: any) {
             const message = e?.response?.data?.message || e?.message || "정산 처리 실패";
             const warn = rePaymentAuth
-                ? `\n⚠ 단말기 2단계는 모두 승인되었으나 DB 기록 실패 → 운영자 문의 필요 (위약금 승인번호 ${rePaymentAuth.authNo}, 취소 승인번호 ${voidAuth?.authNo})`
+                ? `\n⚠ 단말기 카드 처리는 모두 정상이지만 시스템 기록 실패 → 운영자 문의 필요 (위약금 결제 승인번호 ${rePaymentAuth.authNo}, 카드 환불 승인번호 ${voidAuth?.authNo})`
                 : "";
             showAlert({ message: `${message}${warn}`, type: "error" });
         } finally {
@@ -630,14 +630,14 @@ export function MembershipSettlementModal({
                             <div className="h-10 w-10 mx-auto mb-3 rounded-full border-4 border-[#F8DCE2] border-t-[#D27A8C] animate-spin" />
                             {progress.phase === "repayment" && (
                                 <>
-                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">1/2단계 · 위약금 재결제 중</div>
+                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">위약금 결제 진행 중</div>
                                     <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
                                     <div className="text-[10px] text-[#8B5A66] mt-1">고객 카드에 위약금이 신규 결제됩니다</div>
                                 </>
                             )}
                             {progress.phase === "void" && (
                                 <>
-                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">2/2단계 · 원거래 전체취소 중</div>
+                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">원래 결제 카드 환불 진행 중</div>
                                     <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
                                     <div className="text-[10px] text-[#8B5A66] mt-1">원거래 전체 금액이 카드사에 환불됩니다</div>
                                 </>

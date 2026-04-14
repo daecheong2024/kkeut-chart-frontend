@@ -832,8 +832,9 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                     단말기 환불 대상: {terminalSelections.length}건
                                 </div>
                                 <div className="text-[#8B5A66]">
-                                    환불 확정 시 2단계로 처리됩니다:<br/>
-                                    ① 위약금 재결제 (카드 신규 승인) → ② 원거래 전체취소
+                                    환불 확정 시 단말기에서 자동으로 처리됩니다.<br/>
+                                    위약금이 있으면 위약금만큼 카드로 새로 결제한 뒤, 원래 결제 전체를 카드사에 취소합니다.<br/>
+                                    <span className="text-[#99354E]">※ 고객 입장에서 결과는 동일 (위약금만 차감 후 환불). 카드사 부분취소가 안 되는 경우에도 안전.</span>
                                 </div>
                                 <label className="flex items-center gap-1.5 cursor-pointer pt-1">
                                     <input
@@ -857,7 +858,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                 <div key={sel.paymentDetailId} className="rounded-lg border border-[#F4C7CE] bg-[#FCEBEF]/60 px-3 py-2.5 text-[11px] text-[#8B3F50] space-y-2">
                                     <div className="font-extrabold">⚠ [{sel.itemName}] 원거래 정보 미등록</div>
                                     <div className="text-[10.5px] text-[#8B5A66] leading-snug">
-                                        영수증을 보고 아래 3개 항목을 입력하면 단말기 2단계 환불이 가능합니다. 입력값은 PaymentDetail 에 영구 저장됩니다.
+                                        영수증을 보고 아래 3개 항목을 입력하면 단말기에서 자동으로 환불 처리할 수 있습니다.<br/>한 번 입력한 정보는 다음에 또 환불할 일이 있어도 자동으로 채워집니다.
                                     </div>
                                     <div className="grid grid-cols-3 gap-1.5">
                                         <input
@@ -908,7 +909,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                             {progress.phase === "repayment" && (
                                 <>
                                     <div className="text-[14px] font-extrabold text-[#5C2A35]">
-                                        1/2단계 · 위약금 재결제 중 ({progress.current}/{progress.total})
+                                        위약금 결제 진행 중 ({progress.current}/{progress.total})
                                     </div>
                                     <div className="text-[11px] text-[#8B5A66] mt-1">{progress.itemName}</div>
                                     <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
@@ -918,7 +919,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                             {progress.phase === "void" && (
                                 <>
                                     <div className="text-[14px] font-extrabold text-[#5C2A35]">
-                                        2/2단계 · 원거래 전체취소 중 ({progress.current}/{progress.total})
+                                        원래 결제 카드 환불 진행 중 ({progress.current}/{progress.total})
                                     </div>
                                     <div className="text-[11px] text-[#8B5A66] mt-1">{progress.itemName}</div>
                                     <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>

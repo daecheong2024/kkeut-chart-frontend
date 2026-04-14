@@ -348,6 +348,8 @@ import { ReceptionForm } from "../components/chart/ReceptionForm";
 import { PatientSearchModal } from "../components/common/PatientSearchModal";
 import AddPaymentModal from "../components/AddPaymentModal";
 import { RefundModal } from "../components/refund/RefundModal";
+import { PaymentInfoModal } from "../components/refund/PaymentInfoModal";
+import type { PaymentDetailBreakdown } from "../services/paymentService";
 import { BulkRefundModal, type BulkRefundModalItem } from "../components/refund/BulkRefundModal";
 import { MembershipSettlementModal } from "../components/refund/MembershipSettlementModal";
 import { RefundDetailModal } from "../components/refund/RefundDetailModal";
@@ -6236,6 +6238,11 @@ function RefundHistoryList({
         paymentType?: string;
         terminalInfo?: { authNo?: string; authDate?: string; vanKey?: string };
     } | null>(null);
+    const [paymentInfoModal, setPaymentInfoModal] = useState<{
+        detail: PaymentDetailBreakdown;
+        paymentTime?: string;
+        receiptUserName?: string;
+    } | null>(null);
 
     // ISSUE-174: bulk refund + membership settlement
     const [selectedCardKeys, setSelectedCardKeys] = useState<Set<string>>(new Set());
@@ -7008,6 +7015,23 @@ function RefundHistoryList({
                                 </div>
 
                                 <div className="flex items-start gap-0.5 shrink-0 mt-0.5">
+                                    {card.itemPaymentDetails[0]?.id && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setPaymentInfoModal({
+                                                    detail: card.itemPaymentDetails[0],
+                                                    paymentTime: card.record.paidAt,
+                                                    receiptUserName: card.record.collectorName,
+                                                });
+                                            }}
+                                            className="rounded px-2 py-1 text-[10px] font-bold text-[#5C2A35] hover:bg-[#FCEBEF] transition-colors"
+                                            title="수납 정보 보기/수정"
+                                        >
+                                            정보
+                                        </button>
+                                    )}
                                     {!isRefunded && !clientBlockReason && !isReadOnly && isMembership && card.itemPaymentDetails[0]?.id && (
                                         <button
                                             type="button"
@@ -7146,6 +7170,21 @@ function RefundHistoryList({
                     );
                 })}
             </div>
+            {paymentInfoModal && (
+                <PaymentInfoModal
+                    open
+                    detail={paymentInfoModal.detail}
+                    paymentTime={paymentInfoModal.paymentTime}
+                    receiptUserName={paymentInfoModal.receiptUserName}
+                    onClose={() => setPaymentInfoModal(null)}
+                    onUpdated={() => {
+                        setPaymentInfoModal(null);
+                        if (typeof onRefundCompleted === "function") {
+                            void onRefundCompleted();
+                        }
+                    }}
+                />
+            )}
             {refundModalState && (
                 <RefundModal
                     open

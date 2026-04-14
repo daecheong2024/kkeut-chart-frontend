@@ -124,7 +124,7 @@ export function RefundModal({
                 authNo: a, terminalAuthDate: d, terminalVanKey: v,
             });
             setTerminalInfoSaved({ authNo: a, authDate: d, vanKey: v });
-            showAlert({ message: "단말기 정보가 저장되었습니다. 환불 확정 시 2단계 패턴으로 처리됩니다.", type: "success" });
+            showAlert({ message: "단말기 정보가 저장되었습니다. 환불 확정을 누르면 단말기에서 자동 환불 처리됩니다.", type: "success" });
         } catch (e: any) {
             showAlert({ message: `저장 실패: ${e?.response?.data?.message || e?.message || "오류"}`, type: "error" });
         } finally {
@@ -334,7 +334,7 @@ export function RefundModal({
         } catch (e: any) {
             const message = e?.response?.data?.message || e?.message || "환불 처리 실패";
             const warn = rePaymentAuth
-                ? `\n⚠ 단말기 2단계는 모두 승인되었으나 DB 기록 실패 → 운영자 문의 (위약금 승인번호 ${rePaymentAuth.authNo}, 취소 승인번호 ${voidAuth?.authNo})`
+                ? `\n⚠ 단말기 카드 처리는 모두 정상이지만 시스템 기록 실패 → 운영자 문의 (위약금 결제 승인번호 ${rePaymentAuth.authNo}, 카드 환불 승인번호 ${voidAuth?.authNo})`
                 : "";
             showAlert({ message: `${message}${warn}`, type: "error" });
         } finally {
@@ -453,8 +453,9 @@ export function RefundModal({
                                     {paymentTypeLabel(paymentType)} · 단말기 환불 대상
                                 </div>
                                 <div className="text-[#8B5A66]">
-                                    환불 확정 시 2단계로 처리됩니다:<br/>
-                                    ① 위약금 재결제 (카드 신규 승인) → ② 원거래 전체취소
+                                    환불 확정 시 단말기에서 자동으로 처리됩니다.<br/>
+                                    위약금이 있으면 위약금만큼 카드로 새로 결제한 뒤, 원래 결제 전체를 카드사에 취소합니다.<br/>
+                                    <span className="text-[#99354E]">※ 고객 입장에서 결과는 동일 (위약금만 차감 후 환불). 카드사 부분취소가 안 되는 경우에도 안전하게 환불 가능.</span>
                                 </div>
                                 <label className="flex items-center gap-1.5 cursor-pointer pt-1">
                                     <input
@@ -471,7 +472,7 @@ export function RefundModal({
                             <div className="rounded-lg border border-[#F4C7CE] bg-[#FCEBEF]/60 px-3 py-2.5 text-[11px] text-[#8B3F50] space-y-2">
                                 <div className="font-extrabold">⚠ {paymentTypeLabel(paymentType)} 결제 — 원거래 정보가 등록되어 있지 않습니다</div>
                                 <div className="text-[10.5px] text-[#8B5A66] leading-snug">
-                                    영수증을 보고 아래 3개 항목을 입력하면 단말기 2단계 환불이 가능해집니다. 입력 정보는 PaymentDetail 에 영구 저장됩니다.
+                                    영수증을 보고 아래 3개 항목을 입력하면 단말기에서 자동으로 환불 처리할 수 있습니다.<br/>한 번 입력한 정보는 다음에 또 환불할 일이 있어도 자동으로 채워집니다.
                                 </div>
                                 <div className="grid grid-cols-3 gap-1.5">
                                     <input
@@ -615,14 +616,14 @@ export function RefundModal({
                             <div className="h-10 w-10 mx-auto mb-3 rounded-full border-4 border-[#F8DCE2] border-t-[#D27A8C] animate-spin" />
                             {progress.phase === "repayment" && (
                                 <>
-                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">1/2단계 · 위약금 재결제 중</div>
+                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">위약금 결제 진행 중</div>
                                     <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
                                     <div className="text-[10px] text-[#8B5A66] mt-1">고객 카드에 위약금이 신규 결제됩니다</div>
                                 </>
                             )}
                             {progress.phase === "void" && (
                                 <>
-                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">2/2단계 · 원거래 전체취소 중</div>
+                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">원래 결제 카드 환불 진행 중</div>
                                     <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
                                     <div className="text-[10px] text-[#8B5A66] mt-1">원거래 전체 금액이 카드사에 환불됩니다</div>
                                 </>

@@ -38,6 +38,7 @@ export interface PaymentDetailBreakdown {
     amount: number;
     cardCompany?: string;
     paymentSubMethodLabel?: string;
+    installment?: string;
     memo?: string;
     /** ISSUE-176: 단말기 환불용 원거래 정보 */
     terminalAuthNo?: string;
