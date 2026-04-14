@@ -679,7 +679,7 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                   <div className="grid grid-cols-3 gap-2">
                     {CATEGORY_OPTIONS.map((opt) => {
                       const active = category === opt.value;
-                      const disabled = opt.value === "platform" || opt.value === "other";
+                      const disabled = false;
                       return (
                         <button
                           key={opt.value}
