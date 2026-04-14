@@ -221,6 +221,32 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
   const [lines, setLines] = useState<SplitPaymentLine[]>([]);
   const [assignableMembers, setAssignableMembers] = useState<Array<{ id: string; name: string; jobTitleName?: string }>>([]);
 
+  // KIS 단말기 연결 상태 (카드/페이 결제 시 사용자에게 시각적으로 표시)
+  const [terminalConnected, setTerminalConnected] = useState<boolean>(kisTerminalService.isConnected());
+  const [terminalChecking, setTerminalChecking] = useState<boolean>(false);
+
+  const refreshTerminalStatus = async () => {
+    if (terminalChecking) return;
+    setTerminalChecking(true);
+    try {
+      if (kisTerminalService.isConnected()) { setTerminalConnected(true); return; }
+      const ok = await kisTerminalService.connect().catch(() => false);
+      setTerminalConnected(!!ok);
+    } finally {
+      setTerminalChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    void refreshTerminalStatus();
+    const interval = setInterval(() => {
+      setTerminalConnected(kisTerminalService.isConnected());
+    }, 2000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
     setCategory("card");
@@ -615,7 +641,23 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
             <div className="flex-1 overflow-y-auto py-5 pl-6 pr-8">
               <div className="space-y-5">
                 <div>
-                  <label className="mb-2 block text-xs font-semibold text-blue-600">결제방법 *</label>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <label className="block text-xs font-semibold text-blue-600">결제방법 *</label>
+                    <button
+                      type="button"
+                      onClick={() => void refreshTerminalStatus()}
+                      disabled={terminalChecking}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors ${
+                        terminalConnected
+                          ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                          : "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                      } disabled:opacity-50`}
+                      title="단말기 연결 상태 다시 확인"
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${terminalConnected ? "bg-emerald-500" : "bg-rose-500"}`} />
+                      {terminalChecking ? "확인 중..." : terminalConnected ? "단말기 연결됨" : "단말기 미연결"}
+                    </button>
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     {CATEGORY_OPTIONS.map((opt) => {
                       const active = category === opt.value;
@@ -639,6 +681,11 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                       );
                     })}
                   </div>
+                  {(category === "card" || category === "pay") && !terminalConnected && (
+                    <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+                      ⚠ KIS 단말기가 연결되어 있지 않습니다. 단말기 자동 승인이 불가하니 단말기 에이전트(localhost:1516) 실행을 확인하거나 승인번호/VANKEY를 수기 입력해 주세요.
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-[1fr_180px_120px] gap-3">
