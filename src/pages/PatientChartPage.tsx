@@ -6228,7 +6228,14 @@ function RefundHistoryList({
     const [refundCheckByRecordId, setRefundCheckByRecordId] = useState<Record<number, RefundCheckRow>>({});
     const [refundCheckByGroupId, setRefundCheckByGroupId] = useState<Record<string, RefundCheckRow>>({});
     const [ticketHistoryByTicketId, setTicketHistoryByTicketId] = useState<Record<number, TicketHistory[]>>({});
-    const [refundModalState, setRefundModalState] = useState<{ paymentMasterId: number; paymentDetailId: number; itemName: string; itemType: string } | null>(null);
+    const [refundModalState, setRefundModalState] = useState<{
+        paymentMasterId: number;
+        paymentDetailId: number;
+        itemName: string;
+        itemType: string;
+        paymentType?: string;
+        terminalInfo?: { authNo?: string; authDate?: string; vanKey?: string };
+    } | null>(null);
 
     // ISSUE-174: bulk refund + membership settlement
     const [selectedCardKeys, setSelectedCardKeys] = useState<Set<string>>(new Set());
@@ -7019,7 +7026,19 @@ function RefundHistoryList({
                                                 e.stopPropagation();
                                                 const detailId = card.itemPaymentDetails[0]?.id;
                                                 if (!detailId) { void onRefund(card.record, card.itemName, 0); return; }
-                                                setRefundModalState({ paymentMasterId: card.record.paymentMasterId || card.record.id, paymentDetailId: detailId, itemName: card.itemName, itemType: card.itemType });
+                                                const detailBd = card.itemPaymentDetails.find(d => d.id === detailId) ?? card.itemPaymentDetails[0];
+                                                setRefundModalState({
+                                                    paymentMasterId: card.record.paymentMasterId || card.record.id,
+                                                    paymentDetailId: detailId,
+                                                    itemName: card.itemName,
+                                                    itemType: card.itemType,
+                                                    paymentType: detailBd?.paymentType,
+                                                    terminalInfo: detailBd ? {
+                                                        authNo: detailBd.terminalAuthNo,
+                                                        authDate: detailBd.terminalAuthDate,
+                                                        vanKey: detailBd.terminalVanKey,
+                                                    } : undefined,
+                                                });
                                             }}
                                             className="rounded px-2 py-1 text-[10px] font-bold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                                             title="환불"
@@ -7134,6 +7153,8 @@ function RefundHistoryList({
                     paymentDetailId={refundModalState.paymentDetailId}
                     itemName={refundModalState.itemName}
                     itemType={refundModalState.itemType}
+                    paymentType={refundModalState.paymentType}
+                    terminalInfo={refundModalState.terminalInfo}
                     onClose={() => setRefundModalState(null)}
                     onRefunded={() => {
                         setRefundModalState(null);

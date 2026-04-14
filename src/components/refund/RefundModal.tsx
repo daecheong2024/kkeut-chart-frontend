@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { X, CreditCard } from "lucide-react";
 import {
     paymentService,
     type RefundCalculateResult,
     type RefundType,
 } from "../../services/paymentService";
+import { kisTerminalService } from "../../services/kisTerminalService";
 import { useAlert } from "../ui/AlertDialog";
 
 export interface RefundModalProps {
@@ -14,8 +15,39 @@ export interface RefundModalProps {
     paymentDetailId: number;
     itemName: string;
     itemType: "ticket" | "membership" | string;
+    /** 카드/페이 결제 단건 환불 시 2단계 패턴용 원거래 정보 */
+    paymentType?: string;
+    terminalInfo?: {
+        authNo?: string;
+        authDate?: string;
+        vanKey?: string;
+    };
     onClose: () => void;
     onRefunded: (result: { refundAmount: number; refundType: string }) => void;
+}
+
+type RefundProgressState =
+    | { phase: "idle" }
+    | { phase: "repayment"; amount: number }
+    | { phase: "void"; amount: number }
+    | { phase: "backend" };
+
+function paymentTypeLabel(paymentType?: string): string {
+    const upper = (paymentType || "").toUpperCase();
+    switch (upper) {
+        case "CARD": return "카드";
+        case "PAY": return "간편결제";
+        case "CASH": return "현금";
+        case "BANKING": return "계좌이체";
+        case "MEMBERSHIP_CASH": return "회원권 잔액";
+        case "MEMBERSHIP_POINT": return "회원권 포인트";
+        default: return upper || "기타";
+    }
+}
+
+function isTerminalPayment(paymentType?: string): boolean {
+    const upper = (paymentType || "").toUpperCase();
+    return upper === "CARD" || upper === "PAY";
 }
 
 const REFUND_TYPE_OPTIONS: Array<{ value: RefundType; label: string; description: string }> = [
@@ -34,10 +66,20 @@ export function RefundModal({
     paymentDetailId,
     itemName,
     itemType,
+    paymentType,
+    terminalInfo,
     onClose,
     onRefunded,
 }: RefundModalProps) {
-    const { showAlert } = useAlert();
+    const { showAlert, showConfirm } = useAlert();
+    const [progress, setProgress] = useState<RefundProgressState>({ phase: "idle" });
+    const [skipTerminal, setSkipTerminal] = useState(false);
+
+    const canUseTerminal =
+        isTerminalPayment(paymentType)
+        && !!terminalInfo?.authNo
+        && !!terminalInfo?.authDate
+        && !!terminalInfo?.vanKey;
     const [refundType, setRefundType] = useState<RefundType>("customer_change");
     const [penaltyRatePct, setPenaltyRatePct] = useState<string>("");
     const [manualAmount, setManualAmount] = useState<string>("");
@@ -105,7 +147,107 @@ export function RefundModal({
             showAlert({ message: "직접 입력 환불은 사유가 필수입니다.", type: "warning" });
             return;
         }
+
+        const useTerminal = canUseTerminal && !skipTerminal;
+
+        if (useTerminal) {
+            const ok = await kisTerminalService.connect().catch(() => false);
+            if (!ok) {
+                const proceed = await showConfirm({
+                    message: "단말기 연결에 실패했습니다.\n수동 환불(단말기 없이 진행)으로 진행하시겠습니까?\n\n※ 카드 환불은 별도로 카드사에 직접 요청해야 합니다.",
+                    type: "warning",
+                    confirmText: "수동 진행",
+                    cancelText: "취소",
+                });
+                if (!proceed) return;
+            }
+        }
+
         setSubmitting(true);
+
+        let rePaymentAuth: {
+            amount: number;
+            authNo: string;
+            authDate: string;
+            vanKey: string;
+            cardCompany?: string;
+            installment?: string;
+            cardNo?: string;
+            tranNo?: string;
+            accepterName?: string;
+            catId?: string;
+            merchantRegNo?: string;
+        } | undefined;
+        let voidAuth: { amount: number; authNo: string; authDate: string; vanKey: string } | undefined;
+
+        if (useTerminal && kisTerminalService.isConnected() && terminalInfo) {
+            const tradePayType = (paymentType?.toUpperCase() === "PAY") ? "v1" as const : "D1" as const;
+            const tradeRefType = (paymentType?.toUpperCase() === "PAY") ? "v2" as const : "D2" as const;
+            const paidAmount = calc.paidAmount;
+            const penaltyAmount = calc.penaltyAmount;
+
+            if (penaltyAmount > 0) {
+                setProgress({ phase: "repayment", amount: penaltyAmount });
+                try {
+                    const r = await kisTerminalService.requestPayment({ tradeType: tradePayType, amount: penaltyAmount });
+                    if (!r.success) {
+                        setProgress({ phase: "idle" });
+                        setSubmitting(false);
+                        showAlert({ message: `위약금 재결제 실패: ${r.displayMsg || r.replyCode}`, type: "error" });
+                        return;
+                    }
+                    rePaymentAuth = {
+                        amount: penaltyAmount,
+                        authNo: r.authNo,
+                        authDate: r.replyDate,
+                        vanKey: r.vanKey,
+                        cardCompany: r.issuerName || r.accepterName,
+                        installment: r.installment,
+                        cardNo: r.cardNo,
+                        tranNo: r.tranNo,
+                        accepterName: r.accepterName,
+                        catId: r.catId,
+                        merchantRegNo: r.merchantRegNo,
+                    };
+                } catch (e: any) {
+                    setProgress({ phase: "idle" });
+                    setSubmitting(false);
+                    showAlert({ message: `위약금 재결제 호출 실패: ${e?.message || "오류"}`, type: "error" });
+                    return;
+                }
+            }
+
+            setProgress({ phase: "void", amount: paidAmount });
+            try {
+                const r = await kisTerminalService.requestRefund({
+                    tradeType: tradeRefType,
+                    amount: paidAmount,
+                    orgAuthDate: terminalInfo.authDate!,
+                    orgAuthNo: terminalInfo.authNo!,
+                    vanKey: terminalInfo.vanKey!,
+                });
+                if (!r.success) {
+                    setProgress({ phase: "idle" });
+                    setSubmitting(false);
+                    const warn = rePaymentAuth
+                        ? `\n⚠ 위약금 재결제(${formatWon(rePaymentAuth.amount)}, 승인번호 ${rePaymentAuth.authNo})는 이미 승인됨 → 직원이 수동으로 환불 처리 필요`
+                        : "";
+                    showAlert({ message: `원거래 전체취소 실패: ${r.displayMsg || r.replyCode}${warn}`, type: "error" });
+                    return;
+                }
+                voidAuth = { amount: paidAmount, authNo: r.authNo, authDate: r.replyDate, vanKey: r.vanKey };
+            } catch (e: any) {
+                setProgress({ phase: "idle" });
+                setSubmitting(false);
+                const warn = rePaymentAuth
+                    ? `\n⚠ 위약금 재결제(${formatWon(rePaymentAuth.amount)}, 승인번호 ${rePaymentAuth.authNo})는 이미 승인됨 → 직원이 수동으로 환불 처리 필요`
+                    : "";
+                showAlert({ message: `원거래 전체취소 호출 실패: ${e?.message || "오류"}${warn}`, type: "error" });
+                return;
+            }
+        }
+
+        setProgress({ phase: "backend" });
         try {
             const penaltyRate = penaltyRatePct === "" ? undefined : Number(penaltyRatePct) / 100;
             const manualNum = manualAmount === "" ? undefined : Number(manualAmount);
@@ -116,6 +258,21 @@ export function RefundModal({
                 penaltyRate,
                 manualAmount: manualNum,
                 reason: reason.trim() || undefined,
+                terminalRefundAuthNo: voidAuth?.authNo,
+                terminalRefundDate: voidAuth?.authDate,
+                terminalVanKey: voidAuth?.vanKey,
+                refundMethod: voidAuth ? "AUTO" : (skipTerminal ? "MANUAL" : undefined),
+                rePaymentAmount: rePaymentAuth?.amount,
+                rePaymentTerminalAuthNo: rePaymentAuth?.authNo,
+                rePaymentTerminalAuthDate: rePaymentAuth?.authDate,
+                rePaymentVanKey: rePaymentAuth?.vanKey,
+                rePaymentCardCompany: rePaymentAuth?.cardCompany,
+                rePaymentInstallment: rePaymentAuth?.installment,
+                rePaymentTerminalCardNo: rePaymentAuth?.cardNo,
+                rePaymentTerminalTranNo: rePaymentAuth?.tranNo,
+                rePaymentTerminalAccepterName: rePaymentAuth?.accepterName,
+                rePaymentTerminalCatId: rePaymentAuth?.catId,
+                rePaymentTerminalMerchantRegNo: rePaymentAuth?.merchantRegNo,
             });
             showAlert({
                 message: `${formatWon(result.refundAmount)} 환불 처리되었습니다.`,
@@ -125,8 +282,12 @@ export function RefundModal({
             onClose();
         } catch (e: any) {
             const message = e?.response?.data?.message || e?.message || "환불 처리 실패";
-            showAlert({ message, type: "error" });
+            const warn = rePaymentAuth
+                ? `\n⚠ 단말기 2단계는 모두 승인되었으나 DB 기록 실패 → 운영자 문의 (위약금 승인번호 ${rePaymentAuth.authNo}, 취소 승인번호 ${voidAuth?.authNo})`
+                : "";
+            showAlert({ message: `${message}${warn}`, type: "error" });
         } finally {
+            setProgress({ phase: "idle" });
             setSubmitting(false);
         }
     };
@@ -140,7 +301,7 @@ export function RefundModal({
             className="fixed inset-0 z-[10010] flex items-center justify-center bg-[#2A1F22]/55 backdrop-blur-[3px] px-4 animate-in fade-in duration-150"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
-            <div className="w-full max-w-[760px] rounded-2xl border border-[#F8DCE2] bg-white shadow-[0_30px_80px_rgba(92,42,53,0.4)] animate-in zoom-in-95 duration-150 overflow-hidden">
+            <div className="relative w-full max-w-[760px] rounded-2xl border border-[#F8DCE2] bg-white shadow-[0_30px_80px_rgba(92,42,53,0.4)] animate-in zoom-in-95 duration-150 overflow-hidden">
                 {/* Header */}
                 <div className="relative flex items-center justify-between border-b border-[#F8DCE2] px-6 py-3 bg-gradient-to-r from-[#FCEBEF] via-[#FCF7F8] to-white">
                     <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-[#D27A8C] to-[#8B3F50]" />
@@ -233,6 +394,33 @@ export function RefundModal({
                                 className="w-full rounded-lg border border-[#F8DCE2] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#D27A8C] focus:ring-2 focus:ring-[#F49EAF]/20 resize-none"
                             />
                         </div>
+
+                        {canUseTerminal && (
+                            <div className="rounded-lg border border-[#F8DCE2] bg-[#FCEBEF]/30 px-3 py-2 text-[10px] text-[#5C2A35] space-y-1">
+                                <div className="font-bold flex items-center gap-1">
+                                    <CreditCard className="h-3 w-3" />
+                                    {paymentTypeLabel(paymentType)} · 단말기 환불 대상
+                                </div>
+                                <div className="text-[#8B5A66]">
+                                    환불 확정 시 2단계로 처리됩니다:<br/>
+                                    ① 위약금 재결제 (카드 신규 승인) → ② 원거래 전체취소
+                                </div>
+                                <label className="flex items-center gap-1.5 cursor-pointer pt-1">
+                                    <input
+                                        type="checkbox"
+                                        checked={skipTerminal}
+                                        onChange={(e) => setSkipTerminal(e.target.checked)}
+                                        className="h-3 w-3 accent-[#D27A8C]"
+                                    />
+                                    <span className="text-[10px] font-bold text-[#99354E]">단말기 없이 수동 환불</span>
+                                </label>
+                            </div>
+                        )}
+                        {!canUseTerminal && isTerminalPayment(paymentType) && (
+                            <div className="rounded-lg border border-[#F4C7CE] bg-[#FCEBEF] px-3 py-2 text-[10px] text-[#8B3F50]">
+                                ⚠ 카드 결제이지만 원거래 정보(승인번호/일시/VanKey)가 부족하여 단말기 환불 불가. 카드사 직접 요청이 필요합니다.
+                            </div>
+                        )}
                     </div>
 
                     {/* RIGHT: Calculation panel */}
@@ -331,6 +519,31 @@ export function RefundModal({
                         {submitting ? "처리 중..." : "환불 확정"}
                     </button>
                 </div>
+
+                {submitting && progress.phase !== "idle" && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#2A1F22]/40 backdrop-blur-sm">
+                        <div className="rounded-2xl border border-[#F8DCE2] bg-white px-8 py-6 shadow-2xl text-center">
+                            <div className="h-10 w-10 mx-auto mb-3 rounded-full border-4 border-[#F8DCE2] border-t-[#D27A8C] animate-spin" />
+                            {progress.phase === "repayment" && (
+                                <>
+                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">1/2단계 · 위약금 재결제 중</div>
+                                    <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
+                                    <div className="text-[10px] text-[#8B5A66] mt-1">고객 카드에 위약금이 신규 결제됩니다</div>
+                                </>
+                            )}
+                            {progress.phase === "void" && (
+                                <>
+                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">2/2단계 · 원거래 전체취소 중</div>
+                                    <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
+                                    <div className="text-[10px] text-[#8B5A66] mt-1">원거래 전체 금액이 카드사에 환불됩니다</div>
+                                </>
+                            )}
+                            {progress.phase === "backend" && (
+                                <div className="text-[14px] font-extrabold text-[#5C2A35]">환불 기록 저장 중</div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>,
         document.body

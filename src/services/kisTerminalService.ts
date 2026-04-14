@@ -86,18 +86,43 @@ function parseResponse(data: string): TerminalResult {
     };
 }
 
+const CONNECT_TIMEOUT_MS = 3000;
+
 function ensureConnection(): Promise<WebSocket> {
     return new Promise((resolve, reject) => {
         if (ws && ws.readyState === WebSocket.OPEN) {
             resolve(ws);
             return;
         }
+        let settled = false;
+        let timer: ReturnType<typeof setTimeout> | null = null;
         try {
-            ws = new WebSocket(WS_URL);
-            ws.onopen = () => resolve(ws!);
-            ws.onerror = () => reject(new Error("KIS 단말기 연결 실패"));
-            ws.onclose = () => { ws = null; };
-            ws.onmessage = (event) => {
+            const socket = new WebSocket(WS_URL);
+            ws = socket;
+
+            timer = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                try { socket.close(); } catch { /* noop */ }
+                ws = null;
+                reject(new Error(`KIS 단말기 연결 타임아웃 (${CONNECT_TIMEOUT_MS}ms). 단말기 에이전트가 실행 중인지 확인하세요.`));
+            }, CONNECT_TIMEOUT_MS);
+
+            socket.onopen = () => {
+                if (settled) return;
+                settled = true;
+                if (timer) { clearTimeout(timer); timer = null; }
+                resolve(socket);
+            };
+            socket.onerror = () => {
+                if (settled) return;
+                settled = true;
+                if (timer) { clearTimeout(timer); timer = null; }
+                ws = null;
+                reject(new Error("KIS 단말기 연결 실패. 단말기 에이전트(localhost:1516)가 실행 중인지 확인하세요."));
+            };
+            socket.onclose = () => { ws = null; };
+            socket.onmessage = (event) => {
                 if (!pending) return;
                 try {
                     const result = parseResponse(String(event.data));
@@ -108,8 +133,10 @@ function ensureConnection(): Promise<WebSocket> {
                     pending = null;
                 }
             };
-        } catch {
-            reject(new Error("WebSocket 생성 실패"));
+        } catch (e: any) {
+            if (timer) { clearTimeout(timer); timer = null; }
+            ws = null;
+            reject(new Error(`WebSocket 생성 실패: ${e?.message || "알 수 없는 오류"}`));
         }
     });
 }

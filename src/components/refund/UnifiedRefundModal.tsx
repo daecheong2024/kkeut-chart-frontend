@@ -57,6 +57,19 @@ function isTerminalPayment(paymentType?: string): boolean {
     return upper === "CARD" || upper === "PAY";
 }
 
+function paymentTypeLabel(paymentType?: string): string {
+    const upper = (paymentType || "").toUpperCase();
+    switch (upper) {
+        case "CARD": return "카드";
+        case "PAY": return "간편결제";
+        case "CASH": return "현금";
+        case "BANKING": return "계좌이체";
+        case "MEMBERSHIP_CASH": return "회원권 잔액";
+        case "MEMBERSHIP_POINT": return "회원권 포인트";
+        default: return upper || "기타";
+    }
+}
+
 // ============================================================
 // Component
 // ============================================================
@@ -621,7 +634,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                                         {isTerminalPayment(t.paymentType) && (calc?.estimatedRefund ?? 0) > 0 && (
                                                             <div className="mt-0.5 text-[10px] text-[#5C2A35] flex items-center gap-1">
                                                                 <CreditCard className="h-2.5 w-2.5" />
-                                                                {t.paymentType?.toUpperCase()} · 단말기 환불 대상
+                                                                {paymentTypeLabel(t.paymentType)} · 단말기 환불 대상
                                                             </div>
                                                         )}
                                                     </div>
