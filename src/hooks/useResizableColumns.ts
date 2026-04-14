@@ -38,16 +38,28 @@ export function useResizableColumns(columns: readonly ColumnDef[]) {
             if (!el || widths.length === 0) return;
 
             const available = el.clientWidth - separatorTotalWidth;
+            if (available <= 0) return;
+
             const currentTotal = widths.reduce((s, w) => s + w, 0);
             if (currentTotal === 0 || available === currentTotal) return;
 
-            const scale = available / currentTotal;
-            const scaled = widths.map((w, i) => Math.max(columns[i]!.minWidth, Math.round(w * scale)));
+            const minTotal = columns.reduce((s, c) => s + c.minWidth, 0);
 
-            const diff = available - scaled.reduce((s, w) => s + w, 0);
-            scaled[scaled.length - 1]! += diff;
+            if (available <= minTotal) {
+                const next = columns.map((c) => c.minWidth);
+                if (next.every((w, i) => w === widths[i])) return;
+                setWidths(next);
+                return;
+            }
 
-            setWidths(scaled);
+            const totalRatio = columns.reduce((s, c) => s + c.ratio, 0);
+            const extra = available - minTotal;
+            const next = columns.map((c) => c.minWidth + Math.round((c.ratio / totalRatio) * extra));
+
+            const diff = available - next.reduce((s, w) => s + w, 0);
+            next[next.length - 1]! += diff;
+
+            setWidths(next);
         };
 
         const ro = new ResizeObserver(handleResize);

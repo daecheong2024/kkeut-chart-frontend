@@ -30,7 +30,6 @@ export interface TicketDefResponse {
     eventPrice: number | null;
     singleSessionPrice: number | null;
     defaultPenaltyRate: number | null;
-    isTaxable: boolean;
     isActive: boolean;
     minimumPeriod: number | null;
     maximumUseCount: number | null;
@@ -58,7 +57,6 @@ export interface CreateTicketDefRequest {
     eventPrice?: number | null;
     singleSessionPrice?: number | null;
     defaultPenaltyRate?: number | null;
-    isTaxable?: boolean;
     isActive?: boolean;
     minimumPeriod?: number | null;
     maximumUseCount?: number | null;
@@ -82,7 +80,6 @@ export interface UpdateTicketDefRequest {
     eventPrice?: number | null;
     singleSessionPrice?: number | null;
     defaultPenaltyRate?: number | null;
-    isTaxable?: boolean | null;
     isActive?: boolean | null;
     minimumPeriod?: number | null;
     maximumUseCount?: number | null;

@@ -176,7 +176,6 @@ export default function TicketsSettingsPage() {
       eventPrice: r.eventPrice,
       singleSessionPrice: r.singleSessionPrice,
       defaultPenaltyRate: r.defaultPenaltyRate,
-      isTaxable: r.isTaxable ?? true,
       enabled: r.isActive,
       autoTodoEnabled: r.isAutoTodo,
       autoTodoTitleTemplate: r.todoTemplate ?? undefined,
@@ -220,7 +219,6 @@ export default function TicketsSettingsPage() {
       eventPrice: item.eventPrice ?? null,
       singleSessionPrice: item.singleSessionPrice ?? null,
       defaultPenaltyRate: item.defaultPenaltyRate ?? null,
-      isTaxable: item.isTaxable ?? true,
       isActive: item.enabled ?? true,
       minimumPeriod: item.minIntervalDays ?? null,
       maximumUseCount: item.usageUnit === "session" ? (item.totalCount ?? null) : (item.maxTotalCount ?? null),
@@ -249,7 +247,6 @@ export default function TicketsSettingsPage() {
       eventPrice: item.eventPrice ?? null,
       singleSessionPrice: item.singleSessionPrice ?? null,
       defaultPenaltyRate: item.defaultPenaltyRate ?? null,
-      isTaxable: item.isTaxable ?? true,
       isActive: item.enabled ?? true,
       minimumPeriod: item.minIntervalDays ?? null,
       maximumUseCount: item.usageUnit === "session" ? (item.totalCount ?? null) : (item.maxTotalCount ?? null),
@@ -440,7 +437,6 @@ export default function TicketsSettingsPage() {
       usageUnit: "session",
       totalCount: undefined,
       price: 0,
-      isTaxable: true,
       enabled: true,
       autoTodoEnabled: false,
       autoTodoTasks: [],
@@ -1083,36 +1079,6 @@ export default function TicketsSettingsPage() {
                       }}
                       placeholder="미입력 시 10%"
                     />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="mb-1 block text-xs font-bold text-gray-500">과세 여부</label>
-                    <div className="flex items-center gap-2 rounded-xl border border-[#F8DCE2] bg-white p-1">
-                      <button
-                        type="button"
-                        onClick={() => updateDraft({ isTaxable: true })}
-                        className={`flex-1 h-9 rounded-lg text-xs font-bold transition-all ${
-                          (editingItem.isTaxable ?? true)
-                            ? "bg-gradient-to-br from-[#D27A8C] to-[#8B3F50] text-white shadow-[0_4px_12px_rgba(226,107,124,0.28)]"
-                            : "bg-transparent text-[#8B3F50] hover:bg-[#FCEBEF]"
-                        }`}
-                      >
-                        과세 (이벤트가 × 1.1)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateDraft({ isTaxable: false })}
-                        className={`flex-1 h-9 rounded-lg text-xs font-bold transition-all ${
-                          !(editingItem.isTaxable ?? true)
-                            ? "bg-gradient-to-br from-[#5C2A35] to-[#2A1F22] text-white shadow-[0_4px_12px_rgba(92,42,53,0.28)]"
-                            : "bg-transparent text-[#5C2A35] hover:bg-[#FCEBEF]"
-                        }`}
-                      >
-                        비과세 (이벤트가 그대로)
-                      </button>
-                    </div>
-                    <p className="mt-1 text-[10px] text-gray-400">
-                      과세 티켓은 결제 시 자동으로 부가세 10%가 적용됩니다. (정상가 / 이벤트가는 세전가로 입력)
-                    </p>
                   </div>
                 </div>
                     </div>

@@ -350,6 +350,7 @@ import AddPaymentModal from "../components/AddPaymentModal";
 import { RefundModal } from "../components/refund/RefundModal";
 import { BulkRefundModal, type BulkRefundModalItem } from "../components/refund/BulkRefundModal";
 import { MembershipSettlementModal } from "../components/refund/MembershipSettlementModal";
+import { RefundDetailModal } from "../components/refund/RefundDetailModal";
 import { UnifiedRefundModal, type UnifiedRefundSelection } from "../components/refund/UnifiedRefundModal";
 import SmartTextarea from "../components/SmartTextarea";
 import { printService, PrintSection } from "../services/printService";
@@ -418,6 +419,8 @@ export default function PatientChartPage() {
     const [membershipBalances, setMembershipBalances] = useState<MembershipBalance[]>([]);
     const [selectedMembershipId, setSelectedMembershipId] = useState<number | undefined>(undefined);
     const [isMembershipUsageDisabled, setIsMembershipUsageDisabled] = useState(false);
+    const [usePoints, setUsePoints] = useState(true);
+    const [refundDetailModalHistId, setRefundDetailModalHistId] = useState<number | null>(null);
     const [selectedCouponId, setSelectedCouponId] = useState<string | undefined>(undefined);
     const [isCouponDropdownOpen, setIsCouponDropdownOpen] = useState(false);
     const [refundingPaymentId, setRefundingPaymentId] = useState<number | null>(null);
@@ -2139,6 +2142,7 @@ export default function PatientChartPage() {
                 useMembership: true,
                 selectedMembershipId,
                 selectedMembershipIds: prioritizedMembershipIds,
+                usePoints,
                 selectedCouponId,
                 paymentLines: [{ amount: 0 }],
             });
@@ -2172,6 +2176,7 @@ export default function PatientChartPage() {
                 useMembership: prioritizedMembershipIds.length > 0,
                 selectedMembershipId,
                 selectedMembershipIds: prioritizedMembershipIds,
+                usePoints,
                 selectedCouponId,
                 method,
                 paymentCategory: paymentData?.paymentCategory,
@@ -3961,6 +3966,18 @@ export default function PatientChartPage() {
                                             선택 회원권부터 차감 후 다음 회원권으로 자동 차감
                                         </div>
                                     )}
+                                    {!isMembershipUsageDisabled && (
+                                        <label className="mt-2 flex items-center justify-between gap-2 text-[12px] font-semibold text-violet-800 cursor-pointer select-none">
+                                            <span>포인트 사용</span>
+                                            <input
+                                                type="checkbox"
+                                                checked={usePoints}
+                                                disabled={isReadOnly}
+                                                onChange={(e) => setUsePoints(e.target.checked)}
+                                                className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-400"
+                                            />
+                                        </label>
+                                    )}
                                 </div>
                             )}
 
@@ -4043,7 +4060,7 @@ export default function PatientChartPage() {
                                         </div>
                                         {cartPreview.treatmentItems.map((t, idx) => (
                                             <div key={`treat-${idx}`} className="flex justify-between items-center py-1">
-                                                <span className="text-[12px] text-[#616161] truncate pr-3">{t.name}</span>
+                                                <span className="text-[12px] text-[#616161] truncate pr-3 cursor-help" title={t.name}>{t.name}</span>
                                                 <span className="text-[12px] font-semibold text-[#242424] shrink-0 tabular-nums">{(t.eventPrice || t.originalPrice || 0).toLocaleString()}원</span>
                                             </div>
                                         ))}
@@ -4174,7 +4191,7 @@ export default function PatientChartPage() {
                                             );
                                         }
                                         return (
-                                            <div className="max-h-40 space-y-1 overflow-y-auto pr-0.5">
+                                            <div className="max-h-56 space-y-1 overflow-y-auto pr-0.5">
                                                 {visibleItems.map((item) => {
                                                     const badgeClassName =
                                                         USAGE_SUMMARY_SOURCE_STYLES[item.sourceType] ||
@@ -4184,12 +4201,12 @@ export default function PatientChartPage() {
                                                             key={item.id}
                                                             className="rounded-lg border border-[#FCEBEF] bg-[#FCF7F8] px-2.5 py-1.5 hover:bg-[#FCEBEF]/50 transition-colors"
                                                         >
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <div className="min-w-0 flex items-center gap-1.5">
-                                                                    <span className={`rounded-full border px-1.5 py-0.5 text-[11px] font-bold shrink-0 ${badgeClassName}`}>
+                                                            <div className="flex items-start justify-between gap-2">
+                                                                <div className="min-w-0 flex-1 flex flex-col gap-1">
+                                                                    <span className={`self-start rounded-full border px-1.5 py-0.5 text-[11px] font-bold shrink-0 ${badgeClassName}`}>
                                                                         {item.sourceLabel || "결제"}
                                                                     </span>
-                                                                    <span className="truncate text-[12px] font-medium text-[#242424]">
+                                                                    <span className="text-[12px] font-semibold text-[#242424] break-words" title={item.itemName}>
                                                                         {item.itemName}
                                                                     </span>
                                                                 </div>
@@ -4312,7 +4329,7 @@ export default function PatientChartPage() {
                                 { id: "record", label: "환자기록", count: patientRecords.length },
                                 { id: "reservation", label: "예약기록", count: customerReservations.length },
                                 { id: "membership", label: "회원권", count: memberships.length },
-                                { id: "ticket", label: "티켓", count: tickets.length },
+                                { id: "ticket", label: "티켓 이력", count: tickets.length },
                                 { id: "consent", label: "동의서", count: undefined },
                                 { id: "refund", label: "결제/환불", count: paymentRecords.reduce((sum, r) => sum + (r.items || []).filter(it => { const s = String((it as any).status || r.status || "paid").trim().toLowerCase(); return s !== "refunded" && s !== "cancelled"; }).length, 0) },
                             ];
@@ -4787,24 +4804,44 @@ export default function PatientChartPage() {
                                                                     : isRefund ? 'bg-amber-50 text-amber-700'
                                                                     : 'bg-rose-50 text-rose-600';
                                                                 return (
-                                                                    <div key={h.id} className={`rounded-[8px] border bg-white p-2.5 transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] ${borderColor}`}>
+                                                                    <div
+                                                                        key={h.id}
+                                                                        className={`rounded-[8px] border bg-white p-2.5 transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] ${borderColor}`}
+                                                                    >
+                                                                        {isRefund && !h.isCancelled && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setRefundDetailModalHistId(h.id)}
+                                                                                className="float-right ml-2 inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-300 px-2 py-0.5 text-[11px] font-bold text-amber-700 hover:bg-amber-100 transition-colors"
+                                                                                title="환불 상세 내역 보기"
+                                                                            >
+                                                                                상세
+                                                                            </button>
+                                                                        )}
                                                                         <div className="flex items-start justify-between gap-2">
-                                                                            <div className="min-w-0">
+                                                                            <div className="min-w-0 flex-1">
                                                                                 <div className="flex items-center gap-1.5">
                                                                                     <span className={`inline-flex items-center rounded-[4px] px-1.5 py-px text-[12px] font-bold tracking-[0.1px] ${badgeStyle}`}>
-                                                                                        {isCharge ? '충전' : isUse ? '사용' : isRefund ? '환불' : h.description}
+                                                                                        {isCharge ? '충전' : isUse ? '사용중' : isRefund ? '환불' : h.description}
                                                                                     </span>
                                                                                     {h.isCancelled && (
                                                                                         <span className="inline-flex rounded-[4px] bg-red-50 border border-red-200 px-1.5 py-px text-[12px] font-medium text-red-600">
                                                                                             취소됨
                                                                                         </span>
                                                                                     )}
-                                                                                    {isUse && h.ticketName && (
-                                                                                        <span className="text-[12px] text-[#242424] font-medium truncate max-w-[120px]" title={h.ticketName}>
-                                                                                            {h.ticketName}
-                                                                                        </span>
-                                                                                    )}
                                                                                 </div>
+                                                                                {(isUse || isRefund) && (
+                                                                                    h.ticketName ? (
+                                                                                        <div className="text-[14px] text-[#242424] font-semibold mt-1 break-words" title={h.ticketName}>
+                                                                                            {isRefund && <span className="text-[11px] text-amber-700 font-bold mr-1">[티켓 환불]</span>}
+                                                                                            {h.ticketName}
+                                                                                        </div>
+                                                                                    ) : isRefund ? (
+                                                                                        <div className="text-[14px] text-[#242424] font-semibold mt-1">
+                                                                                            <span className="text-[11px] text-amber-700 font-bold mr-1">[회원권 잔액 환불]</span>
+                                                                                        </div>
+                                                                                    ) : null
+                                                                                )}
                                                                                 <div className="text-[13px] text-[#616161] mt-1">
                                                                                     {format(new Date(h.usedAt), "MM.dd HH:mm", { locale: ko })}
                                                                                 </div>
@@ -4821,9 +4858,15 @@ export default function PatientChartPage() {
                                                                                     </div>
                                                                                 )}
                                                                                 <div className="flex items-center justify-end gap-1.5 text-[12px] tabular-nums mt-0.5">
-                                                                                    <span className="text-[#5C2A35]">{(h.remainingCashBalance ?? h.remainingBalance).toLocaleString()}원</span>
-                                                                                    <span className="text-[#F8DCE2]">/</span>
-                                                                                    <span className="text-[#F49EAF]">{(h.remainingPointBalance ?? 0).toLocaleString()}P</span>
+                                                                                    {(h.usedCashAmount ?? h.usedAmount) > 0 && (
+                                                                                        <span className="text-[#5C2A35]">{(h.remainingCashBalance ?? h.remainingBalance).toLocaleString()}원</span>
+                                                                                    )}
+                                                                                    {(h.usedCashAmount ?? h.usedAmount) > 0 && (h.usedPointAmount ?? 0) > 0 && (
+                                                                                        <span className="text-[#F8DCE2]">/</span>
+                                                                                    )}
+                                                                                    {(h.usedPointAmount ?? 0) > 0 && (
+                                                                                        <span className="text-[#F49EAF]">{(h.remainingPointBalance ?? 0).toLocaleString()}P</span>
+                                                                                    )}
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -5285,6 +5328,12 @@ export default function PatientChartPage() {
                     hospital={settings.hospital}
                 />
             )}
+
+            <RefundDetailModal
+                open={refundDetailModalHistId !== null}
+                membershipHistId={refundDetailModalHistId}
+                onClose={() => setRefundDetailModalHistId(null)}
+            />
 
             {refundModal && (
                 <div className="fixed inset-0 z-[140] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(92,42,53,0.18)" }}>
@@ -5893,6 +5942,56 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
         if (!text.trim()) {
             return <div className="text-xs text-gray-400">저장된 본문이 없습니다.</div>;
         }
+
+        // Structured JSON 감지
+        let isStructuredJson = false;
+        let structuredBlocks: any[] = [];
+        try {
+            const parsed = JSON.parse(text);
+            if (parsed && Array.isArray(parsed.sections)) {
+                isStructuredJson = true;
+                structuredBlocks = (parsed.sections as any[]).flatMap((s: any) => s.blocks || []);
+            }
+        } catch { /* not JSON */ }
+
+        if (isStructuredJson) {
+            return (
+                <div className="space-y-3">
+                    {structuredBlocks.map((block: any) => (
+                        <div key={block.id}>
+                            {block.title && (
+                                <div className="text-[13px] font-bold text-[#5C2A35] mb-1">
+                                    {block.title}
+                                </div>
+                            )}
+                            {block.type === "text_content" && block.content && (
+                                <div className={`whitespace-pre-wrap leading-relaxed ${
+                                    block.fontSize === "sm" ? "text-[12px]" : block.fontSize === "lg" ? "text-[16px]" : "text-[13px]"
+                                } ${block.fontWeight === "bold" ? "font-bold" : ""} ${
+                                    block.color === "muted" ? "text-gray-500" : block.color === "danger" ? "text-red-600" : block.color === "primary" ? "text-[#8B3F50]" : "text-gray-700"
+                                }`}>
+                                    {block.content}
+                                </div>
+                            )}
+                            {block.type === "date" && (
+                                <div className="text-[12px] text-gray-400 italic">📅 날짜 입력란</div>
+                            )}
+                            {block.type === "text_chart" && (
+                                <div className="text-[12px] text-gray-400 italic">📝 {block.placeholder || "차트에서 입력"}</div>
+                            )}
+                            {block.type === "choice" && (
+                                <div className="space-y-1 text-[12px] text-gray-600">
+                                    {(block.options || []).map((opt: any) => (
+                                        <div key={opt.id}>○ {opt.label}{opt.hasNote ? " (비고란)" : ""}</div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
         const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(text);
         if (looksLikeHtml) {
             return <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: text }} />;
@@ -6137,6 +6236,14 @@ function RefundHistoryList({
     const [settlementModalState, setSettlementModalState] = useState<{ paymentDetailId: number; membershipName: string } | null>(null);
     // ISSUE-176: unified refund modal (replaces bulk modal for mixed selections)
     const [unifiedModalState, setUnifiedModalState] = useState<UnifiedRefundSelection[] | null>(null);
+    const [expandedCardIds, setExpandedCardIds] = useState<Set<string>>(new Set());
+    const toggleCardExpanded = (cardId: string) => {
+        setExpandedCardIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(cardId)) next.delete(cardId); else next.add(cardId);
+            return next;
+        });
+    };
 
     const normalizeItemKey = (value?: string) =>
         String(value || "")
@@ -6585,7 +6692,7 @@ function RefundHistoryList({
     }, [groupedRecords]);
 
     // ISSUE-176: 탭 필터 제거 — 전체 결제내역 노출, 그룹화로 정리
-    const filteredCards = useMemo(() => itemCards.filter(c => c.status !== "refunded"), [itemCards]);
+    const filteredCards = useMemo(() => itemCards, [itemCards]);
     // refundFilterTab 은 더 이상 사용하지 않지만 state 유지 (호환성)
     void refundFilterTab;
 
@@ -6610,7 +6717,7 @@ function RefundHistoryList({
                     groupId,
                     groupKey: groupId,
                     latestPaidAt: card.group.latestPaidAt || card.paidAt,
-                    groupTotal: card.group.totalActualPaid + card.group.totalMembershipDeduction,
+                    groupTotal: card.group.totalActualPaid,
                     groupStatus: card.group.status,
                     cards: [card],
                 });
@@ -6732,9 +6839,9 @@ function RefundHistoryList({
                     const groupStatusClass = groupEntry.groupStatus === "refunded" ? "bg-red-100 text-red-600" : groupEntry.groupStatus === "partial_refunded" ? "bg-amber-100 text-amber-700" : "bg-emerald-50 text-emerald-700 border border-emerald-200";
 
                     return (
-                        <div key={groupEntry.groupId} className="rounded-[16px] border border-[#F8DCE2] bg-white overflow-hidden shadow-[0_2px_10px_rgba(226,107,124,0.04)]">
+                        <div key={groupEntry.groupId} className="rounded-[16px] border border-slate-200 bg-white overflow-hidden shadow-sm">
                             {/* Group header */}
-                            <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gradient-to-r from-[#FCEBEF]/40 to-[#FCF7F8] border-b border-[#F8DCE2]">
+                            <div className="flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 border-b border-slate-200">
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                     {!isReadOnly && eligibleInGroup.length > 0 && (
                                         <button
@@ -6755,6 +6862,18 @@ function RefundHistoryList({
                                             </span>
                                             <span className="text-[10px] text-[#8B5A66]">{groupEntry.cards.length}건</span>
                                         </div>
+                                        {(() => {
+                                            const memDeduct = groupEntry.cards[0]?.group.totalMembershipDeduction ?? 0;
+                                            if (memDeduct > 0) {
+                                                return (
+                                                    <div className="mt-1 text-[11px] text-violet-700">
+                                                        <span className="font-semibold">회원권 차감</span>
+                                                        <span className="ml-1 tabular-nums">{memDeduct.toLocaleString()}원</span>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
                                 </div>
                                 <div className="text-[14px] font-extrabold tabular-nums text-[#5C2A35] shrink-0">
@@ -6763,212 +6882,246 @@ function RefundHistoryList({
                             </div>
 
                             {/* Group items */}
-                            <div className="divide-y divide-[#F8DCE2]/60">
-                                {groupEntry.cards.map((card) => {
+                            <div className="divide-y divide-slate-100">
+                                {(() => {
+                                    const sessionMemberships = new Map<number, string>();
+                                    for (const c of groupEntry.cards) {
+                                        if (c.itemType === "membership") {
+                                            for (const pd of c.itemPaymentDetails) {
+                                                if (pd.membershipId) {
+                                                    sessionMemberships.set(pd.membershipId, pd.membershipName || c.itemName);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    const ticketsConsumingMembership = new Map<number, number>();
+                                    const ticketToMembership = new Map<string, number>();
+                                    for (const c of groupEntry.cards) {
+                                        if (c.itemType === "ticket") {
+                                            const memIds = new Set<number>();
+                                            for (const pd of c.itemPaymentDetails) {
+                                                if ((pd.paymentType === "MEMBERSHIP_CASH" || pd.paymentType === "MEMBERSHIP_POINT") && pd.membershipId) {
+                                                    memIds.add(pd.membershipId);
+                                                }
+                                            }
+                                            for (const mid of memIds) {
+                                                ticketsConsumingMembership.set(mid, (ticketsConsumingMembership.get(mid) ?? 0) + 1);
+                                            }
+                                            const first = memIds.values().next().value;
+                                            if (first !== undefined) ticketToMembership.set(c.id, first);
+                                        }
+                                    }
+
+                                    const orderedCards: Array<typeof groupEntry.cards[number] & { __parentMembershipId?: number }> = [];
+                                    const consumedCardIds = new Set<string>();
+                                    for (const c of groupEntry.cards) {
+                                        if (c.itemType === "membership") {
+                                            orderedCards.push(c);
+                                            const memId = c.itemPaymentDetails.find(pd => pd.membershipId)?.membershipId;
+                                            if (memId !== undefined) {
+                                                for (const t of groupEntry.cards) {
+                                                    if (t.itemType === "ticket" && ticketToMembership.get(t.id) === memId && !consumedCardIds.has(t.id)) {
+                                                        orderedCards.push(Object.assign({}, t, { __parentMembershipId: memId }));
+                                                        consumedCardIds.add(t.id);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    for (const c of groupEntry.cards) {
+                                        if (c.itemType !== "membership" && !consumedCardIds.has(c.id)) {
+                                            orderedCards.push(c);
+                                        }
+                                    }
+
+                                    return orderedCards.map((card) => {
                     const isRefunded = card.status === "refunded";
                     const isTicket = card.itemType === "ticket";
                     const isMembership = card.itemType === "membership";
                     const clientBlockReason = getRefundClientBlockReason(card.record);
+                    const ownMembershipId = isMembership ? card.itemPaymentDetails.find(pd => pd.membershipId)?.membershipId : undefined;
+                    const consumedTicketCount = ownMembershipId ? (ticketsConsumingMembership.get(ownMembershipId) ?? 0) : 0;
+                    const hasParent = (card as any).__parentMembershipId != null;
+
+                    const paidAmount = card.itemPaymentDetails.length > 0
+                        ? card.itemPaymentDetails.reduce((sum, pd) => sum + pd.amount, 0)
+                        : card.discountedPrice ?? card.eventPrice ?? card.originalPrice ?? card.totalPrice;
+                    const isExpanded = expandedCardIds.has(card.id);
+                    const groupCheck = refundCheckByGroupId[card.group.id];
+                    const cardDetailIds = card.itemPaymentDetails.map(pd => pd.id);
+                    const matchedItem = groupCheck?.items?.find(
+                        (it) => (it.paymentDetailIds ?? [it.paymentDetailId]).some(id => cardDetailIds.includes(id))
+                    );
 
                     return (
-                        <div
-                            key={card.id}
-                            className={`rounded-[16px] border overflow-hidden transition-all duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] ${isRefunded ? "border-red-200 bg-red-50/30" : "border-[#F8DCE2]"}`}
-                        >
-                            <div className={`px-4 py-3 flex items-center justify-between gap-2 border-b ${isRefunded ? "bg-red-50 border-red-200" : "bg-[#FCF7F8] border-[#FCEBEF]"}`}>
-                                <div className="flex items-start gap-2 min-w-0 flex-1">
-                                    {/* ISSUE-174: bulk select checkbox */}
-                                    {!isRefunded && !clientBlockReason && !isReadOnly && card.itemPaymentDetails[0]?.id && (isTicket || isMembership) && (
+                        <div key={card.id} className={`${isRefunded ? "bg-red-50/30" : hasParent ? "bg-violet-50/30 hover:bg-violet-50/60" : "bg-white hover:bg-slate-50/60"} transition-colors ${hasParent ? "border-l-[3px] border-l-violet-300" : ""}`}>
+                            {/* Compact row (2-line) */}
+                            <div className={`${hasParent ? "pl-6 pr-3" : "px-3"} py-2 flex items-start gap-2`}>
+                                {!isRefunded && !clientBlockReason && !isReadOnly && card.itemPaymentDetails[0]?.id && (isTicket || isMembership) ? (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); toggleCardSelected(card.id); }}
+                                        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all ${
+                                            selectedCardKeys.has(card.id)
+                                                ? "border-[#D27A8C] bg-[#D27A8C]"
+                                                : "border-slate-300 bg-white hover:border-[#D27A8C]"
+                                        }`}
+                                        title={selectedCardKeys.has(card.id) ? "선택 해제" : "일괄 환불 대상으로 선택"}
+                                    >
+                                        {selectedCardKeys.has(card.id) && (
+                                            <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                                                <polyline points="20 6 9 17 4 12" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                ) : (
+                                    <div className="w-4 shrink-0" />
+                                )}
+
+                                <div className="min-w-0 flex-1">
+                                    {/* Line 1: badges + amount */}
+                                    <div className="flex items-center gap-1.5">
+                                        <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold leading-none shrink-0 ${isTicket ? "bg-pink-50 text-pink-700 border border-pink-200" : isMembership ? "bg-violet-50 text-violet-700 border border-violet-200" : "bg-slate-100 text-slate-600"}`}>
+                                            {isTicket ? "티켓" : isMembership ? "회원권" : "결제"}
+                                        </span>
+                                        <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none shrink-0 ${isRefunded ? "bg-red-100 text-red-600" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
+                                            {isRefunded ? "환불" : "정상"}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 ml-1">
+                                            {new Date(card.paidAt).toLocaleString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                                        </span>
+                                        <span className={`ml-auto text-[12px] font-extrabold tabular-nums shrink-0 ${isRefunded ? "text-slate-400 line-through" : "text-slate-900"}`}>
+                                            {(paidAmount ?? 0).toLocaleString()}원
+                                        </span>
+                                    </div>
+                                    {/* Line 2: name */}
+                                    <div className={`mt-1 text-[13px] font-semibold break-words ${isRefunded ? "text-slate-400 line-through" : "text-slate-800"}`} title={card.itemName}>
+                                        {card.itemName}{card.quantity > 1 ? ` x${card.quantity}` : ""}
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-0.5 shrink-0 mt-0.5">
+                                    {!isRefunded && !clientBlockReason && !isReadOnly && isMembership && card.itemPaymentDetails[0]?.id && (
                                         <button
                                             type="button"
-                                            onClick={(e) => { e.stopPropagation(); toggleCardSelected(card.id); }}
-                                            className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all ${
-                                                selectedCardKeys.has(card.id)
-                                                    ? "border-[#D27A8C] bg-[#D27A8C]"
-                                                    : "border-[#F8DCE2] bg-white hover:border-[#D27A8C]"
-                                            }`}
-                                            title={selectedCardKeys.has(card.id) ? "선택 해제" : "일괄 환불 대상으로 선택"}
+                                            onClick={(e) => { e.stopPropagation(); setSettlementModalState({ paymentDetailId: card.itemPaymentDetails[0].id, membershipName: card.itemName }); }}
+                                            className="rounded px-2 py-1 text-[10px] font-bold text-[#8B3F50] hover:bg-[#FCEBEF] transition-colors"
+                                            title="회원권 정산 환불"
                                         >
-                                            {selectedCardKeys.has(card.id) && (
-                                                <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                                                    <polyline points="20 6 9 17 4 12" />
-                                                </svg>
-                                            )}
+                                            정산
                                         </button>
                                     )}
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <span className={`inline-flex items-center rounded-[8px] px-2 py-0.5 text-[11px] font-bold tracking-[0.1px] leading-none ${isTicket ? "bg-[#FCEBEF] text-[#D27A8C]" : isMembership ? "bg-violet-100 text-violet-700" : "bg-[#F0F0F0] text-[#616161]"}`}>
-                                                {isTicket ? "티켓" : isMembership ? "회원권" : "결제"}
-                                            </span>
-                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none ${isRefunded ? "bg-red-100 text-red-600" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
-                                                {isRefunded ? "환불" : "정상"}
-                                            </span>
-                                        </div>
-                                        <div className={`mt-1.5 text-[14px] font-bold leading-[1.2] ${isRefunded ? "text-red-400 line-through" : "text-[#5C2A35]"}`}>
-                                            {card.itemName}{card.quantity > 1 ? ` x${card.quantity}` : ""}
-                                        </div>
-                                        <div className="text-[11px] text-[#616161] mt-1 font-medium tracking-[0.1px]">
-                                            {new Date(card.paidAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                                            {card.collectorName ? ` · ${card.collectorName}` : ""}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="shrink-0 flex flex-col items-end gap-1.5">
-                                    {!isRefunded && !clientBlockReason && !isReadOnly && (
-                                        <>
-                                            {isMembership && card.itemPaymentDetails[0]?.id && (
-                                                <button
-                                                    type="button"
-                                                    className="rounded-full border border-[#D27A8C] bg-[#FCEBEF] px-3 py-1 text-[11px] font-bold text-[#8B3F50] hover:bg-[#F8DCE2] transition-all duration-200 min-h-[28px]"
-                                                    onClick={() => {
-                                                        setSettlementModalState({
-                                                            paymentDetailId: card.itemPaymentDetails[0].id,
-                                                            membershipName: card.itemName,
-                                                        });
-                                                    }}
-                                                    title="회원권 잔액 + 연결 티켓 일괄 환불"
-                                                >
-                                                    회원권 정산
-                                                </button>
-                                            )}
-                                            <button
-                                                type="button"
-                                                className="rounded-full border border-red-300 bg-red-50 px-3 py-1 text-[11px] font-bold text-red-600 hover:bg-red-100 hover:border-red-400 transition-all duration-200 disabled:opacity-50 min-h-[28px]"
-                                                disabled={refundingPaymentId === card.record.id}
-                                                onClick={() => {
-                                                    const detailId = card.itemPaymentDetails[0]?.id;
-                                                    if (!detailId) {
-                                                        void onRefund(card.record, card.itemName, 0);
-                                                        return;
-                                                    }
-                                                    setRefundModalState({
-                                                        paymentMasterId: card.record.paymentMasterId || card.record.id,
-                                                        paymentDetailId: detailId,
-                                                        itemName: card.itemName,
-                                                        itemType: card.itemType,
-                                                    });
-                                                }}
-                                            >
-                                                환불
-                                            </button>
-                                        </>
+                                    {!isRefunded && !clientBlockReason && !isReadOnly && !isMembership && (
+                                        <button
+                                            type="button"
+                                            disabled={refundingPaymentId === card.record.id}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const detailId = card.itemPaymentDetails[0]?.id;
+                                                if (!detailId) { void onRefund(card.record, card.itemName, 0); return; }
+                                                setRefundModalState({ paymentMasterId: card.record.paymentMasterId || card.record.id, paymentDetailId: detailId, itemName: card.itemName, itemType: card.itemType });
+                                            }}
+                                            className="rounded px-2 py-1 text-[10px] font-bold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                            title="환불"
+                                        >
+                                            환불
+                                        </button>
                                     )}
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); toggleCardExpanded(card.id); }}
+                                        className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                                        title={isExpanded ? "접기" : "펼치기"}
+                                    >
+                                        {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                    </button>
                                 </div>
                             </div>
 
-                            <div className="px-4 py-3 space-y-0">
-                                <div className="rounded-[8px] bg-[#FAF3F5] px-3 py-2 space-y-1">
-                                    {card.originalPrice != null && (
-                                        <div className="flex justify-between text-[12px]">
-                                            <span className="text-[#616161]">정가</span>
-                                            <span className="text-[#242424] tabular-nums font-medium">{card.originalPrice.toLocaleString()}원</span>
-                                        </div>
-                                    )}
-                                    {card.eventPrice != null && card.eventPrice !== card.originalPrice && (
-                                        <div className="flex justify-between text-[12px]">
-                                            <span className="text-[#616161]">이벤트가</span>
-                                            <span className="text-[#242424] tabular-nums font-medium">{card.eventPrice.toLocaleString()}원</span>
-                                        </div>
-                                    )}
-                                    {(() => {
-                                        const basePrice = card.eventPrice ?? card.originalPrice;
-                                        const discounted = card.discountedPrice;
-                                        if (basePrice == null || discounted == null || basePrice === discounted) return null;
-                                        const discountAmount = basePrice - discounted;
-                                        return (
-                                            <div className="flex justify-between text-[12px]">
-                                                <span className="text-rose-500 font-medium">
-                                                    할인금액{card.discountPercent ? ` (${card.discountPercent}%)` : ""}
-                                                </span>
-                                                <span className="text-rose-500 font-bold tabular-nums">-{discountAmount.toLocaleString()}원</span>
-                                            </div>
-                                        );
-                                    })()}
-                                </div>
+                            {/* Expanded detail */}
+                            {isExpanded && (
+                                <div className="px-3 pb-3 pl-12 space-y-2 border-t border-slate-100 bg-slate-50/40">
+                                    <div className="pt-2 text-[10px] text-slate-500">
+                                        {new Date(card.paidAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                                        {card.collectorName ? ` · ${card.collectorName}` : ""}
+                                    </div>
 
-                                {card.itemPaymentDetails.length > 0 && (() => {
-                                    const chipConfig: Record<string, { bg: string; color: string; border: string; label: (pd: any) => string }> = {
-                                        MEMBERSHIP_CASH: { bg: "#EDE7F6", color: "#6A1B9A", border: "#CE93D8", label: () => "회원권(현금)" },
-                                        MEMBERSHIP_POINT: { bg: "#F3E5F5", color: "#7B1FA2", border: "#CE93D8", label: () => "회원권(포인트)" },
-                                        CARD: { bg: "#E3F2FD", color: "#1565C0", border: "#90CAF9", label: (pd) => `카드${pd.cardCompany ? `(${pd.cardCompany})` : ""}` },
-                                        CASH: { bg: "#E8F5E9", color: "#2E7D32", border: "#A5D6A7", label: () => "현금" },
-                                        BANKING: { bg: "#FFF8E1", color: "#F57F17", border: "#FFE082", label: () => "이체" },
-                                        PAY: { bg: "#E0F7FA", color: "#00838F", border: "#80DEEA", label: (pd) => pd.paymentSubMethodLabel || "간편결제" },
-                                    };
-                                    const defaultCfg = { bg: "#F5F5F5", color: "#616161", border: "#E0E0E0", label: (pd: any) => pd.paymentType };
-                                    const grouped = new Map<string, { amount: number; cfg: { bg: string; color: string; border: string }; label: string }>();
-                                    for (const pd of card.itemPaymentDetails) {
-                                        const cfg = chipConfig[pd.paymentType] || defaultCfg;
-                                        const label = cfg.label(pd);
-                                        const key = `${pd.paymentType}_${label}`;
-                                        const existing = grouped.get(key);
-                                        if (existing) {
-                                            existing.amount += pd.amount;
-                                        } else {
-                                            grouped.set(key, { amount: pd.amount, cfg: { bg: cfg.bg, color: cfg.color, border: cfg.border }, label });
-                                        }
-                                    }
-                                    return (
-                                        <div className="mt-2 space-y-1">
-                                            <div className="text-[11px] font-semibold text-[#616161] tracking-[0.1px]">결제수단</div>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {Array.from(grouped.entries()).map(([key, { amount, cfg, label }]) => (
-                                                    <div key={key} className="inline-flex items-center gap-1.5 rounded-[8px] px-2.5 py-1.5 transition-all duration-200" style={{ backgroundColor: cfg.bg, borderWidth: 1, borderStyle: "solid", borderColor: cfg.border }}>
-                                                        <span className="text-[11px] font-bold tracking-[0.1px] shrink-0" style={{ color: cfg.color }}>{label}</span>
-                                                        <span className="text-[12px] font-extrabold tabular-nums" style={{ color: cfg.color }}>{amount.toLocaleString()}원</span>
+                                    {(card.originalPrice != null || card.eventPrice != null) && (
+                                        <div className="rounded-md bg-white border border-slate-200 px-2.5 py-1.5 space-y-0.5">
+                                            {card.originalPrice != null && (
+                                                <div className="flex justify-between text-[11px]"><span className="text-slate-500">정가</span><span className="tabular-nums text-slate-700">{card.originalPrice.toLocaleString()}원</span></div>
+                                            )}
+                                            {card.eventPrice != null && card.eventPrice !== card.originalPrice && (
+                                                <div className="flex justify-between text-[11px]"><span className="text-slate-500">이벤트가</span><span className="tabular-nums text-slate-700">{card.eventPrice.toLocaleString()}원</span></div>
+                                            )}
+                                            {(() => {
+                                                const basePrice = card.eventPrice ?? card.originalPrice;
+                                                const discounted = card.discountedPrice;
+                                                if (basePrice == null || discounted == null || basePrice === discounted) return null;
+                                                const discountAmount = basePrice - discounted;
+                                                return (
+                                                    <div className="flex justify-between text-[11px]"><span className="text-rose-500">할인{card.discountPercent ? ` (${card.discountPercent}%)` : ""}</span><span className="tabular-nums font-bold text-rose-500">-{discountAmount.toLocaleString()}원</span></div>
+                                                );
+                                            })()}
+                                        </div>
+                                    )}
+
+                                    {card.itemPaymentDetails.length > 0 && (
+                                        <div className="flex flex-wrap gap-1">
+                                            {(() => {
+                                                const chipConfig: Record<string, { bg: string; color: string; border: string; label: (pd: any) => string }> = {
+                                                    MEMBERSHIP_CASH: { bg: "#EDE7F6", color: "#6A1B9A", border: "#CE93D8", label: (pd) => { const s = pd.membershipId ? sessionMemberships.get(pd.membershipId) : undefined; return s ? `↑ ${s} 현금` : "회원권(현금)"; } },
+                                                    MEMBERSHIP_POINT: { bg: "#F3E5F5", color: "#7B1FA2", border: "#CE93D8", label: (pd) => { const s = pd.membershipId ? sessionMemberships.get(pd.membershipId) : undefined; return s ? `↑ ${s} 포인트` : "회원권(포인트)"; } },
+                                                    CARD: { bg: "#E3F2FD", color: "#1565C0", border: "#90CAF9", label: (pd) => `카드${pd.cardCompany ? `(${pd.cardCompany})` : ""}` },
+                                                    CASH: { bg: "#E8F5E9", color: "#2E7D32", border: "#A5D6A7", label: () => "현금" },
+                                                    BANKING: { bg: "#FFF8E1", color: "#F57F17", border: "#FFE082", label: () => "이체" },
+                                                    PAY: { bg: "#E0F7FA", color: "#00838F", border: "#80DEEA", label: (pd) => pd.paymentSubMethodLabel || "간편결제" },
+                                                };
+                                                const defaultCfg = { bg: "#F5F5F5", color: "#616161", border: "#E0E0E0", label: (pd: any) => pd.paymentType };
+                                                const grouped = new Map<string, { amount: number; cfg: typeof defaultCfg; label: string }>();
+                                                for (const pd of card.itemPaymentDetails) {
+                                                    const cfg = chipConfig[pd.paymentType] || defaultCfg;
+                                                    const label = cfg.label(pd);
+                                                    const key = `${pd.paymentType}_${label}`;
+                                                    const existing = grouped.get(key);
+                                                    if (existing) existing.amount += pd.amount;
+                                                    else grouped.set(key, { amount: pd.amount, cfg, label });
+                                                }
+                                                return Array.from(grouped.entries()).map(([key, { amount, cfg, label }]) => (
+                                                    <div key={key} className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px]" style={{ backgroundColor: cfg.bg, borderWidth: 1, borderStyle: "solid", borderColor: cfg.border, color: cfg.color }}>
+                                                        <span className="font-bold">{label}</span>
+                                                        <span className="tabular-nums font-extrabold">{amount.toLocaleString()}원</span>
                                                     </div>
-                                                ))}
-                                            </div>
+                                                ));
+                                            })()}
                                         </div>
-                                    );
-                                })()}
+                                    )}
 
-                                {(() => {
-                                    const paidAmount = card.itemPaymentDetails.length > 0
-                                        ? card.itemPaymentDetails.reduce((sum, pd) => sum + pd.amount, 0)
-                                        : card.discountedPrice ?? card.eventPrice ?? card.originalPrice ?? card.totalPrice;
-
-                                    const groupCheck = refundCheckByGroupId[card.group.id];
-                                    const cardDetailIds = card.itemPaymentDetails.map(pd => pd.id);
-                                    const matchedItem = groupCheck?.items?.find(
-                                        (it) => (it.paymentDetailIds ?? [it.paymentDetailId]).some(id => cardDetailIds.includes(id))
-                                    );
-
-                                    return (
-                                        <div className="border-t border-[#FCEBEF] pt-2 mt-2 space-y-1.5">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-[13px] font-semibold text-[#242424]">수납액</span>
-                                                <span className={`text-[15px] font-extrabold tabular-nums ${isRefunded ? "text-[#616161] line-through" : "text-[#5C2A35]"}`}>
-                                                    {(paidAmount ?? 0).toLocaleString()}원
-                                                </span>
-                                            </div>
-                                            {isRefunded && matchedItem && (
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-[13px] font-semibold text-red-600">환불지급액</span>
-                                                    <span className="text-[15px] font-extrabold tabular-nums text-red-600">
-                                                        {matchedItem.estimatedRefund.toLocaleString()}원
-                                                    </span>
-                                                </div>
-                                            )}
-                                            {!isRefunded && matchedItem && (
-                                                <div className="text-[10px] text-[#9E9E9E] italic pt-1">
-                                                    사용 {matchedItem.usedCount}회 · 위약금/환불액은 환불 모달에서 확인
-                                                </div>
-                                            )}
+                                    {isMembership && consumedTicketCount > 0 && (
+                                        <div className="inline-flex items-center rounded-full px-2 py-0.5 bg-violet-50 border border-violet-200 text-[10px] font-bold text-violet-700">
+                                            ↓ 이 세션에서 티켓 {consumedTicketCount}건 차감
                                         </div>
-                                    );
-                                })()}
+                                    )}
 
-                                {card.itemPaymentDetails.some(pd => pd.memo) && (
-                                    <div className="text-[11px] text-[#616161] italic mt-2 px-1">
-                                        {card.itemPaymentDetails.find(pd => pd.memo)?.memo}
-                                    </div>
-                                )}
-                            </div>
+                                    {isRefunded && matchedItem && (
+                                        <div className="flex justify-between items-center text-[12px] px-1">
+                                            <span className="font-semibold text-red-600">환불지급액</span>
+                                            <span className="tabular-nums font-extrabold text-red-600">{matchedItem.estimatedRefund.toLocaleString()}원</span>
+                                        </div>
+                                    )}
+                                    {!isRefunded && matchedItem && (
+                                        <div className="text-[10px] text-slate-400 italic px-1">사용 {matchedItem.usedCount}회 · 위약금/환불액은 환불 모달에서 확인</div>
+                                    )}
+
+                                    {card.itemPaymentDetails.some(pd => pd.memo) && (
+                                        <div className="text-[10px] text-slate-500 italic px-1">메모: {card.itemPaymentDetails.find(pd => pd.memo)?.memo}</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     );
-                })}
+                });
+                                })()}
                             </div>
                         </div>
                     );

@@ -15,6 +15,7 @@ interface CustomerTicketItem {
     discountPercent: number;
     expiryDate?: string | null;
     purchaseDate?: string | null;
+    isRefunded?: boolean;
 }
 
 interface CustomerTicketResponse {
@@ -30,7 +31,7 @@ function mapToPatientMembership(item: CustomerTicketItem, customerId: number): P
         membershipName: item.name,
         purchaseDate: item.purchaseDate ?? "",
         expiryDate: item.expiryDate ?? "",
-        status: ((item.cashBalance ?? item.balance) + (item.pointBalance ?? 0)) > 0 ? "active" : "expired",
+        status: item.isRefunded ? "refunded" : (((item.cashBalance ?? item.balance) + (item.pointBalance ?? 0)) > 0 ? "active" : "expired"),
         amount: item.totalAmount,
         bonusPoints: 0,
         remainingBalance: item.balance,
@@ -115,9 +116,10 @@ export const membershipService = {
                 params: { type: "membership" }
             });
             const data = response.data;
+            const active = (data?.tickets || []).filter(t => !t.isRefunded);
             return {
-                memberships: (data?.tickets || []).map(mapToMembershipBalance),
-                totalBalance: data?.totalBalance ?? 0,
+                memberships: active.map(mapToMembershipBalance),
+                totalBalance: active.reduce((s, t) => s + (t.balance || 0), 0),
             };
         } catch (error) {
             console.error("Failed to fetch membership balances:", error);

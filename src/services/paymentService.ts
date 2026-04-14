@@ -10,6 +10,28 @@ export interface PaymentItem {
     status?: "paid" | "refunded" | "cancelled" | string;
 }
 
+export interface RefundSummaryItem {
+    type: string;
+    name: string;
+    amount: number;
+    paymentType?: string;
+    paidAmount?: number | null;
+    usageDeduction?: number | null;
+    usedCount?: number | null;
+    totalCount?: number | null;
+    singleSessionPrice?: number | null;
+}
+
+export interface RefundSummaryResult {
+    refundDateTime: string;
+    reason?: string;
+    totalRefunded: number;
+    penalty: number;
+    refundMethod?: string;
+    collectorName?: string;
+    items: RefundSummaryItem[];
+}
+
 export interface PaymentDetailBreakdown {
     id: number;
     paymentType: string;
@@ -21,6 +43,8 @@ export interface PaymentDetailBreakdown {
     terminalAuthNo?: string;
     terminalAuthDate?: string;
     terminalVanKey?: string;
+    membershipId?: number;
+    membershipName?: string;
 }
 
 export interface PaymentItemDetail {
@@ -159,6 +183,7 @@ export interface TicketRefundResponse {
         paymentType: string;
         refundAmount: number;
         membershipHistId?: number;
+        rePaymentDetailId?: number;
     }>;
 }
 
@@ -191,7 +216,31 @@ export interface RefundCalculateResult {
     formula: string;
 }
 
-export interface RefundExecuteRequest {
+// 위약금 재결제 + 원거래 전체취소 2단계 패턴
+export interface RePaymentFields {
+    rePaymentAmount?: number;
+    rePaymentTerminalAuthNo?: string;
+    rePaymentTerminalAuthDate?: string;
+    rePaymentVanKey?: string;
+    rePaymentCardCompany?: string;
+    rePaymentSubMethod?: string;
+    rePaymentSubMethodLabel?: string;
+    rePaymentInstallment?: string;
+    rePaymentTerminalCardNo?: string;
+    rePaymentTerminalTranNo?: string;
+    rePaymentTerminalAccepterName?: string;
+    rePaymentTerminalCatId?: string;
+    rePaymentTerminalMerchantRegNo?: string;
+}
+
+export interface TerminalRefundFields {
+    terminalRefundAuthNo?: string;
+    terminalRefundDate?: string;
+    terminalVanKey?: string;
+    refundMethod?: string;
+}
+
+export interface RefundExecuteRequest extends RePaymentFields, TerminalRefundFields {
     paymentMasterId: number;
     paymentDetailId: number;
     refundType: RefundType;
@@ -215,6 +264,7 @@ export interface RefundExecuteResult {
         paymentType: string;
         refundAmount: number;
         membershipHistId?: number;
+        rePaymentDetailId?: number;
     }>;
 }
 
@@ -222,7 +272,7 @@ export interface RefundExecuteResult {
 // ISSUE-174: Bulk refund + Membership settlement
 // ============================================================
 
-export interface BulkRefundItem {
+export interface BulkRefundItem extends RePaymentFields, TerminalRefundFields {
     paymentMasterId: number;
     paymentDetailId: number;
     refundType: RefundType;
@@ -293,12 +343,18 @@ export interface MembershipSettlementInfo {
     previewFormula: string;
 }
 
-export interface MembershipSettlementExecuteRequest {
+export interface MembershipSettlementExecuteRequest extends RePaymentFields {
     refundType: RefundType;
     includedPaymentDetailIds: number[];
     penaltyRate?: number;
     manualAmount?: number;
     reason?: string;
+    // 회원권 본체(카드) 환불 2단계 패턴
+    membershipCardRefundAmount?: number;
+    membershipCardRefundAuthNo?: string;
+    membershipCardRefundDate?: string;
+    membershipCardRefundVanKey?: string;
+    refundMethod?: string;
 }
 
 export interface MembershipSettlementExecuteResponse {
@@ -543,6 +599,30 @@ export const paymentService = {
             previewMembershipPenalty: Number(d.previewMembershipPenalty || 0),
             previewTotalRefund: Number(d.previewTotalRefund || 0),
             previewFormula: String(d.previewFormula || ""),
+        };
+    },
+
+    async getRefundSummaryByMembershipHist(membershipHistId: number): Promise<RefundSummaryResult> {
+        const response = await apiClient.get(`/payments/refund-summary/by-membership-hist/${membershipHistId}`);
+        const d = response?.data ?? {};
+        return {
+            refundDateTime: String(d.refundDateTime || ""),
+            reason: d.reason ? String(d.reason) : undefined,
+            totalRefunded: Number(d.totalRefunded || 0),
+            penalty: Number(d.penalty || 0),
+            refundMethod: d.refundMethod ? String(d.refundMethod) : undefined,
+            collectorName: d.collectorName ? String(d.collectorName) : undefined,
+            items: Array.isArray(d.items) ? d.items.map((it: any) => ({
+                type: String(it.type || ""),
+                name: String(it.name || ""),
+                amount: Number(it.amount || 0),
+                paymentType: it.paymentType ? String(it.paymentType) : undefined,
+                paidAmount: it.paidAmount == null ? null : Number(it.paidAmount),
+                usageDeduction: it.usageDeduction == null ? null : Number(it.usageDeduction),
+                usedCount: it.usedCount == null ? null : Number(it.usedCount),
+                totalCount: it.totalCount == null ? null : Number(it.totalCount),
+                singleSessionPrice: it.singleSessionPrice == null ? null : Number(it.singleSessionPrice),
+            })) : [],
         };
     },
 

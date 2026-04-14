@@ -94,6 +94,7 @@ export const cartService = {
             useMembership?: boolean;
             selectedMembershipId?: number;
             selectedMembershipIds?: number[];
+            usePoints?: boolean;
             selectedCouponId?: string;
             membershipPriorityMode?: MembershipPriorityMode;
             membershipDiscountTargetAmount?: number;
@@ -137,6 +138,7 @@ export const cartService = {
             useMembership: paymentDetails?.useMembership,
             selectedMembershipId: paymentDetails?.selectedMembershipId,
             selectedMembershipIds: paymentDetails?.selectedMembershipIds,
+            usePoints: paymentDetails?.usePoints ?? true,
             selectedCouponId: paymentDetails?.selectedCouponId,
             membershipPriorityMode: paymentDetails?.membershipPriorityMode,
             membershipDiscountTargetAmount: paymentDetails?.membershipDiscountTargetAmount,

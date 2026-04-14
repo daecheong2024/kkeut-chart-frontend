@@ -63,9 +63,33 @@ function isTerminalPayment(paymentType?: string): boolean {
 
 type ProgressState =
     | { phase: "idle" }
-    | { phase: "terminal"; current: number; total: number; itemName: string }
+    | { phase: "repayment"; current: number; total: number; itemName: string; amount: number }
+    | { phase: "void"; current: number; total: number; itemName: string; amount: number }
     | { phase: "backend"; itemName: string }
     | { phase: "done" };
+
+interface TerminalPairResult {
+    paidAmount: number;
+    rePayment?: {
+        amount: number;
+        authNo: string;
+        authDate: string;
+        vanKey: string;
+        cardCompany?: string;
+        installment?: string;
+        cardNo?: string;
+        tranNo?: string;
+        accepterName?: string;
+        catId?: string;
+        merchantRegNo?: string;
+    };
+    refund: {
+        amount: number;
+        authNo: string;
+        authDate: string;
+        vanKey: string;
+    };
+}
 
 export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: UnifiedRefundModalProps) {
     const { showAlert, showConfirm } = useAlert();
@@ -281,71 +305,115 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
 
         setSubmitting(true);
 
-        // === Phase 1: Terminal calls (sequential) ===
-        const terminalResults: Record<number, { authNo: string; authDate: string; vanKey: string } | { error: string }> = {};
+        // === Phase 1: Terminal 2단계 패턴 (위약금 재결제 → 원거래 전체취소) ===
+        const terminalResults: Record<number, TerminalPairResult | { error: string; repaymentDone?: boolean; repaymentAuthNo?: string; repaymentAmount?: number }> = {};
         const skipTerminal = manualSkipTerminal || !kisTerminalService.isConnected();
 
         if (!skipTerminal && terminalSelections.length > 0) {
             for (let i = 0; i < terminalSelections.length; i++) {
                 const sel = terminalSelections[i]!;
-                setProgress({ phase: "terminal", current: i + 1, total: terminalSelections.length, itemName: sel.itemName });
-
                 const t = sel.terminalInfo;
                 if (!t?.authNo || !t?.authDate || !t?.vanKey) {
                     terminalResults[sel.paymentDetailId] = { error: "원거래 정보 부족 (승인번호/일시/VanKey)" };
                     continue;
                 }
 
-                // Determine amount for this detail
-                let amount = 0;
+                // 원결제액 / 위약금 산출
+                let paidAmount = 0;
+                let penaltyAmount = 0;
                 if (sel.itemType === "ticket") {
-                    amount = ticketCalcs[sel.paymentDetailId]?.estimatedRefund ?? 0;
+                    const calc = ticketCalcs[sel.paymentDetailId];
+                    paidAmount = calc?.paidAmount ?? 0;
+                    penaltyAmount = calc?.penaltyAmount ?? 0;
                 } else {
                     const preview = membershipPreviews.find((p) => p.selection.paymentDetailId === sel.paymentDetailId);
-                    amount = preview?.total ?? 0;
+                    paidAmount = preview?.info?.discountedPurchasePrice ?? 0;
+                    penaltyAmount = preview?.penalty ?? 0;
                 }
-                if (amount <= 0) continue;
+                if (paidAmount <= 0) continue;
 
+                const tradeType = (sel.paymentType?.toUpperCase() === "PAY") ? "v1" as const : "D1" as const;
+                const tradeRefundType = (sel.paymentType?.toUpperCase() === "PAY") ? "v2" as const : "D2" as const;
+
+                // Step A: 위약금 재결제 (penalty > 0 일 때만)
+                let rePaymentAuth: TerminalPairResult["rePayment"] | undefined = undefined;
+                if (penaltyAmount > 0) {
+                    setProgress({ phase: "repayment", current: i + 1, total: terminalSelections.length, itemName: sel.itemName, amount: penaltyAmount });
+                    try {
+                        const r = await kisTerminalService.requestPayment({ tradeType, amount: penaltyAmount });
+                        if (!r.success) {
+                            terminalResults[sel.paymentDetailId] = { error: `위약금 재결제 실패: ${r.displayMsg || r.replyCode}` };
+                            continue;
+                        }
+                        rePaymentAuth = {
+                            amount: penaltyAmount,
+                            authNo: r.authNo,
+                            authDate: r.replyDate,
+                            vanKey: r.vanKey,
+                            cardCompany: r.issuerName || r.accepterName,
+                            installment: r.installment,
+                            cardNo: r.cardNo,
+                            tranNo: r.tranNo,
+                            accepterName: r.accepterName,
+                            catId: r.catId,
+                            merchantRegNo: r.merchantRegNo,
+                        };
+                    } catch (e: any) {
+                        terminalResults[sel.paymentDetailId] = { error: `위약금 재결제 호출 실패: ${e?.message || "알 수 없는 오류"}` };
+                        continue;
+                    }
+                }
+
+                // Step B: 원거래 전체취소 (amount = paidAmount 전체)
+                setProgress({ phase: "void", current: i + 1, total: terminalSelections.length, itemName: sel.itemName, amount: paidAmount });
                 try {
-                    const tradeType = (sel.paymentType?.toUpperCase() === "PAY") ? "v2" as const : "D2" as const;
-                    const result = await kisTerminalService.requestRefund({
-                        tradeType,
-                        amount,
+                    const r = await kisTerminalService.requestRefund({
+                        tradeType: tradeRefundType,
+                        amount: paidAmount,
                         orgAuthDate: t.authDate,
                         orgAuthNo: t.authNo,
                         vanKey: t.vanKey,
                     });
-                    if (result.success) {
+                    if (!r.success) {
                         terminalResults[sel.paymentDetailId] = {
-                            authNo: result.authNo,
-                            authDate: result.replyDate,
-                            vanKey: result.vanKey,
+                            error: `원거래 전체취소 실패: ${r.displayMsg || r.replyCode}`,
+                            repaymentDone: !!rePaymentAuth,
+                            repaymentAuthNo: rePaymentAuth?.authNo,
+                            repaymentAmount: rePaymentAuth?.amount,
                         };
-                    } else {
-                        terminalResults[sel.paymentDetailId] = { error: result.displayMsg || `단말기 응답 코드: ${result.replyCode}` };
+                        continue;
                     }
+                    terminalResults[sel.paymentDetailId] = {
+                        paidAmount,
+                        rePayment: rePaymentAuth,
+                        refund: { amount: paidAmount, authNo: r.authNo, authDate: r.replyDate, vanKey: r.vanKey },
+                    };
                 } catch (e: any) {
-                    terminalResults[sel.paymentDetailId] = { error: e?.message || "단말기 호출 실패" };
+                    terminalResults[sel.paymentDetailId] = {
+                        error: `원거래 전체취소 호출 실패: ${e?.message || "알 수 없는 오류"}`,
+                        repaymentDone: !!rePaymentAuth,
+                        repaymentAuthNo: rePaymentAuth?.authNo,
+                        repaymentAmount: rePaymentAuth?.amount,
+                    };
                 }
             }
 
-            // Check if any failed → abort backend processing
-            const failed = Object.entries(terminalResults).filter(([_, v]) => "error" in v);
-            if (failed.length > 0 && failed.length === terminalSelections.length) {
-                setProgress({ phase: "idle" });
-                setSubmitting(false);
-                showAlert({
-                    message: `단말기 환불 모두 실패\n${failed.map(([id, v]) => `· ${(v as any).error}`).join("\n")}`,
-                    type: "error",
-                });
-                return;
-            }
+            // 실패 검사 — 복구 안내 메시지 포함
+            const failed = Object.entries(terminalResults).filter(([, v]) => "error" in v);
             if (failed.length > 0) {
                 setProgress({ phase: "idle" });
                 setSubmitting(false);
-                const failedNames = failed.map(([id]) => terminalSelections.find((t) => t.paymentDetailId === Number(id))?.itemName || id).join(", ");
+                const detailLines = failed.map(([id, v]) => {
+                    const name = terminalSelections.find((s) => s.paymentDetailId === Number(id))?.itemName || id;
+                    const e = v as { error: string; repaymentDone?: boolean; repaymentAuthNo?: string; repaymentAmount?: number };
+                    let line = `· [${name}] ${e.error}`;
+                    if (e.repaymentDone) {
+                        line += `\n  ⚠ 위약금 재결제(${formatWon(e.repaymentAmount || 0)}, 승인번호 ${e.repaymentAuthNo}) 는 이미 승인됨 → 직원이 수동으로 해당 건 환불 처리 필요`;
+                    }
+                    return line;
+                });
                 showAlert({
-                    message: `일부 단말기 환불 실패: ${failedNames}\n성공한 카드는 그대로 유지됩니다. 실패 원인 확인 후 재시도해 주세요.`,
+                    message: `단말기 환불 처리 중 실패\n${detailLines.join("\n")}`,
                     type: "error",
                 });
                 return;
@@ -370,12 +438,30 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                 const rate = refundType === "hospital_fault"
                     ? 0
                     : (penaltyRatePct === "" ? info.defaultPenaltyRate : Math.max(0, Math.min(0.99, Number(penaltyRatePct) / 100)));
+                const termRes = terminalResults[m.paymentDetailId];
+                const termPair = termRes && !("error" in termRes) ? termRes : undefined;
                 const result = await paymentService.executeMembershipSettlement(info.membershipRootId, {
                     refundType,
                     includedPaymentDetailIds: refundType === "manual" ? [] : info.linkedTickets.filter((t) => !t.alreadyRefunded).map((t) => t.paymentDetailId),
                     penaltyRate: rate,
                     manualAmount: refundType === "manual" ? preview.total : undefined,
                     reason: reason.trim() || undefined,
+                    membershipCardRefundAmount: termPair?.refund.amount,
+                    membershipCardRefundAuthNo: termPair?.refund.authNo,
+                    membershipCardRefundDate: termPair?.refund.authDate,
+                    membershipCardRefundVanKey: termPair?.refund.vanKey,
+                    refundMethod: termPair ? "AUTO" : (skipTerminal ? "MANUAL" : undefined),
+                    rePaymentAmount: termPair?.rePayment?.amount,
+                    rePaymentTerminalAuthNo: termPair?.rePayment?.authNo,
+                    rePaymentTerminalAuthDate: termPair?.rePayment?.authDate,
+                    rePaymentVanKey: termPair?.rePayment?.vanKey,
+                    rePaymentCardCompany: termPair?.rePayment?.cardCompany,
+                    rePaymentInstallment: termPair?.rePayment?.installment,
+                    rePaymentTerminalCardNo: termPair?.rePayment?.cardNo,
+                    rePaymentTerminalTranNo: termPair?.rePayment?.tranNo,
+                    rePaymentTerminalAccepterName: termPair?.rePayment?.accepterName,
+                    rePaymentTerminalCatId: termPair?.rePayment?.catId,
+                    rePaymentTerminalMerchantRegNo: termPair?.rePayment?.merchantRegNo,
                 });
                 if (result.success) {
                     totalSuccess++;
@@ -397,13 +483,32 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                 try {
                     const penaltyRate = penaltyRatePct === "" ? undefined : Number(penaltyRatePct) / 100;
                     const result = await paymentService.executeBulkRefund({
-                        items: refundableTickets.map((t) => ({
-                            paymentMasterId: t.paymentMasterId,
-                            paymentDetailId: t.paymentDetailId,
-                            refundType,
-                            penaltyRate,
-                            reason: reason.trim() || undefined,
-                        })),
+                        items: refundableTickets.map((t) => {
+                            const termRes = terminalResults[t.paymentDetailId];
+                            const pair = termRes && !("error" in termRes) ? termRes : undefined;
+                            return {
+                                paymentMasterId: t.paymentMasterId,
+                                paymentDetailId: t.paymentDetailId,
+                                refundType,
+                                penaltyRate,
+                                reason: reason.trim() || undefined,
+                                terminalRefundAuthNo: pair?.refund.authNo,
+                                terminalRefundDate: pair?.refund.authDate,
+                                terminalVanKey: pair?.refund.vanKey,
+                                refundMethod: pair ? "AUTO" : (skipTerminal ? "MANUAL" : undefined),
+                                rePaymentAmount: pair?.rePayment?.amount,
+                                rePaymentTerminalAuthNo: pair?.rePayment?.authNo,
+                                rePaymentTerminalAuthDate: pair?.rePayment?.authDate,
+                                rePaymentVanKey: pair?.rePayment?.vanKey,
+                                rePaymentCardCompany: pair?.rePayment?.cardCompany,
+                                rePaymentInstallment: pair?.rePayment?.installment,
+                                rePaymentTerminalCardNo: pair?.rePayment?.cardNo,
+                                rePaymentTerminalTranNo: pair?.rePayment?.tranNo,
+                                rePaymentTerminalAccepterName: pair?.rePayment?.accepterName,
+                                rePaymentTerminalCatId: pair?.rePayment?.catId,
+                                rePaymentTerminalMerchantRegNo: pair?.rePayment?.merchantRegNo,
+                            };
+                        }),
                         commonReason: reason.trim() || undefined,
                     });
                     totalSuccess += result.successCount;
@@ -627,7 +732,8 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                     단말기 환불 대상: {terminalSelections.length}건
                                 </div>
                                 <div className="text-[#8B5A66]">
-                                    환불 확정 시 카드/페이 단말기에 자동으로 취소 요청을 전송합니다.
+                                    환불 확정 시 2단계로 처리됩니다:<br/>
+                                    ① 위약금 재결제 (카드 신규 승인) → ② 원거래 전체취소
                                 </div>
                                 <label className="flex items-center gap-1.5 cursor-pointer pt-1">
                                     <input
@@ -648,12 +754,24 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                     <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#2A1F22]/40 backdrop-blur-sm">
                         <div className="rounded-2xl border border-[#F8DCE2] bg-white px-8 py-6 shadow-2xl text-center">
                             <div className="h-10 w-10 mx-auto mb-3 rounded-full border-4 border-[#F8DCE2] border-t-[#D27A8C] animate-spin" />
-                            {progress.phase === "terminal" && (
+                            {progress.phase === "repayment" && (
                                 <>
                                     <div className="text-[14px] font-extrabold text-[#5C2A35]">
-                                        단말기 환불 처리 중 ({progress.current}/{progress.total})
+                                        1/2단계 · 위약금 재결제 중 ({progress.current}/{progress.total})
                                     </div>
                                     <div className="text-[11px] text-[#8B5A66] mt-1">{progress.itemName}</div>
+                                    <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
+                                    <div className="text-[10px] text-[#8B5A66] mt-1">고객 카드에 위약금이 신규 결제됩니다</div>
+                                </>
+                            )}
+                            {progress.phase === "void" && (
+                                <>
+                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">
+                                        2/2단계 · 원거래 전체취소 중 ({progress.current}/{progress.total})
+                                    </div>
+                                    <div className="text-[11px] text-[#8B5A66] mt-1">{progress.itemName}</div>
+                                    <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
+                                    <div className="text-[10px] text-[#8B5A66] mt-1">원거래 전체 금액이 카드사에 환불됩니다</div>
                                 </>
                             )}
                             {progress.phase === "backend" && (
@@ -747,9 +865,30 @@ function MembershipPreviewCard({ preview }: { preview: MembershipPreview }) {
                     </div>
                 )}
             </div>
-            {info.linkedTickets.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-[#F8DCE2] text-[10px] text-[#8B5A66]">
-                    🔗 연결 티켓 {info.linkedTickets.filter((t) => !t.alreadyRefunded).length}건 자동 환불 포함
+            {info.linkedTickets.filter((t) => !t.alreadyRefunded).length > 0 && (
+                <div className="mt-2 pt-2 border-t border-[#F8DCE2]">
+                    <div className="text-[10px] font-bold text-[#8B5A66] mb-1.5">🔗 연결 티켓 {info.linkedTickets.filter((t) => !t.alreadyRefunded).length}건</div>
+                    <div className="space-y-1">
+                        {info.linkedTickets.filter((t) => !t.alreadyRefunded).map((t) => {
+                            const single = Number(t.singleSessionPrice || 0);
+                            const usageDeduction = Math.round(single * Number(t.usedCount || 0));
+                            return (
+                                <div key={t.paymentDetailId} className="rounded-md bg-white border border-[#F8DCE2] px-2 py-1.5">
+                                    <div className="text-[11px] font-semibold text-[#2A1F22] break-words" title={t.ticketName}>{t.ticketName}</div>
+                                    <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-[#8B5A66]">
+                                        <div className="flex justify-between"><span>결제액</span><span className="tabular-nums text-[#2A1F22]">{formatWon(t.paidViaMembership)}</span></div>
+                                        <div className="flex justify-between"><span>환불액</span><span className="tabular-nums font-bold text-[#D27A8C]">+{formatWon(t.estimatedRefund)}</span></div>
+                                        {single > 0 && (
+                                            <div className="col-span-2 flex justify-between text-rose-500">
+                                                <span>사용 차감 ({t.usedCount}/{t.totalCount}회)</span>
+                                                <span className="tabular-nums">−{formatWon(usageDeduction)} <span className="text-[9px] text-rose-400">(1회 {formatWon(single)} × {t.usedCount}회)</span></span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
             <div className="mt-2 pt-2 border-t border-[#F8DCE2] flex justify-between items-center">

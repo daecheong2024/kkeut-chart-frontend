@@ -67,13 +67,28 @@ export default function ConsentSignaturePage() {
         }
     };
 
+    const isStructured = useMemo(() => {
+        const raw = String(data?.formBody || "").trim();
+        if (!raw) return false;
+        try { const p = JSON.parse(raw); return p && Array.isArray(p.sections); } catch { return false; }
+    }, [data?.formBody]);
+
+    const structuredBlocks = useMemo(() => {
+        if (!isStructured) return [];
+        try {
+            const parsed = JSON.parse(data?.formBody || "{}");
+            const sections: Array<{ key: string; blocks: any[] }> = parsed.sections || [];
+            return sections.flatMap((s) => s.blocks || []);
+        } catch { return []; }
+    }, [isStructured, data?.formBody]);
+
     const resolvedFormBody = useMemo(() => {
         const raw = String(data?.formBody || "");
-        if (!raw) return "";
+        if (!raw || isStructured) return "";
         return raw
             .replaceAll("{{patient_name}}", String(data?.patientName || ""))
             .replaceAll("{{today}}", new Date().toISOString().slice(0, 10));
-    }, [data?.formBody, data?.patientName]);
+    }, [data?.formBody, data?.patientName, isStructured]);
 
     if (loading) {
         return (
@@ -142,7 +157,50 @@ export default function ConsentSignaturePage() {
                             <div className="px-2 py-1">{new Date().toLocaleDateString("ko-KR")}</div>
                         </div>
 
-                        {resolvedFormBody && (
+                        {isStructured ? (
+                            <div className="mt-3 space-y-3">
+                                {structuredBlocks.map((block: any) => (
+                                    <div key={block.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                                        {block.title && (
+                                            <div className="text-[13px] font-bold text-slate-900 mb-2">
+                                                {block.title}
+                                                {block.required && <span className="text-rose-500 ml-1">*</span>}
+                                            </div>
+                                        )}
+                                        {block.type === "text_content" && block.content && (
+                                            <div className={`leading-relaxed whitespace-pre-wrap ${
+                                                block.fontSize === "sm" ? "text-[12px]" : block.fontSize === "lg" ? "text-[16px]" : "text-[13px]"
+                                            } ${block.fontWeight === "bold" ? "font-bold" : ""} ${
+                                                block.color === "muted" ? "text-slate-500" : block.color === "danger" ? "text-red-600" : block.color === "primary" ? "text-rose-700" : "text-slate-800"
+                                            }`}>
+                                                {block.content}
+                                            </div>
+                                        )}
+                                        {block.type === "date" && (
+                                            <input type="date" className="rounded-lg border border-slate-300 px-3 py-2 text-sm w-full" />
+                                        )}
+                                        {block.type === "text_chart" && (
+                                            <div className="rounded-lg bg-slate-50 border border-dashed border-slate-300 px-3 py-2 text-[12px] text-slate-400 italic">
+                                                {block.placeholder || "차트에서 입력된 내용이 표시됩니다."}
+                                            </div>
+                                        )}
+                                        {block.type === "choice" && (
+                                            <div className="space-y-1.5">
+                                                {(block.options || []).map((opt: any) => (
+                                                    <label key={opt.id} className="flex items-center gap-2 text-[13px] text-slate-800">
+                                                        <input type={block.selectionType === "single" ? "radio" : "checkbox"} name={block.id} className="accent-rose-500" />
+                                                        <span>{opt.label}</span>
+                                                        {opt.hasNote && (
+                                                            <input type="text" placeholder="비고" className="ml-2 flex-1 border-b border-slate-300 px-1 text-[12px] outline-none" />
+                                                        )}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : resolvedFormBody ? (
                             <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
                                 <div
                                     className="prose prose-sm max-w-none text-slate-800 leading-relaxed"
@@ -153,7 +211,7 @@ export default function ConsentSignaturePage() {
                                     }}
                                 />
                             </div>
-                        )}
+                        ) : null}
 
                         <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                             <div className="text-xs font-bold text-slate-800">확인 항목</div>

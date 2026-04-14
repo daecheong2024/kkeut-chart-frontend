@@ -512,12 +512,19 @@ export default function MessagesPage() {
                 const config = await crmMessagesConfigService.get(branchId);
                 if (cancelled) return;
 
+                const defaults = createDefaultTemplates(createNowIso());
+                const existingTmplIds = new Set(config.templates.map((t) => t.id));
+                const missingTemplates = defaults.filter((d) => !existingTmplIds.has(d.id));
                 const loadedTemplates = config.templates.length > 0
-                    ? config.templates
-                    : createDefaultTemplates(createNowIso());
+                    ? [...config.templates, ...missingTemplates]
+                    : defaults;
+
+                const defaultAutos = createDefaultAutomations();
+                const existingAutoIds = new Set(config.automations.map((a) => a.id));
+                const missingAutos = defaultAutos.filter((d) => !existingAutoIds.has(d.id));
                 const loadedAutomations = config.automations.length > 0
-                    ? config.automations
-                    : createDefaultAutomations();
+                    ? [...config.automations, ...missingAutos]
+                    : defaultAutos;
                 setTemplates(loadedTemplates);
                 setAutomations(loadedAutomations);
                 setOutbox(config.outbox);

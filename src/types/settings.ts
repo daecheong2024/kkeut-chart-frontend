@@ -299,7 +299,6 @@ export interface TicketItem {
   eventPrice?: number | null;
   singleSessionPrice?: number | null;
   defaultPenaltyRate?: number | null;
-  isTaxable?: boolean;
   reservCategoryId?: number;
   reservCategoryName?: string;
   queueCategoryName?: string; // 시술 그룹(대기 계산 집계 기준)

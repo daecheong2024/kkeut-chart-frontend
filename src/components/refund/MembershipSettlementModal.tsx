@@ -7,6 +7,7 @@ import {
     type MembershipSettlementLinkedTicket,
     type RefundType,
 } from "../../services/paymentService";
+import { kisTerminalService } from "../../services/kisTerminalService";
 import { useAlert } from "../ui/AlertDialog";
 
 const SETTLEMENT_REFUND_TYPES: Array<{ value: RefundType; label: string; description: string }> = [
@@ -21,9 +22,22 @@ export interface MembershipSettlementModalProps {
     membershipRootId?: number;
     paymentDetailId?: number;
     membershipName?: string;
+    /** 회원권 본체(카드 결제분) 2단계 패턴용 원거래 정보. 없으면 단말기 호출 생략. */
+    membershipCardTerminalInfo?: {
+        authNo?: string;
+        authDate?: string;
+        vanKey?: string;
+        paymentType?: string;
+    };
     onClose: () => void;
     onRefunded: (totalRefund: number) => void;
 }
+
+type SettlementProgressState =
+    | { phase: "idle" }
+    | { phase: "repayment"; amount: number }
+    | { phase: "void"; amount: number }
+    | { phase: "backend" };
 
 function formatWon(value: number): string {
     return `${Math.max(0, Math.round(value)).toLocaleString()}원`;
@@ -34,10 +48,11 @@ export function MembershipSettlementModal({
     membershipRootId,
     paymentDetailId,
     membershipName,
+    membershipCardTerminalInfo,
     onClose,
     onRefunded,
 }: MembershipSettlementModalProps) {
-    const { showAlert } = useAlert();
+    const { showAlert, showConfirm } = useAlert();
     const [info, setInfo] = useState<MembershipSettlementInfo | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -47,6 +62,7 @@ export function MembershipSettlementModal({
     const [manualAmount, setManualAmount] = useState<string>("");
     const [reason, setReason] = useState<string>("");
     const [submitting, setSubmitting] = useState(false);
+    const [progress, setProgress] = useState<SettlementProgressState>({ phase: "idle" });
 
     useEffect(() => {
         if (!open) return;
@@ -150,7 +166,112 @@ export function MembershipSettlementModal({
             showAlert({ message: "직접 입력 환불은 사유가 필수입니다.", type: "warning" });
             return;
         }
+
+        // 2단계 패턴: 카드 결제된 회원권이면 (1) 위약금 재결제 → (2) 원거래 전체취소 → BE 기록
+        const cardInfo = membershipCardTerminalInfo;
+        const isCardRefundable =
+            refundType !== "manual"
+            && !!cardInfo
+            && ((cardInfo.paymentType || "").toUpperCase() === "CARD" || (cardInfo.paymentType || "").toUpperCase() === "PAY")
+            && !!cardInfo.authNo && !!cardInfo.authDate && !!cardInfo.vanKey
+            && !info.membershipAlreadyRefunded;
+
         setSubmitting(true);
+
+        let rePaymentAuth: {
+            amount: number;
+            authNo: string;
+            authDate: string;
+            vanKey: string;
+            cardCompany?: string;
+            installment?: string;
+            cardNo?: string;
+            tranNo?: string;
+            accepterName?: string;
+            catId?: string;
+            merchantRegNo?: string;
+        } | undefined;
+        let voidAuth: { amount: number; authNo: string; authDate: string; vanKey: string } | undefined;
+
+        if (isCardRefundable && cardInfo) {
+            const connectOk = await kisTerminalService.connect().catch(() => false);
+            if (!connectOk) {
+                const proceed = await showConfirm({
+                    message: "단말기 연결에 실패했습니다.\n수동 환불(단말기 없이 진행)으로 진행하시겠습니까?\n\n※ 카드 환불은 별도로 카드사에 직접 요청해야 합니다.",
+                    type: "warning",
+                    confirmText: "수동 진행",
+                    cancelText: "취소",
+                });
+                if (!proceed) { setSubmitting(false); return; }
+            }
+
+            const tradePayType = (cardInfo.paymentType?.toUpperCase() === "PAY") ? "v1" as const : "D1" as const;
+            const tradeRefType = (cardInfo.paymentType?.toUpperCase() === "PAY") ? "v2" as const : "D2" as const;
+            const penaltyAmount = preview.penalty;
+            const paidAmount = info.discountedPurchasePrice;
+
+            if (penaltyAmount > 0) {
+                setProgress({ phase: "repayment", amount: penaltyAmount });
+                try {
+                    const r = await kisTerminalService.requestPayment({ tradeType: tradePayType, amount: penaltyAmount });
+                    if (!r.success) {
+                        setProgress({ phase: "idle" });
+                        setSubmitting(false);
+                        showAlert({ message: `위약금 재결제 실패: ${r.displayMsg || r.replyCode}`, type: "error" });
+                        return;
+                    }
+                    rePaymentAuth = {
+                        amount: penaltyAmount,
+                        authNo: r.authNo,
+                        authDate: r.replyDate,
+                        vanKey: r.vanKey,
+                        cardCompany: r.issuerName || r.accepterName,
+                        installment: r.installment,
+                        cardNo: r.cardNo,
+                        tranNo: r.tranNo,
+                        accepterName: r.accepterName,
+                        catId: r.catId,
+                        merchantRegNo: r.merchantRegNo,
+                    };
+                } catch (e: any) {
+                    setProgress({ phase: "idle" });
+                    setSubmitting(false);
+                    showAlert({ message: `위약금 재결제 호출 실패: ${e?.message || "오류"}`, type: "error" });
+                    return;
+                }
+            }
+
+            setProgress({ phase: "void", amount: paidAmount });
+            try {
+                const r = await kisTerminalService.requestRefund({
+                    tradeType: tradeRefType,
+                    amount: paidAmount,
+                    orgAuthDate: cardInfo.authDate!,
+                    orgAuthNo: cardInfo.authNo!,
+                    vanKey: cardInfo.vanKey!,
+                });
+                if (!r.success) {
+                    setProgress({ phase: "idle" });
+                    setSubmitting(false);
+                    const warn = rePaymentAuth
+                        ? `\n⚠ 위약금 재결제(${formatWon(rePaymentAuth.amount)}, 승인번호 ${rePaymentAuth.authNo})는 이미 승인됨 → 직원 수동 환불 필요`
+                        : "";
+                    showAlert({ message: `원거래 전체취소 실패: ${r.displayMsg || r.replyCode}${warn}`, type: "error" });
+                    return;
+                }
+                voidAuth = { amount: paidAmount, authNo: r.authNo, authDate: r.replyDate, vanKey: r.vanKey };
+            } catch (e: any) {
+                setProgress({ phase: "idle" });
+                setSubmitting(false);
+                const warn = rePaymentAuth
+                    ? `\n⚠ 위약금 재결제(${formatWon(rePaymentAuth.amount)}, 승인번호 ${rePaymentAuth.authNo})는 이미 승인됨 → 직원 수동 환불 필요`
+                    : "";
+                showAlert({ message: `원거래 전체취소 호출 실패: ${e?.message || "오류"}${warn}`, type: "error" });
+                return;
+            }
+        }
+
+        setProgress({ phase: "backend" });
         try {
             const result = await paymentService.executeMembershipSettlement(info.membershipRootId, {
                 refundType,
@@ -158,6 +279,22 @@ export function MembershipSettlementModal({
                 penaltyRate: refundType === "hospital_fault" ? 0 : preview.rate,
                 manualAmount: refundType === "manual" ? preview.total : undefined,
                 reason: reason.trim() || undefined,
+                membershipCardRefundAmount: voidAuth?.amount,
+                membershipCardRefundAuthNo: voidAuth?.authNo,
+                membershipCardRefundDate: voidAuth?.authDate,
+                membershipCardRefundVanKey: voidAuth?.vanKey,
+                refundMethod: voidAuth ? "AUTO" : undefined,
+                rePaymentAmount: rePaymentAuth?.amount,
+                rePaymentTerminalAuthNo: rePaymentAuth?.authNo,
+                rePaymentTerminalAuthDate: rePaymentAuth?.authDate,
+                rePaymentVanKey: rePaymentAuth?.vanKey,
+                rePaymentCardCompany: rePaymentAuth?.cardCompany,
+                rePaymentInstallment: rePaymentAuth?.installment,
+                rePaymentTerminalCardNo: rePaymentAuth?.cardNo,
+                rePaymentTerminalTranNo: rePaymentAuth?.tranNo,
+                rePaymentTerminalAccepterName: rePaymentAuth?.accepterName,
+                rePaymentTerminalCatId: rePaymentAuth?.catId,
+                rePaymentTerminalMerchantRegNo: rePaymentAuth?.merchantRegNo,
             });
             if (result.success) {
                 showAlert({
@@ -174,8 +311,12 @@ export function MembershipSettlementModal({
             onClose();
         } catch (e: any) {
             const message = e?.response?.data?.message || e?.message || "정산 처리 실패";
-            showAlert({ message, type: "error" });
+            const warn = rePaymentAuth
+                ? `\n⚠ 단말기 2단계는 모두 승인되었으나 DB 기록 실패 → 운영자 문의 필요 (위약금 승인번호 ${rePaymentAuth.authNo}, 취소 승인번호 ${voidAuth?.authNo})`
+                : "";
+            showAlert({ message: `${message}${warn}`, type: "error" });
         } finally {
+            setProgress({ phase: "idle" });
             setSubmitting(false);
         }
     };
@@ -190,7 +331,7 @@ export function MembershipSettlementModal({
             className="fixed inset-0 z-[10010] flex items-center justify-center bg-[#2A1F22]/55 backdrop-blur-[3px] px-4 animate-in fade-in duration-150"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
-            <div className="w-full max-w-[920px] rounded-2xl border border-[#F8DCE2] bg-white shadow-[0_30px_80px_rgba(92,42,53,0.4)] animate-in zoom-in-95 duration-150 overflow-hidden">
+            <div className="relative w-full max-w-[920px] rounded-2xl border border-[#F8DCE2] bg-white shadow-[0_30px_80px_rgba(92,42,53,0.4)] animate-in zoom-in-95 duration-150 overflow-hidden">
                 {/* Header */}
                 <div className="relative flex items-center justify-between border-b border-[#F8DCE2] px-6 py-3 bg-gradient-to-r from-[#FCEBEF] via-[#FCF7F8] to-white">
                     <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-[#D27A8C] to-[#8B3F50]" />
@@ -266,13 +407,13 @@ export function MembershipSettlementModal({
                                             </button>
                                         )}
                                     </div>
-                                    {info.linkedTickets.length === 0 ? (
+                                    {eligibleTickets.length === 0 ? (
                                         <div className="text-[11px] text-[#C9A0A8] italic px-3 py-3 rounded-lg border border-dashed border-[#F8DCE2] text-center">
-                                            이 회원권으로 결제된 티켓이 없습니다.
+                                            환불 가능한 티켓이 없습니다.
                                         </div>
                                     ) : (
                                         <div className="rounded-xl border border-[#F8DCE2] divide-y divide-[#F8DCE2]/60 max-h-[330px] overflow-y-auto">
-                                            {info.linkedTickets.map((ticket: MembershipSettlementLinkedTicket) => {
+                                            {info.linkedTickets.filter((t: MembershipSettlementLinkedTicket) => !t.alreadyRefunded).map((ticket: MembershipSettlementLinkedTicket) => {
                                                 const isSelected = selectedDetailIds.has(ticket.paymentDetailId);
                                                 const disabled = ticket.alreadyRefunded;
                                                 return (
@@ -482,6 +623,31 @@ export function MembershipSettlementModal({
                         </div>
                     </>
                 ) : null}
+
+                {submitting && progress.phase !== "idle" && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#2A1F22]/40 backdrop-blur-sm">
+                        <div className="rounded-2xl border border-[#F8DCE2] bg-white px-8 py-6 shadow-2xl text-center">
+                            <div className="h-10 w-10 mx-auto mb-3 rounded-full border-4 border-[#F8DCE2] border-t-[#D27A8C] animate-spin" />
+                            {progress.phase === "repayment" && (
+                                <>
+                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">1/2단계 · 위약금 재결제 중</div>
+                                    <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
+                                    <div className="text-[10px] text-[#8B5A66] mt-1">고객 카드에 위약금이 신규 결제됩니다</div>
+                                </>
+                            )}
+                            {progress.phase === "void" && (
+                                <>
+                                    <div className="text-[14px] font-extrabold text-[#5C2A35]">2/2단계 · 원거래 전체취소 중</div>
+                                    <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
+                                    <div className="text-[10px] text-[#8B5A66] mt-1">원거래 전체 금액이 카드사에 환불됩니다</div>
+                                </>
+                            )}
+                            {progress.phase === "backend" && (
+                                <div className="text-[14px] font-extrabold text-[#5C2A35]">환불 기록 저장 중</div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>,
         document.body
