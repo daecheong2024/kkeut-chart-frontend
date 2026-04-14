@@ -271,6 +271,19 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
     );
     const grandTotal = ticketsRefundTotal + membershipRefundTotal;
 
+    // 자동/수기 분리 합계 — 직원이 "현금분은 별도 출금" 임을 명확히 인지하도록
+    const autoRefundTotal = useMemo(() => {
+        let s = 0;
+        for (const t of effectiveTickets) {
+            if (isTerminalPayment(t.paymentType)) s += ticketCalcs[t.paymentDetailId]?.estimatedRefund ?? 0;
+        }
+        for (const p of membershipPreviews) {
+            if (isTerminalPayment(p.selection.paymentType)) s += p.total;
+        }
+        return s;
+    }, [effectiveTickets, membershipPreviews, ticketCalcs]);
+    const manualRefundTotal = Math.max(0, grandTotal - autoRefundTotal);
+
     // Detect terminal payments that will need card refund
     const terminalSelections = useMemo(() => {
         const list: UnifiedRefundSelection[] = [];
@@ -540,10 +553,11 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
         setSubmitting(false);
 
         if (totalFail === 0) {
-            showAlert({
-                message: `${totalSuccess}건 / 총 ${formatWon(grandTotal)} 환불 완료${skipTerminal ? "\n\n※ 수동 환불 모드 — 카드사 환불은 별도 처리 필요" : ""}`,
-                type: "success",
-            });
+            const lines: string[] = [`${totalSuccess}건 / 총 ${formatWon(grandTotal)} 환불 완료`];
+            if (autoRefundTotal > 0) lines.push(`· 단말기 자동 환불: ${formatWon(autoRefundTotal)}`);
+            if (manualRefundTotal > 0) lines.push(`· 수기 출금 필요 (현금/계좌): ${formatWon(manualRefundTotal)}`);
+            if (skipTerminal && autoRefundTotal > 0) lines.push("\n※ 수동 환불 모드 — 카드사 환불은 별도 처리 필요");
+            showAlert({ message: lines.join("\n"), type: "success" });
         } else {
             showAlert({
                 message: `성공 ${totalSuccess}건 / 실패 ${totalFail}건\n\n${failureMessages.slice(0, 5).join("\n")}`,
@@ -734,8 +748,27 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                         {formatWon(grandTotal)}
                                     </span>
                                 </div>
+                                {autoRefundTotal > 0 && manualRefundTotal > 0 && (
+                                    <div className="mt-2 space-y-0.5 text-[11px]">
+                                        <div className="flex justify-between text-[#5C2A35]">
+                                            <span>· 단말기 자동 환불 (카드/페이)</span>
+                                            <span className="font-bold tabular-nums">{formatWon(autoRefundTotal)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-[#99354E]">
+                                            <span>· 수기 환불 필요 (현금/계좌)</span>
+                                            <span className="font-bold tabular-nums">{formatWon(manualRefundTotal)}</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
+
+                        {manualRefundTotal > 0 && (
+                            <div className="rounded-lg border border-[#F4C7CE] bg-[#FCEBEF] px-3 py-2 text-[10.5px] text-[#8B3F50] leading-snug">
+                                <div className="font-extrabold mb-0.5">⚠ 수기 환불 {formatWon(manualRefundTotal)} 별도 처리 필요</div>
+                                <div className="text-[#8B5A66]">현금/계좌이체 환불분은 단말기 호출 없이 DB만 기록됩니다. 직원이 현금 출금 또는 계좌 이체를 직접 수행해 주세요.</div>
+                            </div>
+                        )}
 
                         {/* Terminal info */}
                         {terminalSelections.length > 0 && (
