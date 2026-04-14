@@ -75,11 +75,62 @@ export function RefundModal({
     const [progress, setProgress] = useState<RefundProgressState>({ phase: "idle" });
     const [skipTerminal, setSkipTerminal] = useState(false);
 
+    // 영수증 보고 직원이 단말기 정보를 직접 입력할 수 있게 로컬 상태로도 관리
+    // (props.terminalInfo 가 없거나 부족할 때 inline 입력 → 저장 → 환불 진행)
+    const [localTerminalAuthNo, setLocalTerminalAuthNo] = useState<string>("");
+    const [localTerminalAuthDate, setLocalTerminalAuthDate] = useState<string>("");
+    const [localTerminalVanKey, setLocalTerminalVanKey] = useState<string>("");
+    const [savingTerminalInfo, setSavingTerminalInfo] = useState(false);
+    const [terminalInfoSaved, setTerminalInfoSaved] = useState<{ authNo: string; authDate: string; vanKey: string } | null>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        setLocalTerminalAuthNo(terminalInfo?.authNo || "");
+        setLocalTerminalAuthDate(terminalInfo?.authDate || "");
+        setLocalTerminalVanKey(terminalInfo?.vanKey || "");
+        setTerminalInfoSaved(null);
+    }, [open, terminalInfo]);
+
+    const effectiveTerminalInfo = useMemo(() => {
+        if (terminalInfoSaved) return terminalInfoSaved;
+        return {
+            authNo: terminalInfo?.authNo || "",
+            authDate: terminalInfo?.authDate || "",
+            vanKey: terminalInfo?.vanKey || "",
+        };
+    }, [terminalInfo, terminalInfoSaved]);
+
     const canUseTerminal =
         isTerminalPayment(paymentType)
-        && !!terminalInfo?.authNo
-        && !!terminalInfo?.authDate
-        && !!terminalInfo?.vanKey;
+        && !!effectiveTerminalInfo.authNo
+        && !!effectiveTerminalInfo.authDate
+        && !!effectiveTerminalInfo.vanKey;
+
+    const handleSaveTerminalInfo = async () => {
+        const a = localTerminalAuthNo.trim();
+        const d = localTerminalAuthDate.trim();
+        const v = localTerminalVanKey.trim();
+        if (!a || !d || !v) {
+            showAlert({ message: "승인번호 / 거래일시(YYYYMMDD) / VANKEY 모두 입력해 주세요.", type: "warning" });
+            return;
+        }
+        if (!/^\d{8}$/.test(d)) {
+            showAlert({ message: "거래일시는 YYYYMMDD 8자리 숫자로 입력해 주세요. (예: 20260414)", type: "warning" });
+            return;
+        }
+        setSavingTerminalInfo(true);
+        try {
+            await paymentService.updatePaymentDetailTerminalInfo(paymentDetailId, {
+                authNo: a, terminalAuthDate: d, terminalVanKey: v,
+            });
+            setTerminalInfoSaved({ authNo: a, authDate: d, vanKey: v });
+            showAlert({ message: "단말기 정보가 저장되었습니다. 환불 확정 시 2단계 패턴으로 처리됩니다.", type: "success" });
+        } catch (e: any) {
+            showAlert({ message: `저장 실패: ${e?.response?.data?.message || e?.message || "오류"}`, type: "error" });
+        } finally {
+            setSavingTerminalInfo(false);
+        }
+    };
     const [refundType, setRefundType] = useState<RefundType>("customer_change");
     const [penaltyRatePct, setPenaltyRatePct] = useState<string>("");
     const [manualAmount, setManualAmount] = useState<string>("");
@@ -180,7 +231,7 @@ export function RefundModal({
         } | undefined;
         let voidAuth: { amount: number; authNo: string; authDate: string; vanKey: string } | undefined;
 
-        if (useTerminal && kisTerminalService.isConnected() && terminalInfo) {
+        if (useTerminal && kisTerminalService.isConnected()) {
             const tradePayType = (paymentType?.toUpperCase() === "PAY") ? "v1" as const : "D1" as const;
             const tradeRefType = (paymentType?.toUpperCase() === "PAY") ? "v2" as const : "D2" as const;
             const paidAmount = calc.paidAmount;
@@ -222,9 +273,9 @@ export function RefundModal({
                 const r = await kisTerminalService.requestRefund({
                     tradeType: tradeRefType,
                     amount: paidAmount,
-                    orgAuthDate: terminalInfo.authDate!,
-                    orgAuthNo: terminalInfo.authNo!,
-                    vanKey: terminalInfo.vanKey!,
+                    orgAuthDate: effectiveTerminalInfo.authDate,
+                    orgAuthNo: effectiveTerminalInfo.authNo,
+                    vanKey: effectiveTerminalInfo.vanKey,
                 });
                 if (!r.success) {
                     setProgress({ phase: "idle" });
@@ -417,8 +468,46 @@ export function RefundModal({
                             </div>
                         )}
                         {!canUseTerminal && isTerminalPayment(paymentType) && (
-                            <div className="rounded-lg border border-[#F4C7CE] bg-[#FCEBEF] px-3 py-2 text-[10px] text-[#8B3F50]">
-                                ⚠ 카드 결제이지만 원거래 정보(승인번호/일시/VanKey)가 부족하여 단말기 환불 불가. 카드사 직접 요청이 필요합니다.
+                            <div className="rounded-lg border border-[#F4C7CE] bg-[#FCEBEF]/60 px-3 py-2.5 text-[11px] text-[#8B3F50] space-y-2">
+                                <div className="font-extrabold">⚠ {paymentTypeLabel(paymentType)} 결제 — 원거래 정보가 등록되어 있지 않습니다</div>
+                                <div className="text-[10.5px] text-[#8B5A66] leading-snug">
+                                    영수증을 보고 아래 3개 항목을 입력하면 단말기 2단계 환불이 가능해집니다. 입력 정보는 PaymentDetail 에 영구 저장됩니다.
+                                </div>
+                                <div className="grid grid-cols-3 gap-1.5">
+                                    <input
+                                        type="text"
+                                        value={localTerminalAuthNo}
+                                        onChange={(e) => setLocalTerminalAuthNo(e.target.value)}
+                                        placeholder="승인번호"
+                                        className="h-8 rounded-md border border-[#F4C7CE] bg-white px-2 text-[11px] outline-none focus:border-[#D27A8C]"
+                                    />
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={8}
+                                        value={localTerminalAuthDate}
+                                        onChange={(e) => setLocalTerminalAuthDate(e.target.value.replace(/\D/g, ""))}
+                                        placeholder="거래일시 YYYYMMDD"
+                                        className="h-8 rounded-md border border-[#F4C7CE] bg-white px-2 text-[11px] outline-none focus:border-[#D27A8C]"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={localTerminalVanKey}
+                                        onChange={(e) => setLocalTerminalVanKey(e.target.value)}
+                                        placeholder="VANKEY"
+                                        className="h-8 rounded-md border border-[#F4C7CE] bg-white px-2 text-[11px] outline-none focus:border-[#D27A8C]"
+                                    />
+                                </div>
+                                <div className="flex justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveTerminalInfo}
+                                        disabled={savingTerminalInfo}
+                                        className="h-7 rounded-md bg-[#D27A8C] px-3 text-[11px] font-bold text-white hover:bg-[#8B3F50] disabled:opacity-50 transition-colors"
+                                    >
+                                        {savingTerminalInfo ? "저장 중..." : "단말기 정보 저장"}
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>

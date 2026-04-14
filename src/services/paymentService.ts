@@ -491,6 +491,17 @@ export const paymentService = {
         return response.data;
     },
 
+    /**
+     * 단말기 미연동 환경에서 영수증 보고 직원이 PaymentDetail의 단말기 정보를
+     * 수기 입력 / 수정. 환불 2단계 패턴 사용 가능하게 만든다.
+     */
+    async updatePaymentDetailTerminalInfo(
+        paymentDetailId: number,
+        info: { authNo?: string; terminalAuthDate?: string; terminalVanKey?: string; cardCompany?: string; installment?: string }
+    ): Promise<void> {
+        await apiClient.patch(`/payments/details/${paymentDetailId}/terminal-info`, info);
+    },
+
     async processMembershipRefund(request: MembershipRefundRequest): Promise<TicketRefundResponse> {
         const response = await apiClient.post('/payments/membership-refund', request);
         return response.data;
