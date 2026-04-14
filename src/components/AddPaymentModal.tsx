@@ -730,6 +730,16 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                     <button
                       onClick={handleAddLine}
                       disabled={!lineCanAdd}
+                      title={!lineCanAdd ? (() => {
+                        const missing: string[] = [];
+                        if (lineAmount <= 0) missing.push("결제금액");
+                        if (lineAmount > remainingAmount) missing.push("남은 금액 초과");
+                        if (!subMethod) missing.push("상세결제수단");
+                        if (category === "card" && !cardCompany.trim()) missing.push("카드사");
+                        if (requiresManualTerminalInput && !approvalNumber.trim()) missing.push("승인번호");
+                        if (requiresManualTerminalInput && !vanKeyInput.trim()) missing.push("VANKEY");
+                        return missing.length > 0 ? `필수 입력 누락: ${missing.join(", ")}` : "";
+                      })() : "분할결제 라인 추가"}
                       className={`flex w-full items-center justify-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold ${
                         lineCanAdd ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-slate-200 text-slate-400"
                       }`}
@@ -739,6 +749,21 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                     </button>
                   </div>
                 </div>
+
+                {!lineCanAdd && lineAmount > 0 && (() => {
+                  const missing: string[] = [];
+                  if (lineAmount > remainingAmount) missing.push("남은 결제 금액 초과");
+                  if (!subMethod) missing.push("상세결제수단");
+                  if (category === "card" && !cardCompany.trim()) missing.push("카드사");
+                  if (requiresManualTerminalInput && !approvalNumber.trim()) missing.push("승인번호");
+                  if (requiresManualTerminalInput && !vanKeyInput.trim()) missing.push("VANKEY");
+                  if (missing.length === 0) return null;
+                  return (
+                    <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800">
+                      <span className="font-bold">추가하려면 다음 항목을 입력해 주세요:</span> {missing.join(", ")}
+                    </div>
+                  );
+                })()}
 
                 {category === "card" && (
                   <div className="grid grid-cols-2 gap-3">
