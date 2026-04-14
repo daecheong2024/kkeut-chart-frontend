@@ -271,6 +271,60 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
     );
     const grandTotal = ticketsRefundTotal + membershipRefundTotal;
 
+    // 영수증 보고 단말기 정보 수기 입력 — paymentDetailId 별 override
+    const [terminalInfoOverrides, setTerminalInfoOverrides] = useState<Record<number, { authNo: string; authDate: string; vanKey: string }>>({});
+    const [terminalInfoDraft, setTerminalInfoDraft] = useState<Record<number, { authNo: string; authDate: string; vanKey: string }>>({});
+    const [savingTerminalInfoFor, setSavingTerminalInfoFor] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        setTerminalInfoOverrides({});
+        setTerminalInfoDraft({});
+    }, [open]);
+
+    const getEffectiveTerminalInfo = (sel: UnifiedRefundSelection) => {
+        const o = terminalInfoOverrides[sel.paymentDetailId];
+        if (o) return o;
+        return {
+            authNo: sel.terminalInfo?.authNo || "",
+            authDate: sel.terminalInfo?.authDate || "",
+            vanKey: sel.terminalInfo?.vanKey || "",
+        };
+    };
+
+    const isTerminalReady = (sel: UnifiedRefundSelection) => {
+        const t = getEffectiveTerminalInfo(sel);
+        return !!t.authNo && !!t.authDate && !!t.vanKey;
+    };
+
+    const saveTerminalInfoFor = async (sel: UnifiedRefundSelection) => {
+        const draft = terminalInfoDraft[sel.paymentDetailId];
+        if (!draft) return;
+        const a = draft.authNo.trim();
+        const d = draft.authDate.trim();
+        const v = draft.vanKey.trim();
+        if (!a || !d || !v) {
+            showAlert({ message: "승인번호 / 거래일시(YYYYMMDD) / VANKEY 모두 입력해 주세요.", type: "warning" });
+            return;
+        }
+        if (!/^\d{8}$/.test(d)) {
+            showAlert({ message: "거래일시는 YYYYMMDD 8자리 숫자로 입력해 주세요. (예: 20260414)", type: "warning" });
+            return;
+        }
+        setSavingTerminalInfoFor(sel.paymentDetailId);
+        try {
+            await paymentService.updatePaymentDetailTerminalInfo(sel.paymentDetailId, {
+                authNo: a, terminalAuthDate: d, terminalVanKey: v,
+            });
+            setTerminalInfoOverrides(prev => ({ ...prev, [sel.paymentDetailId]: { authNo: a, authDate: d, vanKey: v } }));
+            showAlert({ message: `[${sel.itemName}] 단말기 정보 저장 완료`, type: "success" });
+        } catch (e: any) {
+            showAlert({ message: `저장 실패: ${e?.response?.data?.message || e?.message || "오류"}`, type: "error" });
+        } finally {
+            setSavingTerminalInfoFor(null);
+        }
+    };
+
     // 자동/수기 분리 합계 — 직원이 "현금분은 별도 출금" 임을 명확히 인지하도록
     const autoRefundTotal = useMemo(() => {
         let s = 0;
@@ -338,9 +392,9 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
         if (!skipTerminal && terminalSelections.length > 0) {
             for (let i = 0; i < terminalSelections.length; i++) {
                 const sel = terminalSelections[i]!;
-                const t = sel.terminalInfo;
-                if (!t?.authNo || !t?.authDate || !t?.vanKey) {
-                    terminalResults[sel.paymentDetailId] = { error: "원거래 정보 부족 (승인번호/일시/VanKey)" };
+                const t = getEffectiveTerminalInfo(sel);
+                if (!t.authNo || !t.authDate || !t.vanKey) {
+                    terminalResults[sel.paymentDetailId] = { error: "원거래 정보 부족 (승인번호/일시/VanKey) — 영수증 보고 입력 필요" };
                     continue;
                 }
 
@@ -792,6 +846,57 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                 </label>
                             </div>
                         )}
+
+                        {/* 영수증 보고 단말기 정보 수기 입력 — 원거래 정보 부족한 항목별 inline */}
+                        {terminalSelections.filter(s => !isTerminalReady(s)).map(sel => {
+                            const draft = terminalInfoDraft[sel.paymentDetailId] || { authNo: "", authDate: "", vanKey: "" };
+                            const updateDraft = (patch: Partial<typeof draft>) => {
+                                setTerminalInfoDraft(prev => ({ ...prev, [sel.paymentDetailId]: { ...draft, ...patch } }));
+                            };
+                            return (
+                                <div key={sel.paymentDetailId} className="rounded-lg border border-[#F4C7CE] bg-[#FCEBEF]/60 px-3 py-2.5 text-[11px] text-[#8B3F50] space-y-2">
+                                    <div className="font-extrabold">⚠ [{sel.itemName}] 원거래 정보 미등록</div>
+                                    <div className="text-[10.5px] text-[#8B5A66] leading-snug">
+                                        영수증을 보고 아래 3개 항목을 입력하면 단말기 2단계 환불이 가능합니다. 입력값은 PaymentDetail 에 영구 저장됩니다.
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-1.5">
+                                        <input
+                                            type="text"
+                                            value={draft.authNo}
+                                            onChange={(e) => updateDraft({ authNo: e.target.value })}
+                                            placeholder="승인번호"
+                                            className="h-8 rounded-md border border-[#F4C7CE] bg-white px-2 text-[11px] outline-none focus:border-[#D27A8C]"
+                                        />
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={8}
+                                            value={draft.authDate}
+                                            onChange={(e) => updateDraft({ authDate: e.target.value.replace(/\D/g, "") })}
+                                            placeholder="거래일시 YYYYMMDD"
+                                            className="h-8 rounded-md border border-[#F4C7CE] bg-white px-2 text-[11px] outline-none focus:border-[#D27A8C]"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={draft.vanKey}
+                                            onChange={(e) => updateDraft({ vanKey: e.target.value })}
+                                            placeholder="VANKEY"
+                                            className="h-8 rounded-md border border-[#F4C7CE] bg-white px-2 text-[11px] outline-none focus:border-[#D27A8C]"
+                                        />
+                                    </div>
+                                    <div className="flex justify-end">
+                                        <button
+                                            type="button"
+                                            onClick={() => void saveTerminalInfoFor(sel)}
+                                            disabled={savingTerminalInfoFor === sel.paymentDetailId}
+                                            className="h-7 rounded-md bg-[#D27A8C] px-3 text-[11px] font-bold text-white hover:bg-[#8B3F50] disabled:opacity-50 transition-colors"
+                                        >
+                                            {savingTerminalInfoFor === sel.paymentDetailId ? "저장 중..." : "단말기 정보 저장"}
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
