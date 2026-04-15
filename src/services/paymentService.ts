@@ -514,6 +514,51 @@ export const paymentService = {
         await apiClient.patch(`/payments/details/${paymentDetailId}/terminal-info`, info);
     },
 
+    /**
+     * 환불 부분상태 디커플링 — 위약금 단말기 결제 OK 시점에 즉시 호출.
+     * BE 가 위약금 PaymentDetail 저장 + Master.Status = DEDUCTION_PAID 마킹.
+     */
+    async deductionPay(req: {
+        paymentMasterId: number;
+        originPaymentDetailId: number;
+        amount: number;
+        method?: string;
+        terminalAuthNo?: string;
+        terminalAuthDate?: string;
+        vanKey?: string;
+        cardCompany?: string;
+        subMethod?: string;
+        subMethodLabel?: string;
+        installment?: string;
+        terminalCardNo?: string;
+        terminalTranNo?: string;
+        terminalAccepterName?: string;
+        terminalCatId?: string;
+        terminalMerchantRegNo?: string;
+    }): Promise<{ success: boolean; rePaymentDetailId: number; paymentMasterId: number; status: string; message: string }> {
+        const response = await apiClient.post('/payments/refunds/deduction-pay', req);
+        return response.data;
+    },
+
+    /**
+     * deduction-pay 후 원거래 전체취소 단말기 응답을 받아 RefundHist 생성 + 상태 REFUNDED 전환.
+     */
+    async finalizeRefund(paymentMasterId: number, req: {
+        originPaymentDetailId: number;
+        rePaymentDetailId?: number;
+        refundType: RefundType;
+        penaltyRate?: number;
+        manualAmount?: number;
+        reason?: string;
+        terminalRefundAuthNo?: string;
+        terminalRefundDate?: string;
+        terminalVanKey?: string;
+        refundMethod?: string;
+    }): Promise<RefundExecuteResult> {
+        const response = await apiClient.post(`/payments/refunds/${paymentMasterId}/finalize`, req);
+        return response.data;
+    },
+
     async processMembershipRefund(request: MembershipRefundRequest): Promise<TicketRefundResponse> {
         const response = await apiClient.post('/payments/membership-refund', request);
         return response.data;
