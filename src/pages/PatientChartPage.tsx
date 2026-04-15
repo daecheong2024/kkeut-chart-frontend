@@ -1,5 +1,7 @@
 ﻿import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { QRCodeSVG } from "qrcode.react";
+import { kisTerminalService } from "../services/kisTerminalService";
 import {
     Calendar,
     User,
@@ -6313,6 +6315,15 @@ function RefundHistoryList({
         receiptUserName?: string;
         focusedDetailId?: number;
     } | null>(null);
+    const [retryRefundState, setRetryRefundState] = useState<{
+        paymentMasterId: number;
+        originPaymentDetailId: number;
+        rePaymentDetailId?: number;
+        originAmount: number;
+        originPaymentType: string;
+        terminalInfo?: { authNo?: string; authDate?: string; vanKey?: string };
+    } | null>(null);
+    const [retryRefundSubmitting, setRetryRefundSubmitting] = useState(false);
 
     // ISSUE-174: bulk refund + membership settlement
     const [selectedCardKeys, setSelectedCardKeys] = useState<Set<string>>(new Set());
@@ -6919,8 +6930,17 @@ function RefundHistoryList({
                     const groupSomeSelected = eligibleInGroup.some((c) => selectedCardKeys.has(c.id));
                     const groupDate = new Date(groupEntry.latestPaidAt);
                     const dateLabel = groupDate.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
-                    const groupStatusLabel = groupEntry.groupStatus === "refunded" ? "전체 환불" : groupEntry.groupStatus === "partial_refunded" ? "부분 환불" : "정상";
-                    const groupStatusClass = groupEntry.groupStatus === "refunded" ? "bg-red-100 text-red-600" : groupEntry.groupStatus === "partial_refunded" ? "bg-amber-100 text-amber-700" : "bg-emerald-50 text-emerald-700 border border-emerald-200";
+                    const isDeductionPaid = String(groupEntry.groupStatus || "").toLowerCase() === "deduction_paid";
+                    const groupStatusLabel = isDeductionPaid
+                        ? "원거래 취소 대기"
+                        : groupEntry.groupStatus === "refunded" ? "전체 환불"
+                        : groupEntry.groupStatus === "partial_refunded" ? "부분 환불"
+                        : "정상";
+                    const groupStatusClass = isDeductionPaid
+                        ? "bg-amber-100 text-amber-800 border border-amber-300"
+                        : groupEntry.groupStatus === "refunded" ? "bg-red-100 text-red-600"
+                        : groupEntry.groupStatus === "partial_refunded" ? "bg-amber-100 text-amber-700"
+                        : "bg-emerald-50 text-emerald-700 border border-emerald-200";
 
                     return (
                         <div key={groupEntry.groupId} className="rounded-[16px] border border-slate-200 bg-white overflow-hidden shadow-sm">
@@ -7084,7 +7104,47 @@ function RefundHistoryList({
                                             );
                                         })()}
                                     </div>
-                                    {!isReadOnly && eligibleInGroup.length > 0 && groupEntry.groupStatus !== "refunded" && (
+                                    {isDeductionPaid && !isReadOnly && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                // 그 그룹의 원거래 detail (위약금 재결제 detail 이 아닌 것) 찾기
+                                                let origDetail: PaymentDetailBreakdown | undefined;
+                                                let rePayDetail: PaymentDetailBreakdown | undefined;
+                                                for (const c of groupEntry.cards) {
+                                                    for (const pd of c.itemPaymentDetails) {
+                                                        if (pd.memo && pd.memo.startsWith("위약금 재결제")) {
+                                                            if (!rePayDetail) rePayDetail = pd;
+                                                        } else if ((pd.paymentType === "CARD" || pd.paymentType === "PAY") && !origDetail) {
+                                                            origDetail = pd;
+                                                        }
+                                                    }
+                                                }
+                                                if (!origDetail) {
+                                                    showAlert({ message: "원거래 detail 을 찾을 수 없습니다. 운영자 문의 필요.", type: "error" });
+                                                    return;
+                                                }
+                                                setRetryRefundState({
+                                                    paymentMasterId: groupEntry.cards[0]?.record.paymentMasterId ?? groupEntry.cards[0]?.record.id ?? 0,
+                                                    originPaymentDetailId: origDetail.id,
+                                                    rePaymentDetailId: rePayDetail?.id,
+                                                    originAmount: origDetail.amount,
+                                                    originPaymentType: origDetail.paymentType,
+                                                    terminalInfo: {
+                                                        authNo: origDetail.terminalAuthNo,
+                                                        authDate: origDetail.terminalAuthDate,
+                                                        vanKey: origDetail.terminalVanKey,
+                                                    },
+                                                });
+                                            }}
+                                            className="rounded-lg bg-amber-100 border border-amber-300 px-2.5 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-200 transition-colors"
+                                            title="원거래 단말기에서 취소 후 이 버튼으로 마무리"
+                                        >
+                                            원거래 취소 재시도
+                                        </button>
+                                    )}
+                                    {!isDeductionPaid && !isReadOnly && eligibleInGroup.length > 0 && groupEntry.groupStatus !== "refunded" && (
                                         <button
                                             type="button"
                                             onClick={(e) => {
@@ -7427,6 +7487,95 @@ function RefundHistoryList({
                     }}
                 />
             )}
+            {retryRefundState && (() => {
+                const s = retryRefundState;
+                const closeRetry = () => setRetryRefundState(null);
+                const handleRetry = async () => {
+                    if (retryRefundSubmitting) return;
+                    if (!s.terminalInfo?.authNo || !s.terminalInfo?.authDate || !s.terminalInfo?.vanKey) {
+                        showAlert({ message: "원거래 단말기 정보(승인번호/거래일시/VANKEY) 부족. [수납 정보] 에서 입력 후 재시도하세요.", type: "warning" });
+                        return;
+                    }
+                    setRetryRefundSubmitting(true);
+                    try {
+                        const ok = await kisTerminalService.connect().catch(() => false);
+                        if (!ok) {
+                            const proceed = await showConfirm({
+                                message: "단말기 연결 실패. 수동 처리(단말기 호출 없이 시스템만 환불 마감) 로 진행하시겠습니까?\n\n※ 원거래 카드 환불은 직원이 그 단말기에서 직접 수행한 상태여야 합니다.",
+                                type: "warning",
+                                confirmText: "수동 마감",
+                                cancelText: "취소",
+                            });
+                            if (!proceed) { setRetryRefundSubmitting(false); return; }
+                            // 수동 마감: terminal 호출 없이 finalize 만
+                            await paymentService.finalizeRefund(s.paymentMasterId, {
+                                originPaymentDetailId: s.originPaymentDetailId,
+                                rePaymentDetailId: s.rePaymentDetailId,
+                                refundType: "customer_change",
+                                terminalRefundAuthNo: undefined,
+                                terminalRefundDate: undefined,
+                                terminalVanKey: undefined,
+                                refundMethod: "MANUAL",
+                            });
+                            showAlert({ message: "환불 처리가 완료되었습니다 (수동 마감).", type: "success" });
+                            closeRetry();
+                            if (typeof onRefundCompleted === "function") void onRefundCompleted();
+                            return;
+                        }
+                        const tradeRefType = (s.originPaymentType?.toUpperCase() === "PAY") ? "v2" as const : "D2" as const;
+                        const r = await kisTerminalService.requestRefund({
+                            tradeType: tradeRefType,
+                            amount: s.originAmount,
+                            orgAuthDate: s.terminalInfo.authDate!,
+                            orgAuthNo: s.terminalInfo.authNo!,
+                            vanKey: s.terminalInfo.vanKey!,
+                        });
+                        if (!r.success) {
+                            showAlert({ message: `단말기 원거래 취소 실패: ${r.displayMsg || r.replyCode}\n\nDEDUCTION_PAID 상태 그대로 유지됩니다.`, type: "error" });
+                            return;
+                        }
+                        await paymentService.finalizeRefund(s.paymentMasterId, {
+                            originPaymentDetailId: s.originPaymentDetailId,
+                            rePaymentDetailId: s.rePaymentDetailId,
+                            refundType: "customer_change",
+                            terminalRefundAuthNo: r.authNo,
+                            terminalRefundDate: r.replyDate,
+                            terminalVanKey: r.vanKey,
+                            refundMethod: "AUTO",
+                        });
+                        showAlert({ message: "환불 처리가 완료되었습니다.", type: "success" });
+                        closeRetry();
+                        if (typeof onRefundCompleted === "function") void onRefundCompleted();
+                    } catch (e: any) {
+                        showAlert({ message: `재시도 실패: ${e?.response?.data?.message || e?.message || "오류"}`, type: "error" });
+                    } finally {
+                        setRetryRefundSubmitting(false);
+                    }
+                };
+                return createPortal(
+                    <div className="fixed inset-0 z-[10010] flex items-center justify-center bg-[#2A1F22]/55 backdrop-blur-[3px] px-4" onClick={(e) => { if (e.target === e.currentTarget) closeRetry(); }}>
+                        <div className="w-full max-w-[460px] rounded-2xl border border-amber-200 bg-white shadow-2xl overflow-hidden">
+                            <div className="border-b border-amber-200 px-5 py-3 bg-amber-50">
+                                <div className="text-[15px] font-extrabold text-amber-900">원거래 취소 재시도</div>
+                                <div className="text-[11px] text-amber-700 mt-0.5">위약금 결제는 완료되어 있고, 원거래 카드 취소만 마무리합니다.</div>
+                            </div>
+                            <div className="px-5 py-4 space-y-2 text-[13px]">
+                                <div className="flex justify-between"><span className="text-[#8B5A66]">원거래 detail #</span><span className="font-bold tabular-nums">{s.originPaymentDetailId}</span></div>
+                                <div className="flex justify-between"><span className="text-[#8B5A66]">취소 금액</span><span className="font-extrabold tabular-nums text-amber-700">{s.originAmount.toLocaleString()}원</span></div>
+                                <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-800 leading-relaxed mt-2">
+                                    이 버튼을 누르면 KIS 단말기에 원거래 취소 요청을 보냅니다.<br/>
+                                    원결제와 <b>같은 단말기</b>여야 자동 처리됩니다. 다른 단말기에서 직접 취소했다면 [수동 마감] 으로 진행하세요.
+                                </div>
+                            </div>
+                            <div className="border-t border-amber-200 px-5 py-3 bg-amber-50/50 flex justify-end gap-2">
+                                <button type="button" onClick={closeRetry} disabled={retryRefundSubmitting} className="h-9 rounded-lg border border-amber-200 bg-white px-4 text-[12px] font-bold text-amber-800 hover:bg-amber-50 disabled:opacity-50">취소</button>
+                                <button type="button" onClick={() => void handleRetry()} disabled={retryRefundSubmitting} className="h-9 rounded-lg bg-amber-600 px-4 text-[12px] font-extrabold text-white hover:bg-amber-700 disabled:opacity-50">{retryRefundSubmitting ? "처리 중..." : "단말기 취소 + 마무리"}</button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                );
+            })()}
             {refundModalState && (
                 <RefundModal
                     open
