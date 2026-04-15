@@ -4728,7 +4728,8 @@ export default function PatientChartPage() {
                                                                                     <div className="text-slate-500">
                                                                                         잔여: {historyItem.remainingAfter}/{historyItem.maxUseCount}회
                                                                                     </div>
-                                                                                    {!historyItem.isCancelled && historyItem.historyType !== "NEW" && !isReadOnly && (
+                                                                                    {/* 환불(REFUND) / 구매(NEW) 이력은 취소 불가 (이미 돈까지 환불 처리됨, 신규 구매는 결제 환불 흐름으로) */}
+                                                                                    {!historyItem.isCancelled && historyItem.historyType !== "NEW" && historyItem.historyType !== "REFUND" && !isReadOnly && (
                                                                                         <button
                                                                                             onClick={(e) => {
                                                                                                 e.stopPropagation();
