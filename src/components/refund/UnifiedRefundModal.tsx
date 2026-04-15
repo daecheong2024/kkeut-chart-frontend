@@ -102,6 +102,10 @@ interface TerminalPairResult {
         authDate: string;
         vanKey: string;
     };
+    /** 디커플링 흐름에서 deduction-pay 후 받은 ID. finalize 호출 시 사용. */
+    rePaymentDetailId?: number;
+    /** true 면 atomic 흐름 (executeBulkRefund), false 면 디커플링 (finalize 개별 호출) */
+    useAtomic?: boolean;
 }
 
 export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: UnifiedRefundModalProps) {
@@ -441,16 +445,22 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                 const tradeType = (sel.paymentType?.toUpperCase() === "PAY") ? "v1" as const : "D1" as const;
                 const tradeRefundType = (sel.paymentType?.toUpperCase() === "PAY") ? "v2" as const : "D2" as const;
 
-                // Step A: 위약금 재결제 (penalty > 0 일 때만)
-                // 직원이 선택한 결제수단(card/cash/pay)에 따라 단말기 호출 또는 스킵
+                // 디커플링 vs Atomic 결정:
+                // 카드/페이 위약금 + 카드/페이 원거래 = 디커플링 (deduction-pay → finalize)
+                // 그 외 (현금 위약금 / 위약금 0) = atomic (executeBulkRefund)
+                const isDecoupled =
+                    sel.itemType === "ticket"  // membership 은 settlement bundled 라 atomic 유지
+                    && penaltyAmount > 0
+                    && rePaymentMethod !== "cash";
+
+                // Step A: 위약금 재결제 (penalty > 0)
                 let rePaymentAuth: TerminalPairResult["rePayment"] | undefined = undefined;
+                let savedRePaymentDetailId: number | undefined;
                 if (penaltyAmount > 0) {
                     setProgress({ phase: "repayment", current: i + 1, total: terminalSelections.length, itemName: sel.itemName, amount: penaltyAmount });
                     if (rePaymentMethod === "cash") {
-                        // 현금 위약금: 단말기 호출 없이 amount 만 기록 (BE 가 cash detail 로 저장)
                         rePaymentAuth = { amount: penaltyAmount, authNo: "", authDate: "", vanKey: "" };
                     } else {
-                        // 카드/페이 위약금: 단말기 호출
                         const repayTradeType = (rePaymentMethod === "pay") ? "v1" as const : "D1" as const;
                         try {
                             const r = await kisTerminalService.requestPayment({ tradeType: repayTradeType, amount: penaltyAmount });
@@ -471,6 +481,34 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                 catId: r.catId,
                                 merchantRegNo: r.merchantRegNo,
                             };
+
+                            // 디커플링: 위약금 단말기 OK 직후 즉시 BE 저장 (DEDUCTION_PAID 마킹)
+                            if (isDecoupled) {
+                                try {
+                                    const dp = await paymentService.deductionPay({
+                                        paymentMasterId: sel.paymentMasterId,
+                                        originPaymentDetailId: sel.paymentDetailId,
+                                        amount: penaltyAmount,
+                                        method: rePaymentMethod.toUpperCase(),
+                                        terminalAuthNo: r.authNo,
+                                        terminalAuthDate: r.replyDate,
+                                        vanKey: r.vanKey,
+                                        cardCompany: r.issuerName || r.accepterName,
+                                        installment: r.installment,
+                                        terminalCardNo: r.cardNo,
+                                        terminalTranNo: r.tranNo,
+                                        terminalAccepterName: r.accepterName,
+                                        terminalCatId: r.catId,
+                                        terminalMerchantRegNo: r.merchantRegNo,
+                                    });
+                                    savedRePaymentDetailId = dp.rePaymentDetailId;
+                                } catch (e: any) {
+                                    terminalResults[sel.paymentDetailId] = {
+                                        error: `위약금 단말기 결제는 OK이지만 시스템 저장 실패 (승인번호 ${r.authNo}): ${e?.response?.data?.message || e?.message || "오류"}`,
+                                    };
+                                    continue;
+                                }
+                            }
                         } catch (e: any) {
                             terminalResults[sel.paymentDetailId] = { error: `위약금 재결제 호출 실패: ${e?.message || "알 수 없는 오류"}` };
                             continue;
@@ -478,7 +516,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                     }
                 }
 
-                // Step B: 원거래 전체취소 (amount = paidAmount 전체)
+                // Step B: 원거래 전체취소
                 setProgress({ phase: "void", current: i + 1, total: terminalSelections.length, itemName: sel.itemName, amount: paidAmount });
                 try {
                     const r = await kisTerminalService.requestRefund({
@@ -490,7 +528,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                     });
                     if (!r.success) {
                         terminalResults[sel.paymentDetailId] = {
-                            error: `원거래 전체취소 실패: ${r.displayMsg || r.replyCode}`,
+                            error: `원거래 전체취소 실패: ${r.displayMsg || r.replyCode}${savedRePaymentDetailId ? "\n→ DEDUCTION_PAID 상태로 저장됨. 결제/환불 탭의 [원거래 취소 재시도] 로 마무리하세요." : ""}`,
                             repaymentDone: !!rePaymentAuth,
                             repaymentAuthNo: rePaymentAuth?.authNo,
                             repaymentAmount: rePaymentAuth?.amount,
@@ -501,10 +539,12 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                         paidAmount,
                         rePayment: rePaymentAuth,
                         refund: { amount: paidAmount, authNo: r.authNo, authDate: r.replyDate, vanKey: r.vanKey },
+                        rePaymentDetailId: savedRePaymentDetailId,
+                        useAtomic: !isDecoupled,
                     };
                 } catch (e: any) {
                     terminalResults[sel.paymentDetailId] = {
-                        error: `원거래 전체취소 호출 실패: ${e?.message || "알 수 없는 오류"}`,
+                        error: `원거래 전체취소 호출 실패: ${e?.message || "알 수 없는 오류"}${savedRePaymentDetailId ? "\n→ DEDUCTION_PAID 상태로 저장됨. 결제/환불 탭의 [원거래 취소 재시도] 로 마무리하세요." : ""}`,
                         repaymentDone: !!rePaymentAuth,
                         repaymentAuthNo: rePaymentAuth?.authNo,
                         repaymentAmount: rePaymentAuth?.amount,
@@ -590,15 +630,53 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
             }
         }
 
-        // 2-2: Standalone tickets via bulk refund
+        // 2-2: Standalone tickets — 디커플링 케이스는 finalize 개별 호출, 나머지는 executeBulkRefund 일괄
         if (effectiveTickets.length > 0) {
             const refundableTickets = effectiveTickets.filter((t) => (ticketCalcs[t.paymentDetailId]?.estimatedRefund ?? 0) > 0);
-            if (refundableTickets.length > 0) {
-                setProgress({ phase: "backend", itemName: `${refundableTickets.length}건 일괄 환불` });
+
+            // 디커플링: 위약금 deduction-pay 가 이미 저장된 항목 → finalize 개별 호출
+            const decoupledTickets = refundableTickets.filter(t => {
+                const tr = terminalResults[t.paymentDetailId];
+                return tr && !("error" in tr) && !!tr.rePaymentDetailId && !tr.useAtomic;
+            });
+            for (const t of decoupledTickets) {
+                const tr = terminalResults[t.paymentDetailId];
+                if (!tr || "error" in tr) continue;
+                setProgress({ phase: "backend", itemName: t.itemName });
+                try {
+                    const penaltyRate = penaltyRatePct === "" ? undefined : Number(penaltyRatePct) / 100;
+                    const manualVal = ticketManualAmounts[t.paymentDetailId];
+                    const manualAmount = refundType === "manual" && manualVal && manualVal.trim() !== ""
+                        ? Math.max(0, Number(manualVal.replace(/[^0-9]/g, "")))
+                        : undefined;
+                    const result = await paymentService.finalizeRefund(t.paymentMasterId, {
+                        originPaymentDetailId: t.paymentDetailId,
+                        rePaymentDetailId: tr.rePaymentDetailId,
+                        refundType,
+                        penaltyRate,
+                        manualAmount,
+                        reason: reason.trim() || undefined,
+                        terminalRefundAuthNo: tr.refund.authNo,
+                        terminalRefundDate: tr.refund.authDate,
+                        terminalVanKey: tr.refund.vanKey,
+                        refundMethod: "AUTO",
+                    });
+                    if (result.success) totalSuccess++;
+                    else { totalFail++; failureMessages.push(`${t.itemName}: ${result.message}`); }
+                } catch (e: any) {
+                    totalFail++;
+                    failureMessages.push(`${t.itemName}: ${e?.response?.data?.message || e?.message || "처리 실패"}`);
+                }
+            }
+
+            // 나머지 (atomic): cash penalty / no penalty / 단말기 미사용 → executeBulkRefund 일괄
+            const atomicTickets = refundableTickets.filter(t => !decoupledTickets.includes(t));
+            if (atomicTickets.length > 0) {
+                setProgress({ phase: "backend", itemName: `${atomicTickets.length}건 일괄 환불` });
                 try {
                     const penaltyRate = penaltyRatePct === "" ? undefined : Number(penaltyRatePct) / 100;
                     const result = await paymentService.executeBulkRefund({
-                        items: refundableTickets.map((t) => {
+                        items: atomicTickets.map((t) => {
                             const termRes = terminalResults[t.paymentDetailId];
                             const pair = termRes && !("error" in termRes) ? termRes : undefined;
                             const manualVal = ticketManualAmounts[t.paymentDetailId];
