@@ -6892,11 +6892,29 @@ function RefundHistoryList({
                                             const isRePaymentDetail = (pd: PaymentDetailBreakdown) =>
                                                 !!pd.memo && pd.memo.startsWith("위약금 재결제");
                                             // 회원권 차감(MEMBERSHIP_*) + 위약금 재결제 제외 — 고객이 실제 결제한 수단만 chip
-                                            const realPaymentChips = groupDetails.filter(
+                                            const realPaymentDetails = groupDetails.filter(
                                                 pd => pd.paymentType !== "MEMBERSHIP_CASH"
                                                     && pd.paymentType !== "MEMBERSHIP_POINT"
                                                     && !isRePaymentDetail(pd)
                                             );
+                                            // 같은 결제수단 + 같은 승인번호(또는 같은 VANKEY)는 1번 카드 긁은 거 = 1 chip 으로 합산
+                                            // 카드/페이는 (paymentType + AuthNo + Date + VanKey) 키로 그룹핑
+                                            // 현금/계좌/플랫폼/기타는 paymentType 로 그룹핑 (구분자 없음)
+                                            const chipGroupsMap = new Map<string, { details: PaymentDetailBreakdown[]; total: number }>();
+                                            for (const pd of realPaymentDetails) {
+                                                const isCardLike = pd.paymentType === "CARD" || pd.paymentType === "PAY";
+                                                const key = isCardLike
+                                                    ? `${pd.paymentType}::${pd.terminalAuthNo || pd.id}::${pd.terminalAuthDate || ""}::${pd.terminalVanKey || ""}`
+                                                    : `${pd.paymentType}`;
+                                                const existing = chipGroupsMap.get(key);
+                                                if (existing) {
+                                                    existing.details.push(pd);
+                                                    existing.total += pd.amount;
+                                                } else {
+                                                    chipGroupsMap.set(key, { details: [pd], total: pd.amount });
+                                                }
+                                            }
+                                            const realPaymentChips = Array.from(chipGroupsMap.values());
                                             const rePaymentDetails = groupDetails.filter(isRePaymentDetail);
                                             const rePaymentTotal = rePaymentDetails.reduce((s, pd) => s + pd.amount, 0);
                                             const headRecord = groupEntry.cards[0]?.record;
@@ -6908,28 +6926,34 @@ function RefundHistoryList({
                                                 <>
                                                     {realPaymentChips.length > 0 && (
                                                         <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                                                            {realPaymentChips.map(pd => (
-                                                                <button
-                                                                    key={pd.id}
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setPaymentInfoModal({
-                                                                            detail: pd,
-                                                                            paymentTime: headRecord?.paidAt,
-                                                                            receiptUserName: headRecord?.collectorName,
-                                                                        });
-                                                                    }}
-                                                                    className="inline-flex items-center gap-1 rounded-full border border-[#F8DCE2] bg-white px-2 py-0.5 text-[10px] font-bold text-[#5C2A35] hover:bg-[#FCEBEF] hover:border-[#D27A8C] transition-colors"
-                                                                    title={`수납 정보 보기 — ${labelMap[pd.paymentType] || pd.paymentType}`}
-                                                                >
-                                                                    <span>{labelMap[pd.paymentType] || pd.paymentType}</span>
-                                                                    <span className="tabular-nums text-[#8B3F50]">{pd.amount.toLocaleString()}원</span>
-                                                                    {pd.paymentType === "CARD" && !pd.terminalAuthNo && (
-                                                                        <span className="ml-0.5 text-rose-500" title="단말기 정보 미등록">⚠</span>
-                                                                    )}
-                                                                </button>
-                                                            ))}
+                                                            {realPaymentChips.map((g, idx) => {
+                                                                const first = g.details[0];
+                                                                const ptype = first.paymentType;
+                                                                const isCardLike = ptype === "CARD" || ptype === "PAY";
+                                                                const missingTerminal = isCardLike && !first.terminalAuthNo;
+                                                                return (
+                                                                    <button
+                                                                        key={`${ptype}-${idx}`}
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setPaymentInfoModal({
+                                                                                detail: first,
+                                                                                paymentTime: headRecord?.paidAt,
+                                                                                receiptUserName: headRecord?.collectorName,
+                                                                            });
+                                                                        }}
+                                                                        className="inline-flex items-center gap-1 rounded-full border border-[#F8DCE2] bg-white px-2 py-0.5 text-[10px] font-bold text-[#5C2A35] hover:bg-[#FCEBEF] hover:border-[#D27A8C] transition-colors"
+                                                                        title={`수납 정보 보기 — ${labelMap[ptype] || ptype}${g.details.length > 1 ? ` (1번 결제 / 티켓 ${g.details.length}건 분개)` : ""}`}
+                                                                    >
+                                                                        <span>{labelMap[ptype] || ptype}</span>
+                                                                        <span className="tabular-nums text-[#8B3F50]">{g.total.toLocaleString()}원</span>
+                                                                        {missingTerminal && (
+                                                                            <span className="ml-0.5 text-rose-500" title="단말기 정보 미등록">⚠</span>
+                                                                        )}
+                                                                    </button>
+                                                                );
+                                                            })}
                                                         </div>
                                                     )}
                                                     {memDeduct > 0 && (
