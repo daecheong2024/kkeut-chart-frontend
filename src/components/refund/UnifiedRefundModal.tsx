@@ -900,16 +900,10 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                             <div className="rounded-lg border border-[#F8DCE2] bg-[#FCEBEF]/30 px-3 py-2 text-[10px] text-[#5C2A35] space-y-1">
                                 <div className="font-bold flex items-center gap-1">
                                     <CreditCard className="h-3 w-3" />
-                                    단말기 환불 대상: {terminalSelections.length}건
-                                </div>
-                                <div className="text-[#8B5A66]">
-                                    환불 확정 시 단말기에서 자동으로 처리됩니다.<br/>
-                                    위약금이 있으면 위약금만큼 카드로 새로 결제한 뒤, 원래 결제 전체를 카드사에 취소합니다.<br/>
-                                    <span className="text-[#99354E]">※ 고객 입장에서 결과는 동일 (위약금만 차감 후 환불).</span>
+                                    단말기 자동 환불: {terminalSelections.length}건
                                 </div>
                                 <div className="rounded-md bg-amber-50 border border-amber-200 px-2 py-1.5 text-[10px] text-amber-800 leading-snug">
-                                    ⚠ <b>원거래 결제했던 단말기에서만 자동 취소 가능</b>합니다. 다른 단말기 사용 중이면 그 단말기에서 직접 취소 후 아래 [단말기 없이 수동 환불] 체크하세요.<br/>
-                                    원거래 단말기 정보는 항목별 [수납 정보] 에서 확인 가능합니다.
+                                    ⚠ 원결제와 <b>같은 단말기</b>에서만 자동 취소 가능. 다른 단말기면 그 단말기에서 직접 취소 후 ↓ <b>[단말기 없이 수동 환불]</b> 체크.
                                 </div>
                                 <label className="flex items-center gap-1.5 cursor-pointer pt-1">
                                     <input
