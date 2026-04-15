@@ -495,17 +495,18 @@ export function RefundModal({
                                     <CreditCard className="h-3 w-3" />
                                     {paymentTypeLabel(paymentType)} · 단말기 환불 대상
                                 </div>
-                                <div className="rounded-md bg-amber-50 border border-amber-200 px-2 py-1.5 text-[10px] text-amber-800 leading-snug">
-                                    ⚠ 원결제와 <b>같은 단말기</b>에서만 자동 취소 가능. 다른 단말기면 그 단말기에서 직접 취소 후 ↓ <b>[단말기 없이 수동 환불]</b> 체크.
+                                <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-800 leading-relaxed">
+                                    ⚠ 원결제와 <b>같은 단말기</b>에서만 자동 취소 가능합니다.<br/>
+                                    다른 단말기면 본 결제 진행 후 그 단말기에서 직접 취소해야 합니다.
                                 </div>
-                                <label className="flex items-center gap-1.5 cursor-pointer pt-1">
+                                <label className="flex items-center gap-2 cursor-pointer pt-1">
                                     <input
                                         type="checkbox"
                                         checked={skipTerminal}
                                         onChange={(e) => setSkipTerminal(e.target.checked)}
-                                        className="h-3 w-3 accent-[#D27A8C]"
+                                        className="h-4 w-4 accent-[#D27A8C]"
                                     />
-                                    <span className="text-[10px] font-bold text-[#99354E]">단말기 없이 수동 환불</span>
+                                    <span className="text-[12px] font-bold text-[#99354E]">단말기 호출 안 함 (DB만 기록)</span>
                                 </label>
                             </div>
                         )}

@@ -113,6 +113,8 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
     const [manualSkipTerminal, setManualSkipTerminal] = useState(false);
     // 위약금 받는 결제수단 (직원 선택). 기본: 카드 (원거래와 같은 카드로 재결제)
     const [rePaymentMethod, setRePaymentMethod] = useState<"card" | "cash" | "pay">("card");
+    // 직접 입력 환불 시 티켓별 환불액 (refundType="manual" 일 때 사용)
+    const [ticketManualAmounts, setTicketManualAmounts] = useState<Record<number, string>>({});
     const [submitting, setSubmitting] = useState(false);
     const [progress, setProgress] = useState<ProgressState>({ phase: "idle" });
 
@@ -183,11 +185,16 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
         const results: Record<number, RefundCalculateResult> = {};
         for (const t of effectiveTickets) {
             try {
+                const manualVal = ticketManualAmounts[t.paymentDetailId];
+                const manualAmount = refundType === "manual" && manualVal && manualVal.trim() !== ""
+                    ? Math.max(0, Number(manualVal.replace(/[^0-9]/g, "")))
+                    : undefined;
                 const r = await paymentService.calculateRefund({
                     paymentMasterId: t.paymentMasterId,
                     paymentDetailId: t.paymentDetailId,
                     refundType,
                     penaltyRate,
+                    manualAmount,
                     reason: reason.trim() || undefined,
                 });
                 results[t.paymentDetailId] = r;
@@ -213,7 +220,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
         }
         setTicketCalcs(results);
         setCalcLoading(false);
-    }, [effectiveTickets, refundType, penaltyRatePct, reason]);
+    }, [effectiveTickets, refundType, penaltyRatePct, reason, ticketManualAmounts]);
 
     useEffect(() => {
         if (!open) return;
@@ -229,6 +236,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
         setReason("");
         setManualSkipTerminal(false);
         setRePaymentMethod("card");
+        setTicketManualAmounts({});
         setSubmitting(false);
         setProgress({ phase: "idle" });
     }, [open]);
@@ -593,11 +601,16 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                         items: refundableTickets.map((t) => {
                             const termRes = terminalResults[t.paymentDetailId];
                             const pair = termRes && !("error" in termRes) ? termRes : undefined;
+                            const manualVal = ticketManualAmounts[t.paymentDetailId];
+                            const manualAmount = refundType === "manual" && manualVal && manualVal.trim() !== ""
+                                ? Math.max(0, Number(manualVal.replace(/[^0-9]/g, "")))
+                                : undefined;
                             return {
                                 paymentMasterId: t.paymentMasterId,
                                 paymentDetailId: t.paymentDetailId,
                                 refundType,
                                 penaltyRate,
+                                manualAmount,
                                 reason: reason.trim() || undefined,
                                 terminalRefundAuthNo: pair?.refund.authNo,
                                 terminalRefundDate: pair?.refund.authDate,
@@ -734,8 +747,27 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className={`text-[14px] font-extrabold tabular-nums shrink-0 ${calc?.canRefund && (calc?.estimatedRefund ?? 0) > 0 ? "text-[#D27A8C]" : "text-[#C9A0A8]"}`}>
-                                                        {calc ? formatWon(calc.estimatedRefund) : "-"}
+                                                    <div className="shrink-0 text-right">
+                                                        {refundType === "manual" ? (
+                                                            <div className="flex items-center gap-1">
+                                                                <input
+                                                                    type="text"
+                                                                    inputMode="numeric"
+                                                                    value={ticketManualAmounts[t.paymentDetailId] ?? ""}
+                                                                    onChange={(e) => {
+                                                                        const cleaned = e.target.value.replace(/[^0-9]/g, "");
+                                                                        setTicketManualAmounts(prev => ({ ...prev, [t.paymentDetailId]: cleaned }));
+                                                                    }}
+                                                                    placeholder="환불액 입력"
+                                                                    className="h-8 w-[120px] rounded-md border border-[#F4C7CE] bg-white px-2 text-right text-[12px] tabular-nums outline-none focus:border-[#D27A8C]"
+                                                                />
+                                                                <span className="text-[12px] font-bold text-[#5C2A35]">원</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className={`text-[14px] font-extrabold tabular-nums ${calc?.canRefund && (calc?.estimatedRefund ?? 0) > 0 ? "text-[#D27A8C]" : "text-[#C9A0A8]"}`}>
+                                                                {calc ? formatWon(calc.estimatedRefund) : "-"}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -902,17 +934,18 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                     <CreditCard className="h-3 w-3" />
                                     단말기 자동 환불: {terminalSelections.length}건
                                 </div>
-                                <div className="rounded-md bg-amber-50 border border-amber-200 px-2 py-1.5 text-[10px] text-amber-800 leading-snug">
-                                    ⚠ 원결제와 <b>같은 단말기</b>에서만 자동 취소 가능. 다른 단말기면 그 단말기에서 직접 취소 후 ↓ <b>[단말기 없이 수동 환불]</b> 체크.
+                                <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-800 leading-relaxed">
+                                    ⚠ 원결제와 <b>같은 단말기</b>에서만 자동 취소 가능합니다.<br/>
+                                    다른 단말기면 본 결제 진행 후 그 단말기에서 직접 취소해야 합니다.
                                 </div>
-                                <label className="flex items-center gap-1.5 cursor-pointer pt-1">
+                                <label className="flex items-center gap-2 cursor-pointer pt-1">
                                     <input
                                         type="checkbox"
                                         checked={manualSkipTerminal}
                                         onChange={(e) => setManualSkipTerminal(e.target.checked)}
-                                        className="h-3 w-3 accent-[#D27A8C]"
+                                        className="h-4 w-4 accent-[#D27A8C]"
                                     />
-                                    <span className="text-[10px] font-bold text-[#99354E]">단말기 없이 수동 환불</span>
+                                    <span className="text-[12px] font-bold text-[#99354E]">단말기 호출 안 함 (DB만 기록)</span>
                                 </label>
                             </div>
                         )}
