@@ -502,6 +502,7 @@ export default function PatientChartPage() {
     const [searchTab, setSearchTab] = useState<"all" | "ticket" | "membership">("all");
 
     const [ticketTab, setTicketTab] = useState<"active" | "completed">("active");
+    const [ticketSearch, setTicketSearch] = useState<string>("");
     const [assigningTodoId, setAssigningTodoId] = useState<number | null>(null);
     const [dailySummaryTab, setDailySummaryTab] = useState<"purchase" | "usage" | "refund">("purchase");
     const [expandedRefundId, setExpandedRefundId] = useState<string | null>(null);
@@ -4544,24 +4545,58 @@ export default function PatientChartPage() {
                                     </div>
                                 )}
 
-                                <div className="flex border border-[#F8DCE2] rounded-xl mb-2 overflow-hidden">
-                                    <button
-                                        className={`flex-1 py-1.5 text-[13px] font-semibold transition-colors ${ticketTab === "active" ? "bg-[#D27A8C]/10 text-[#D27A8C]" : "text-[#616161] hover:bg-[#FCF7F8]"}`}
-                                        onClick={() => setTicketTab("active")}
-                                    >
-                                        사용가능 ({tickets.filter((t) => (getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null).length})
-                                    </button>
-                                    <button
-                                        className={`flex-1 py-1.5 text-[13px] font-semibold transition-colors ${ticketTab === "completed" ? "bg-[#FCF7F8] text-[#242424]" : "text-[#616161] hover:bg-[#FCF7F8]"}`}
-                                        onClick={() => setTicketTab("completed")}
-                                    >
-                                        사용완료 ({tickets.filter((t) => getTicketRemaining(t) === 0).length})
-                                    </button>
+                                <div className="relative mb-2">
+                                    <input
+                                        type="text"
+                                        value={ticketSearch}
+                                        onChange={(e) => setTicketSearch(e.target.value)}
+                                        placeholder="티켓명 검색 (예: 첫 시술, 윤곽, 토닝 ...)"
+                                        className="w-full h-9 rounded-xl border border-[#F8DCE2] bg-white pl-8 pr-8 text-[12px] outline-none focus:border-[#D27A8C] focus:ring-2 focus:ring-[#F49EAF]/20"
+                                    />
+                                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C9A0A8]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <circle cx="11" cy="11" r="7" />
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                    </svg>
+                                    {ticketSearch && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setTicketSearch("")}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-full text-[#C9A0A8] hover:bg-[#FCEBEF] hover:text-[#8B3F50]"
+                                            title="검색어 지우기"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                        </button>
+                                    )}
                                 </div>
+
+                                {(() => {
+                                    const q = ticketSearch.trim().toLowerCase();
+                                    const matchSearch = (t: typeof tickets[number]) =>
+                                        !q || (t.itemName || "").toLowerCase().includes(q);
+                                    const activeCount = tickets.filter((t) => ((getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null) && matchSearch(t)).length;
+                                    const completedCount = tickets.filter((t) => getTicketRemaining(t) === 0 && matchSearch(t)).length;
+                                    return (
+                                        <div className="flex border border-[#F8DCE2] rounded-xl mb-2 overflow-hidden">
+                                            <button
+                                                className={`flex-1 py-1.5 text-[13px] font-semibold transition-colors ${ticketTab === "active" ? "bg-[#D27A8C]/10 text-[#D27A8C]" : "text-[#616161] hover:bg-[#FCF7F8]"}`}
+                                                onClick={() => setTicketTab("active")}
+                                            >
+                                                사용가능 ({activeCount})
+                                            </button>
+                                            <button
+                                                className={`flex-1 py-1.5 text-[13px] font-semibold transition-colors ${ticketTab === "completed" ? "bg-[#FCF7F8] text-[#242424]" : "text-[#616161] hover:bg-[#FCF7F8]"}`}
+                                                onClick={() => setTicketTab("completed")}
+                                            >
+                                                사용완료 ({completedCount})
+                                            </button>
+                                        </div>
+                                    );
+                                })()}
 
                                 <div className="space-y-2">
                                     {tickets
                                         .filter((t) => (ticketTab === "active" ? (getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null : getTicketRemaining(t) === 0))
+                                        .filter((t) => !ticketSearch.trim() || (t.itemName || "").toLowerCase().includes(ticketSearch.trim().toLowerCase()))
                                         .map((t) => {
                                             const remain = getTicketRemaining(t);
                                             const used = getTicketUsed(t);
