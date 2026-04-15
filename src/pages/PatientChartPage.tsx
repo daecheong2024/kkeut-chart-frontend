@@ -6238,9 +6238,10 @@ function RefundHistoryList({
         terminalInfo?: { authNo?: string; authDate?: string; vanKey?: string };
     } | null>(null);
     const [paymentInfoModal, setPaymentInfoModal] = useState<{
-        detail: PaymentDetailBreakdown;
+        details: PaymentDetailBreakdown[];
         paymentTime?: string;
         receiptUserName?: string;
+        focusedDetailId?: number;
     } | null>(null);
 
     // ISSUE-174: bulk refund + membership settlement
@@ -6938,9 +6939,10 @@ function RefundHistoryList({
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
                                                                             setPaymentInfoModal({
-                                                                                detail: first,
+                                                                                details: groupDetails,
                                                                                 paymentTime: headRecord?.paidAt,
                                                                                 receiptUserName: headRecord?.collectorName,
+                                                                                focusedDetailId: first.id,
                                                                             });
                                                                         }}
                                                                         className="inline-flex items-center gap-1 whitespace-nowrap shrink-0 rounded-full border border-[#F8DCE2] bg-white px-2 py-0.5 text-[10px] font-bold text-[#5C2A35] hover:bg-[#FCEBEF] hover:border-[#D27A8C] transition-colors"
@@ -6972,9 +6974,10 @@ function RefundHistoryList({
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         setPaymentInfoModal({
-                                                                            detail: pd,
+                                                                            details: groupDetails,
                                                                             paymentTime: headRecord?.paidAt,
                                                                             receiptUserName: headRecord?.collectorName,
+                                                                            focusedDetailId: pd.id,
                                                                         });
                                                                     }}
                                                                     className="tabular-nums font-bold underline-offset-2 hover:underline"
@@ -7151,10 +7154,23 @@ function RefundHistoryList({
                                             type="button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
+                                                // 그 티켓이 속한 PaymentMaster 의 모든 detail 을 한 화면에서 보여주기
+                                                const seen = new Set<number>();
+                                                const allDetails: PaymentDetailBreakdown[] = [];
+                                                for (const c of (card.group?.records ?? []).flatMap(r => r.items ?? [])) {
+                                                    for (const pd of (c.paymentDetails ?? [])) {
+                                                        if (!seen.has(pd.id)) {
+                                                            seen.add(pd.id);
+                                                            allDetails.push(pd);
+                                                        }
+                                                    }
+                                                }
+                                                const focused = card.itemPaymentDetails[0]?.id;
                                                 setPaymentInfoModal({
-                                                    detail: card.itemPaymentDetails[0],
+                                                    details: allDetails.length > 0 ? allDetails : card.itemPaymentDetails,
                                                     paymentTime: card.record.paidAt,
                                                     receiptUserName: card.record.collectorName,
+                                                    focusedDetailId: focused,
                                                 });
                                             }}
                                             className="rounded px-2 py-1 text-[10px] font-bold text-[#5C2A35] hover:bg-[#FCEBEF] transition-colors"
@@ -7312,9 +7328,10 @@ function RefundHistoryList({
             {paymentInfoModal && (
                 <PaymentInfoModal
                     open
-                    detail={paymentInfoModal.detail}
+                    details={paymentInfoModal.details}
                     paymentTime={paymentInfoModal.paymentTime}
                     receiptUserName={paymentInfoModal.receiptUserName}
+                    focusedDetailId={paymentInfoModal.focusedDetailId}
                     onClose={() => setPaymentInfoModal(null)}
                     onUpdated={() => {
                         setPaymentInfoModal(null);
