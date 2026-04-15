@@ -6943,7 +6943,7 @@ function RefundHistoryList({
                                                                                 receiptUserName: headRecord?.collectorName,
                                                                             });
                                                                         }}
-                                                                        className="inline-flex items-center gap-1 rounded-full border border-[#F8DCE2] bg-white px-2 py-0.5 text-[10px] font-bold text-[#5C2A35] hover:bg-[#FCEBEF] hover:border-[#D27A8C] transition-colors"
+                                                                        className="inline-flex items-center gap-1 whitespace-nowrap shrink-0 rounded-full border border-[#F8DCE2] bg-white px-2 py-0.5 text-[10px] font-bold text-[#5C2A35] hover:bg-[#FCEBEF] hover:border-[#D27A8C] transition-colors"
                                                                         title={`수납 정보 보기 — ${labelMap[ptype] || ptype}${g.details.length > 1 ? ` (1번 결제 / 티켓 ${g.details.length}건 분개)` : ""}`}
                                                                     >
                                                                         <span>{labelMap[ptype] || ptype}</span>
