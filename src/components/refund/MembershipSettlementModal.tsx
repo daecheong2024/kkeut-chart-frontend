@@ -61,6 +61,7 @@ export function MembershipSettlementModal({
     const [penaltyRatePct, setPenaltyRatePct] = useState<string>("");
     const [manualAmount, setManualAmount] = useState<string>("");
     const [reason, setReason] = useState<string>("");
+    const [rePaymentMethod, setRePaymentMethod] = useState<"card" | "cash" | "pay">("card");
     const [submitting, setSubmitting] = useState(false);
     const [progress, setProgress] = useState<SettlementProgressState>({ phase: "idle" });
 
@@ -212,32 +213,37 @@ export function MembershipSettlementModal({
 
             if (penaltyAmount > 0) {
                 setProgress({ phase: "repayment", amount: penaltyAmount });
-                try {
-                    const r = await kisTerminalService.requestPayment({ tradeType: tradePayType, amount: penaltyAmount });
-                    if (!r.success) {
+                if (rePaymentMethod === "cash") {
+                    rePaymentAuth = { amount: penaltyAmount, authNo: "", authDate: "", vanKey: "" };
+                } else {
+                    const repayTradeType = (rePaymentMethod === "pay") ? "v1" as const : "D1" as const;
+                    try {
+                        const r = await kisTerminalService.requestPayment({ tradeType: repayTradeType, amount: penaltyAmount });
+                        if (!r.success) {
+                            setProgress({ phase: "idle" });
+                            setSubmitting(false);
+                            showAlert({ message: `위약금 재결제 실패: ${r.displayMsg || r.replyCode}`, type: "error" });
+                            return;
+                        }
+                        rePaymentAuth = {
+                            amount: penaltyAmount,
+                            authNo: r.authNo,
+                            authDate: r.replyDate,
+                            vanKey: r.vanKey,
+                            cardCompany: r.issuerName || r.accepterName,
+                            installment: r.installment,
+                            cardNo: r.cardNo,
+                            tranNo: r.tranNo,
+                            accepterName: r.accepterName,
+                            catId: r.catId,
+                            merchantRegNo: r.merchantRegNo,
+                        };
+                    } catch (e: any) {
                         setProgress({ phase: "idle" });
                         setSubmitting(false);
-                        showAlert({ message: `위약금 재결제 실패: ${r.displayMsg || r.replyCode}`, type: "error" });
+                        showAlert({ message: `위약금 재결제 호출 실패: ${e?.message || "오류"}`, type: "error" });
                         return;
                     }
-                    rePaymentAuth = {
-                        amount: penaltyAmount,
-                        authNo: r.authNo,
-                        authDate: r.replyDate,
-                        vanKey: r.vanKey,
-                        cardCompany: r.issuerName || r.accepterName,
-                        installment: r.installment,
-                        cardNo: r.cardNo,
-                        tranNo: r.tranNo,
-                        accepterName: r.accepterName,
-                        catId: r.catId,
-                        merchantRegNo: r.merchantRegNo,
-                    };
-                } catch (e: any) {
-                    setProgress({ phase: "idle" });
-                    setSubmitting(false);
-                    showAlert({ message: `위약금 재결제 호출 실패: ${e?.message || "오류"}`, type: "error" });
-                    return;
                 }
             }
 
@@ -285,6 +291,7 @@ export function MembershipSettlementModal({
                 membershipCardRefundVanKey: voidAuth?.vanKey,
                 refundMethod: voidAuth ? "AUTO" : undefined,
                 rePaymentAmount: rePaymentAuth?.amount,
+                rePaymentMethod: rePaymentAuth ? rePaymentMethod.toUpperCase() : undefined,
                 rePaymentTerminalAuthNo: rePaymentAuth?.authNo,
                 rePaymentTerminalAuthDate: rePaymentAuth?.authDate,
                 rePaymentVanKey: rePaymentAuth?.vanKey,
@@ -547,6 +554,38 @@ export function MembershipSettlementModal({
                                         className="w-full rounded-lg border border-[#F8DCE2] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#D27A8C] focus:ring-2 focus:ring-[#F49EAF]/20 resize-none"
                                     />
                                 </div>
+
+                                {(preview?.penalty ?? 0) > 0 && refundType !== "hospital_fault" && (
+                                    <div>
+                                        <label className="mb-1 block text-[11px] font-bold text-[#8B3F50]">위약금 결제수단</label>
+                                        <div className="grid grid-cols-3 gap-1.5">
+                                            {([
+                                                { value: "card", label: "카드" },
+                                                { value: "pay", label: "간편결제" },
+                                                { value: "cash", label: "현금" },
+                                            ] as const).map(opt => {
+                                                const active = rePaymentMethod === opt.value;
+                                                return (
+                                                    <button
+                                                        key={opt.value}
+                                                        type="button"
+                                                        onClick={() => setRePaymentMethod(opt.value)}
+                                                        className={`rounded-lg border px-2 py-1.5 text-[12px] font-bold transition-colors ${
+                                                            active ? "border-[#D27A8C] bg-[#FCEBEF] text-[#8B3F50]" : "border-[#F8DCE2] bg-white text-[#5C2A35] hover:bg-[#FCF7F8]"
+                                                        }`}
+                                                    >
+                                                        {opt.label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="mt-1 text-[10px] text-[#8B5A66]">
+                                            {rePaymentMethod === "cash"
+                                                ? "고객이 위약금을 현금으로 결제. 단말기 호출 없이 기록만 됩니다."
+                                                : `위약금을 ${rePaymentMethod === "pay" ? "간편결제" : "카드"} 단말기로 신규 결제합니다.`}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Summary */}
                                 <div className="rounded-xl border border-[#F8DCE2] bg-gradient-to-b from-[#FCF7F8] to-white px-4 py-3">
