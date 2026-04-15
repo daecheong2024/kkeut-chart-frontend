@@ -1033,7 +1033,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                             boxShadow: refundDisabled ? "none" : "0 8px 22px rgba(210, 122, 140, 0.38)",
                         }}
                     >
-                        {submitting ? "처리 중..." : (deductionTotal > 0 ? `공제액 ${formatWon(deductionTotal)} 결제` : `${formatWon(grandTotal)} 환불 처리`)}
+                        {submitting ? "처리 중..." : (deductionTotal > 0 ? `공제액 ${formatWon(deductionTotal)} 결제 및 환불` : `${formatWon(grandTotal)} 환불 처리`)}
                     </button>
                 </div>
             </div>
