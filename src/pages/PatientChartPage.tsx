@@ -6888,10 +6888,17 @@ function RefundHistoryList({
                                                     }
                                                 }
                                             }
-                                            // 회원권 차감(MEMBERSHIP_*) 제외 — 실제 수납 수단만 chip 으로 표시
+                                            // 위약금 재결제 detail 식별 (Memo prefix "위약금 재결제 ...")
+                                            const isRePaymentDetail = (pd: PaymentDetailBreakdown) =>
+                                                !!pd.memo && pd.memo.startsWith("위약금 재결제");
+                                            // 회원권 차감(MEMBERSHIP_*) + 위약금 재결제 제외 — 고객이 실제 결제한 수단만 chip
                                             const realPaymentChips = groupDetails.filter(
-                                                pd => pd.paymentType !== "MEMBERSHIP_CASH" && pd.paymentType !== "MEMBERSHIP_POINT"
+                                                pd => pd.paymentType !== "MEMBERSHIP_CASH"
+                                                    && pd.paymentType !== "MEMBERSHIP_POINT"
+                                                    && !isRePaymentDetail(pd)
                                             );
+                                            const rePaymentDetails = groupDetails.filter(isRePaymentDetail);
+                                            const rePaymentTotal = rePaymentDetails.reduce((s, pd) => s + pd.amount, 0);
                                             const headRecord = groupEntry.cards[0]?.record;
                                             const labelMap: Record<string, string> = {
                                                 CARD: "카드", PAY: "간편결제", CASH: "현금", BANKING: "계좌이체",
@@ -6929,6 +6936,32 @@ function RefundHistoryList({
                                                         <div className="mt-1 text-[11px] text-violet-700">
                                                             <span className="font-semibold">회원권 차감</span>
                                                             <span className="ml-1 tabular-nums">{memDeduct.toLocaleString()}원</span>
+                                                        </div>
+                                                    )}
+                                                    {rePaymentDetails.length > 0 && (
+                                                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-amber-700">
+                                                            <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold">위약금 재결제</span>
+                                                            {rePaymentDetails.map(pd => (
+                                                                <button
+                                                                    key={pd.id}
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setPaymentInfoModal({
+                                                                            detail: pd,
+                                                                            paymentTime: headRecord?.paidAt,
+                                                                            receiptUserName: headRecord?.collectorName,
+                                                                        });
+                                                                    }}
+                                                                    className="tabular-nums font-bold underline-offset-2 hover:underline"
+                                                                    title="위약금 재결제 정보 보기"
+                                                                >
+                                                                    +{pd.amount.toLocaleString()}원
+                                                                </button>
+                                                            ))}
+                                                            {rePaymentDetails.length > 1 && (
+                                                                <span className="text-amber-600">(합 {rePaymentTotal.toLocaleString()}원)</span>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </>
