@@ -6996,8 +6996,23 @@ function RefundHistoryList({
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <div className="text-[14px] font-extrabold tabular-nums text-[#5C2A35]">
-                                        {groupEntry.groupTotal.toLocaleString()}원
+                                    <div className="text-right">
+                                        {(() => {
+                                            const memDeduct = groupEntry.cards[0]?.group.totalMembershipDeduction ?? 0;
+                                            const ticketGross = groupEntry.groupTotal + memDeduct;
+                                            return (
+                                                <>
+                                                    <div className="text-[14px] font-extrabold tabular-nums text-[#5C2A35]">
+                                                        {ticketGross.toLocaleString()}원
+                                                    </div>
+                                                    {memDeduct > 0 && (
+                                                        <div className="text-[10px] text-[#8B5A66] tabular-nums">
+                                                            실 수납 {groupEntry.groupTotal.toLocaleString()}원
+                                                        </div>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                     {!isReadOnly && eligibleInGroup.length > 0 && groupEntry.groupStatus !== "refunded" && (
                                         <button
