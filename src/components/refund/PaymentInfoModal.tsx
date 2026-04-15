@@ -86,29 +86,51 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
 
     const totalAmount = useMemo(() => details.reduce((s, d) => s + d.amount, 0), [details]);
 
+    // 같은 결제수단 묶음 (DB는 티켓별 분개되지만 직원 화면은 "한 번의 결제 = 한 행")
+    // 카드/페이: paymentType + AuthNo + AuthDate + VanKey 동일 = 같은 카드 거래
+    // 현금/계좌/회원권/플랫폼/기타: paymentType 동일하면 한 묶음
+    const groupedDetails = useMemo(() => {
+        const map = new Map<string, PaymentDetailBreakdown[]>();
+        for (const d of details) {
+            const u = (d.paymentType || "").toUpperCase();
+            const isCardLike = u === "CARD" || u === "PAY";
+            const key = isCardLike
+                ? `${u}::${d.terminalAuthNo || d.id}::${d.terminalAuthDate || ""}::${d.terminalVanKey || ""}`
+                : u;
+            const arr = map.get(key) ?? [];
+            arr.push(d);
+            map.set(key, arr);
+        }
+        return Array.from(map.values());
+    }, [details]);
+
     if (!open || details.length === 0) return null;
 
     const updateEdit = (id: number, patch: Partial<DetailEditState>) => {
         setEdits(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
     };
 
-    const handleSave = async (d: PaymentDetailBreakdown) => {
-        const e = edits[d.id];
+    // 묶음 저장: 같은 결제수단으로 묶인 모든 detail 에 동일 metadata 일괄 업데이트
+    const handleSaveGroup = async (group: PaymentDetailBreakdown[]) => {
+        const anchor = group[0];
+        const e = edits[anchor.id];
         if (!e) return;
         if (e.authDate && !/^\d{8}$/.test(e.authDate.trim())) {
             showAlert({ message: "거래일시는 YYYYMMDD 8자리 숫자로 입력해 주세요. (예: 20260414)", type: "warning" });
             return;
         }
-        setSavingId(d.id);
+        setSavingId(anchor.id);
         try {
-            await paymentService.updatePaymentDetailTerminalInfo(d.id, {
-                authNo: e.authNo.trim(),
-                terminalAuthDate: e.authDate.trim(),
-                terminalVanKey: e.vanKey.trim(),
-                cardCompany: e.cardCompany.trim(),
-                installment: e.installment.trim(),
-            });
-            showAlert({ message: "수납 정보가 저장되었습니다.", type: "success" });
+            for (const d of group) {
+                await paymentService.updatePaymentDetailTerminalInfo(d.id, {
+                    authNo: e.authNo.trim(),
+                    terminalAuthDate: e.authDate.trim(),
+                    terminalVanKey: e.vanKey.trim(),
+                    cardCompany: e.cardCompany.trim(),
+                    installment: e.installment.trim(),
+                });
+            }
+            showAlert({ message: `수납 정보가 저장되었습니다 (${group.length}건 동시 적용).`, type: "success" });
             setEditingId(null);
             onUpdated?.();
         } catch (err: any) {
@@ -152,17 +174,19 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                         <div className="text-[22px] font-black text-[#D27A8C] tabular-nums leading-none">{formatWon(totalAmount)}</div>
                     </div>
 
-                    {/* Per-detail cards */}
-                    {details.map(d => {
+                    {/* Grouped payment method cards (DB 는 티켓별 분개되지만 화면은 결제 묶음 단위) */}
+                    {groupedDetails.map(group => {
+                        const d = group[0]; // anchor
+                        const groupTotal = group.reduce((s, x) => s + x.amount, 0);
                         const editing = editingId === d.id;
                         const editable = isCardOrPay(d.paymentType);
                         const e = edits[d.id] || { authNo: "", authDate: "", vanKey: "", cardCompany: "", installment: "" };
-                        const focused = focusedDetailId === d.id;
+                        const focused = group.some(x => x.id === focusedDetailId);
                         const isMissingTerminal = editable && (!d.terminalAuthNo || !d.terminalAuthDate || !d.terminalVanKey);
 
                         return (
                             <div
-                                key={d.id}
+                                key={`group-${d.id}`}
                                 className={`rounded-xl border bg-white transition-all ${focused ? "border-[#D27A8C] shadow-[0_0_0_2px_rgba(210,122,140,0.2)]" : "border-[#F8DCE2]"}`}
                             >
                                 {/* Row header */}
@@ -177,7 +201,12 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                                             <span className="text-rose-500 text-[10px] font-bold" title="단말기 정보 미등록">⚠ 단말기 정보 없음</span>
                                         )}
                                     </div>
-                                    <div className="text-[14px] font-extrabold text-[#5C2A35] tabular-nums shrink-0">{formatWon(d.amount)}</div>
+                                    <div className="text-right shrink-0">
+                                        <div className="text-[14px] font-extrabold text-[#5C2A35] tabular-nums">{formatWon(groupTotal)}</div>
+                                        {group.length > 1 && (
+                                            <div className="text-[10px] text-[#8B5A66]">티켓 {group.length}건 분개 포함</div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Body — fields */}
@@ -243,11 +272,11 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => handleSave(d)}
+                                                        onClick={() => handleSaveGroup(group)}
                                                         disabled={savingId === d.id}
                                                         className="inline-flex items-center gap-1 h-8 rounded-md bg-[#D27A8C] px-3 text-[11px] font-extrabold text-white hover:bg-[#8B3F50] disabled:opacity-50"
                                                     >
-                                                        <Save className="h-3 w-3" /> {savingId === d.id ? "저장 중..." : "저장"}
+                                                        <Save className="h-3 w-3" /> {savingId === d.id ? "저장 중..." : (group.length > 1 ? `저장 (${group.length}건 일괄)` : "저장")}
                                                     </button>
                                                 </div>
                                             </>
