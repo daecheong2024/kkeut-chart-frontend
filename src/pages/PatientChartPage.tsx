@@ -6898,15 +6898,11 @@ function RefundHistoryList({
                                                     && pd.paymentType !== "MEMBERSHIP_POINT"
                                                     && !isRePaymentDetail(pd)
                                             );
-                                            // 같은 결제수단 + 같은 승인번호(또는 같은 VANKEY)는 1번 카드 긁은 거 = 1 chip 으로 합산
-                                            // 카드/페이는 (paymentType + AuthNo + Date + VanKey) 키로 그룹핑
-                                            // 현금/계좌/플랫폼/기타는 paymentType 로 그룹핑 (구분자 없음)
+                                            // 결제수단 종류별로 1 chip 으로 단순화 (카드 N장 분할결제도 "카드 합계"로 합산)
+                                            // 상세 분개는 chip 클릭 시 PaymentInfoModal 에서 확인
                                             const chipGroupsMap = new Map<string, { details: PaymentDetailBreakdown[]; total: number }>();
                                             for (const pd of realPaymentDetails) {
-                                                const isCardLike = pd.paymentType === "CARD" || pd.paymentType === "PAY";
-                                                const key = isCardLike
-                                                    ? `${pd.paymentType}::${pd.terminalAuthNo || pd.id}::${pd.terminalAuthDate || ""}::${pd.terminalVanKey || ""}`
-                                                    : `${pd.paymentType}`;
+                                                const key = pd.paymentType;
                                                 const existing = chipGroupsMap.get(key);
                                                 if (existing) {
                                                     existing.details.push(pd);
@@ -6946,10 +6942,13 @@ function RefundHistoryList({
                                                                             });
                                                                         }}
                                                                         className="inline-flex items-center gap-1 whitespace-nowrap shrink-0 rounded-full border border-[#F8DCE2] bg-white px-2 py-0.5 text-[10px] font-bold text-[#5C2A35] hover:bg-[#FCEBEF] hover:border-[#D27A8C] transition-colors"
-                                                                        title={`수납 정보 보기 — ${labelMap[ptype] || ptype}${g.details.length > 1 ? ` (1번 결제 / 티켓 ${g.details.length}건 분개)` : ""}`}
+                                                                        title={`수납 정보 보기 — ${labelMap[ptype] || ptype}${g.details.length > 1 ? ` (${g.details.length}건 분개, 클릭 시 상세)` : ""}`}
                                                                     >
                                                                         <span>{labelMap[ptype] || ptype}</span>
                                                                         <span className="tabular-nums text-[#8B3F50]">{g.total.toLocaleString()}원</span>
+                                                                        {g.details.length > 1 && (
+                                                                            <span className="text-[#8B5A66] font-normal">· {g.details.length}건</span>
+                                                                        )}
                                                                         {missingTerminal && (
                                                                             <span className="ml-0.5 text-rose-500" title="단말기 정보 미등록">⚠</span>
                                                                         )}
