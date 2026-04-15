@@ -183,6 +183,11 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                     {groupedDetails.map(group => {
                         const d = group[0]; // anchor
                         const groupTotal = group.reduce((s, x) => s + x.amount, 0);
+                        const groupRefundedTotal = group.reduce((s, x) => s + (x.refundedAmount || 0), 0);
+                        const groupRePayTotal = group.reduce((s, x) => s + (x.rePaymentAmount || 0), 0);
+                        const groupCustomerNet = Math.max(0, groupRefundedTotal - groupRePayTotal);
+                        const isAnyRefunded = group.some(x => x.isRefunded);
+                        const refundedAt = group.map(x => x.refundedAt).filter(Boolean).sort().slice(-1)[0];
                         const editing = editingId === d.id;
                         const editable = isCardOrPay(d.paymentType);
                         const e = edits[d.id] || { authNo: "", authDate: "", vanKey: "", cardCompany: "", installment: "" };
@@ -192,17 +197,20 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                         return (
                             <div
                                 key={`group-${d.id}`}
-                                className={`rounded-xl border bg-white transition-all ${focused ? "border-[#D27A8C] shadow-[0_0_0_2px_rgba(210,122,140,0.2)]" : "border-[#F8DCE2]"}`}
+                                className={`rounded-xl border bg-white transition-all ${isAnyRefunded ? "border-rose-200 bg-rose-50/30" : focused ? "border-[#D27A8C] shadow-[0_0_0_2px_rgba(210,122,140,0.2)]" : "border-[#F8DCE2]"}`}
                             >
                                 {/* Row header */}
-                                <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-[#F8DCE2]/60 bg-[#FCF7F8]/50">
+                                <div className={`flex items-center justify-between gap-2 px-4 py-2.5 border-b border-[#F8DCE2]/60 ${isAnyRefunded ? "bg-rose-50/50" : "bg-[#FCF7F8]/50"}`}>
                                     <div className="flex items-center gap-2 min-w-0">
                                         <span className="inline-flex items-center gap-1 rounded-full border border-[#F8DCE2] bg-white px-2 py-0.5 text-[11px] font-bold text-[#5C2A35] shrink-0">
                                             {paymentTypeIcon(d.paymentType)}
                                             <span>{paymentTypeLabel(d.paymentType)}</span>
                                             {d.paymentSubMethodLabel && <span className="text-[#8B5A66] font-normal">· {d.paymentSubMethodLabel}</span>}
                                         </span>
-                                        {isMissingTerminal && (
+                                        {isAnyRefunded && (
+                                            <span className="inline-flex items-center rounded-full bg-rose-100 border border-rose-200 px-2 py-0.5 text-[11px] font-bold text-rose-600">환불 처리됨</span>
+                                        )}
+                                        {isMissingTerminal && !isAnyRefunded && (
                                             <span className="text-rose-500 text-[10px] font-bold" title="단말기 정보 미등록">⚠ 단말기 정보 없음</span>
                                         )}
                                     </div>
@@ -213,6 +221,37 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                                         )}
                                     </div>
                                 </div>
+
+                                {/* Refund summary (when refunded) */}
+                                {isAnyRefunded && (
+                                    <div className="px-4 py-2.5 bg-rose-50/40 border-b border-rose-100 text-[12px] space-y-1">
+                                        <div className="grid grid-cols-[80px_1fr] items-center gap-3">
+                                            <div className="text-[11px] font-bold text-rose-700">환불 처리</div>
+                                            <div className="font-bold text-[#5C2A35]">
+                                                {refundedAt ? new Date(refundedAt).toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-[80px_1fr] items-center gap-3">
+                                            <div className="text-[11px] font-bold text-rose-700">카드사 취소액</div>
+                                            <div className="tabular-nums text-[#5C2A35]">{formatWon(groupRefundedTotal)}</div>
+                                        </div>
+                                        {groupRePayTotal > 0 && (
+                                            <>
+                                                <div className="grid grid-cols-[80px_1fr] items-center gap-3">
+                                                    <div className="text-[11px] font-bold text-rose-700">공제액</div>
+                                                    <div className="tabular-nums text-amber-700 font-bold">
+                                                        {formatWon(groupRePayTotal)}
+                                                        {group[0].rePaymentMethod && <span className="ml-1 text-[10px] font-normal text-[#8B5A66]">({paymentTypeLabel(group[0].rePaymentMethod)})</span>}
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-[80px_1fr] items-center gap-3 pt-1 border-t border-rose-100">
+                                                    <div className="text-[12px] font-extrabold text-rose-700">고객 실수령</div>
+                                                    <div className="text-[14px] tabular-nums font-extrabold text-rose-600">{formatWon(groupCustomerNet)}</div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Body — fields */}
                                 <div className="px-4 py-3 space-y-1.5">

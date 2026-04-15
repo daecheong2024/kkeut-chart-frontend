@@ -48,6 +48,13 @@ export interface PaymentDetailBreakdown {
     terminalMerchantRegNo?: string;
     membershipId?: number;
     membershipName?: string;
+    isRefunded?: boolean;
+    refundedAmount?: number;
+    refundedAt?: string;
+    rePaymentDetailId?: number;
+    rePaymentAmount?: number;
+    rePaymentMethod?: string;
+    refundReason?: string;
 }
 
 export interface PaymentItemDetail {
