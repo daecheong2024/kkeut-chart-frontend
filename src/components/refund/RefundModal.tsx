@@ -498,7 +498,10 @@ export function RefundModal({
                                 <div className="text-[#8B5A66]">
                                     환불 확정 시 단말기에서 자동으로 처리됩니다.<br/>
                                     위약금이 있으면 위약금만큼 카드로 새로 결제한 뒤, 원래 결제 전체를 카드사에 취소합니다.<br/>
-                                    <span className="text-[#99354E]">※ 고객 입장에서 결과는 동일 (위약금만 차감 후 환불). 카드사 부분취소가 안 되는 경우에도 안전하게 환불 가능.</span>
+                                    <span className="text-[#99354E]">※ 고객 입장에서 결과는 동일 (위약금만 차감 후 환불).</span>
+                                </div>
+                                <div className="rounded-md bg-amber-50 border border-amber-200 px-2 py-1.5 text-[10px] text-amber-800 leading-snug">
+                                    ⚠ <b>원거래 결제했던 단말기에서만 자동 취소 가능</b>합니다. 다른 단말기 사용 중이면 그 단말기에서 직접 취소 후 [단말기 없이 수동 환불] 체크하세요.
                                 </div>
                                 <label className="flex items-center gap-1.5 cursor-pointer pt-1">
                                     <input

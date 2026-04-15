@@ -287,6 +287,15 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                                                 <Field label="승인번호">{d.terminalAuthNo || <span className="text-[#C9A0A8]">미등록</span>}</Field>
                                                 <Field label="거래일시">{d.terminalAuthDate || <span className="text-[#C9A0A8]">미등록</span>}</Field>
                                                 <Field label="VANKEY">{d.terminalVanKey || <span className="text-[#C9A0A8]">미등록</span>}</Field>
+                                                {(d.terminalCatId || d.terminalMerchantRegNo) && (
+                                                    <Field label="단말기">
+                                                        <span className="font-mono text-[11.5px]">
+                                                            {d.terminalCatId && `CAT #${d.terminalCatId}`}
+                                                            {d.terminalCatId && d.terminalMerchantRegNo && " · "}
+                                                            {d.terminalMerchantRegNo && `가맹점 ${d.terminalMerchantRegNo}`}
+                                                        </span>
+                                                    </Field>
+                                                )}
                                                 <div className="flex justify-end pt-1">
                                                     <button
                                                         type="button"

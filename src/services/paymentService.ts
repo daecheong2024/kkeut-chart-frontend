@@ -44,6 +44,8 @@ export interface PaymentDetailBreakdown {
     terminalAuthNo?: string;
     terminalAuthDate?: string;
     terminalVanKey?: string;
+    terminalCatId?: string;
+    terminalMerchantRegNo?: string;
     membershipId?: number;
     membershipName?: string;
 }
