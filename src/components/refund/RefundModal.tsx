@@ -652,7 +652,10 @@ export function RefundModal({
                                 : "0 8px 22px rgba(226, 107, 124, 0.38), inset 0 1px 0 rgba(255,255,255,0.18)",
                         }}
                     >
-                        {submitting ? "처리 중..." : "환불액 결제"}
+                        {submitting ? "처리 중..." : (() => {
+                            const deduction = Math.max(0, (calc?.paidAmount ?? 0) - (calc?.estimatedRefund ?? 0));
+                            return deduction > 0 ? `공제액 ${formatWon(deduction)} 결제` : `${formatWon(calc?.estimatedRefund ?? 0)} 환불 처리`;
+                        })()}
                     </button>
                 </div>
 

@@ -657,7 +657,7 @@ export function MembershipSettlementModal({
                                         : "0 8px 22px rgba(210, 122, 140, 0.38)",
                                 }}
                             >
-                                {submitting ? "처리 중..." : "정산 환불액 결제"}
+                                {submitting ? "처리 중..." : ((preview?.penalty ?? 0) > 0 ? `공제액 ${formatWon(preview?.penalty ?? 0)} 결제` : "정산 환불 처리")}
                             </button>
                         </div>
                     </>

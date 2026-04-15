@@ -274,6 +274,21 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
     );
     const grandTotal = ticketsRefundTotal + membershipRefundTotal;
 
+    // 공제액 = 위약금 + 사용분 (= 직원이 이번에 결제 처리하는 금액 = 병원이 받는 돈)
+    // 단독 티켓: paidAmount - estimatedRefund (정상가 사용분 + 위약금)
+    // 회원권 정산: penalty (잔액/티켓은 회원권 자체 흐름)
+    const deductionTotal = useMemo(() => {
+        let s = 0;
+        for (const t of effectiveTickets) {
+            const c = ticketCalcs[t.paymentDetailId];
+            if (c) s += Math.max(0, (c.paidAmount || 0) - (c.estimatedRefund || 0));
+        }
+        for (const p of membershipPreviews) {
+            s += Math.max(0, p.penalty || 0);
+        }
+        return s;
+    }, [effectiveTickets, membershipPreviews, ticketCalcs]);
+
     // 영수증 보고 단말기 정보 수기 입력 — paymentDetailId 별 override
     const [terminalInfoOverrides, setTerminalInfoOverrides] = useState<Record<number, { authNo: string; authDate: string; vanKey: string }>>({});
     const [terminalInfoDraft, setTerminalInfoDraft] = useState<Record<number, { authNo: string; authDate: string; vanKey: string }>>({});
@@ -845,11 +860,19 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                     </div>
                                 )}
                                 <div className="border-t border-[#F8DCE2] mt-2 pt-2 flex justify-between items-center">
-                                    <span className="text-[14px] font-extrabold text-[#5C2A35]">총 환불액</span>
-                                    <span className={`text-[22px] font-black tabular-nums leading-none ${grandTotal > 0 ? "text-[#D27A8C]" : "text-[#C9A0A8]"}`}>
+                                    <span className="text-[12px] font-bold text-[#8B5A66]">고객 환불액</span>
+                                    <span className={`text-[18px] font-extrabold tabular-nums leading-none ${grandTotal > 0 ? "text-[#5C2A35]" : "text-[#C9A0A8]"}`}>
                                         {formatWon(grandTotal)}
                                     </span>
                                 </div>
+                                {deductionTotal > 0 && (
+                                    <div className="mt-1.5 flex justify-between items-center bg-[#FCEBEF]/40 -mx-1 px-2 py-1.5 rounded-md">
+                                        <span className="text-[12px] font-extrabold text-[#8B3F50]">공제액 (위약금+사용분)</span>
+                                        <span className="text-[20px] font-black tabular-nums leading-none text-[#D27A8C]">
+                                            {formatWon(deductionTotal)}
+                                        </span>
+                                    </div>
+                                )}
                                 {autoRefundTotal > 0 && manualRefundTotal > 0 && (
                                     <div className="mt-2 space-y-0.5 text-[11px]">
                                         <div className="flex justify-between text-[#5C2A35]">
@@ -1010,7 +1033,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                             boxShadow: refundDisabled ? "none" : "0 8px 22px rgba(210, 122, 140, 0.38)",
                         }}
                     >
-                        {submitting ? "처리 중..." : `${formatWon(grandTotal)} 환불액 결제`}
+                        {submitting ? "처리 중..." : (deductionTotal > 0 ? `공제액 ${formatWon(deductionTotal)} 결제` : `${formatWon(grandTotal)} 환불 처리`)}
                     </button>
                 </div>
             </div>
