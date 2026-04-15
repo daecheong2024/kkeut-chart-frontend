@@ -199,6 +199,11 @@ export interface MembershipHistory {
     description: string;
     historyType: string;
     ticketName?: string;
+    ticketId?: number;
+    ticketRootHistId?: number;
+    ticketMaxUseCount?: number;
+    ticketUsedCount?: number;
+    ticketRemainingCount?: number;
     usedAt: string;
     isCancelled: boolean;
 }

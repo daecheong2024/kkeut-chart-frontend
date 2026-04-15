@@ -4833,10 +4833,31 @@ export default function PatientChartPage() {
                                                                                 </div>
                                                                                 {(isUse || isRefund) && (
                                                                                     h.ticketName ? (
-                                                                                        <div className="text-[14px] text-[#242424] font-semibold mt-1 break-words" title={h.ticketName}>
-                                                                                            {isRefund && <span className="text-[11px] text-amber-700 font-bold mr-1">[티켓 환불]</span>}
-                                                                                            {h.ticketName}
-                                                                                        </div>
+                                                                                        <>
+                                                                                            <div className="text-[14px] text-[#242424] font-semibold mt-1 break-words" title={h.ticketName}>
+                                                                                                {isRefund && <span className="text-[11px] text-amber-700 font-bold mr-1">[티켓 환불]</span>}
+                                                                                                {h.ticketName}
+                                                                                            </div>
+                                                                                            {isUse && h.ticketMaxUseCount != null && (
+                                                                                                <div className="mt-0.5 text-[11px]">
+                                                                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-px text-emerald-700 font-bold">
+                                                                                                        시술 진행 {h.ticketUsedCount ?? 0}/{h.ticketMaxUseCount}회
+                                                                                                    </span>
+                                                                                                    {(h.ticketRemainingCount ?? 0) === 0 && (
+                                                                                                        <span className="ml-1 inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-1.5 py-px text-slate-600 font-bold">
+                                                                                                            사용완료
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            )}
+                                                                                            {isUse && h.ticketMaxUseCount == null && h.ticketUsedCount != null && (
+                                                                                                <div className="mt-0.5 text-[11px]">
+                                                                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-px text-emerald-700 font-bold">
+                                                                                                        시술 {h.ticketUsedCount}회 진행 (기간권)
+                                                                                                    </span>
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </>
                                                                                     ) : isRefund ? (
                                                                                         <div className="text-[14px] text-[#242424] font-semibold mt-1">
                                                                                             <span className="text-[11px] text-amber-700 font-bold mr-1">[회원권 잔액 환불]</span>
@@ -6995,18 +7016,18 @@ function RefundHistoryList({
                                         })()}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex flex-col items-end gap-1.5 shrink-0">
                                     <div className="text-right">
                                         {(() => {
                                             const memDeduct = groupEntry.cards[0]?.group.totalMembershipDeduction ?? 0;
                                             const ticketGross = groupEntry.groupTotal + memDeduct;
                                             return (
                                                 <>
-                                                    <div className="text-[14px] font-extrabold tabular-nums text-[#5C2A35]">
+                                                    <div className="text-[14px] font-extrabold tabular-nums text-[#5C2A35] whitespace-nowrap">
                                                         {ticketGross.toLocaleString()}원
                                                     </div>
                                                     {memDeduct > 0 && (
-                                                        <div className="text-[10px] text-[#8B5A66] tabular-nums">
+                                                        <div className="text-[10px] text-[#8B5A66] tabular-nums whitespace-nowrap">
                                                             실 수납 {groupEntry.groupTotal.toLocaleString()}원
                                                         </div>
                                                     )}
