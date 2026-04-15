@@ -4823,7 +4823,7 @@ export default function PatientChartPage() {
                                                                             <div className="min-w-0 flex-1">
                                                                                 <div className="flex items-center gap-1.5">
                                                                                     <span className={`inline-flex items-center rounded-[4px] px-1.5 py-px text-[12px] font-bold tracking-[0.1px] ${badgeStyle}`}>
-                                                                                        {isCharge ? '충전' : isUse ? '사용중' : isRefund ? '환불' : h.description}
+                                                                                        {isCharge ? '충전' : isUse ? '차감' : isRefund ? '환불' : h.description}
                                                                                     </span>
                                                                                     {h.isCancelled && (
                                                                                         <span className="inline-flex rounded-[4px] bg-red-50 border border-red-200 px-1.5 py-px text-[12px] font-medium text-red-600">
