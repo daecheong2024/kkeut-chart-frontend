@@ -501,7 +501,7 @@ export default function PatientChartPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchTab, setSearchTab] = useState<"all" | "ticket" | "membership">("all");
 
-    const [ticketTab, setTicketTab] = useState<"active" | "completed">("active");
+    const [ticketTab, setTicketTab] = useState<"active" | "completed" | "refunded">("active");
     const [ticketSearch, setTicketSearch] = useState<string>("");
     const [assigningTodoId, setAssigningTodoId] = useState<number | null>(null);
     const [dailySummaryTab, setDailySummaryTab] = useState<"purchase" | "usage" | "refund">("purchase");
@@ -4573,8 +4573,9 @@ export default function PatientChartPage() {
                                     const q = ticketSearch.trim().toLowerCase();
                                     const matchSearch = (t: typeof tickets[number]) =>
                                         !q || (t.itemName || "").toLowerCase().includes(q);
-                                    const activeCount = tickets.filter((t) => ((getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null) && matchSearch(t)).length;
-                                    const completedCount = tickets.filter((t) => getTicketRemaining(t) === 0 && matchSearch(t)).length;
+                                    const activeCount = tickets.filter((t) => !t.isRefunded && ((getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null) && matchSearch(t)).length;
+                                    const completedCount = tickets.filter((t) => !t.isRefunded && getTicketRemaining(t) === 0 && matchSearch(t)).length;
+                                    const refundedCount = tickets.filter((t) => t.isRefunded && matchSearch(t)).length;
                                     return (
                                         <div className="flex border border-[#F8DCE2] rounded-xl mb-2 overflow-hidden">
                                             <button
@@ -4589,13 +4590,24 @@ export default function PatientChartPage() {
                                             >
                                                 사용완료 ({completedCount})
                                             </button>
+                                            <button
+                                                className={`flex-1 py-1.5 text-[13px] font-semibold transition-colors ${ticketTab === "refunded" ? "bg-rose-50 text-rose-600" : "text-[#616161] hover:bg-[#FCF7F8]"}`}
+                                                onClick={() => setTicketTab("refunded")}
+                                            >
+                                                환불 ({refundedCount})
+                                            </button>
                                         </div>
                                     );
                                 })()}
 
                                 <div className="space-y-2">
                                     {tickets
-                                        .filter((t) => (ticketTab === "active" ? (getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null : getTicketRemaining(t) === 0))
+                                        .filter((t) => {
+                                            if (ticketTab === "refunded") return !!t.isRefunded;
+                                            if (t.isRefunded) return false;
+                                            if (ticketTab === "active") return (getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null;
+                                            return getTicketRemaining(t) === 0;
+                                        })
                                         .filter((t) => !ticketSearch.trim() || (t.itemName || "").toLowerCase().includes(ticketSearch.trim().toLowerCase()))
                                         .map((t) => {
                                             const remain = getTicketRemaining(t);
@@ -4603,16 +4615,17 @@ export default function PatientChartPage() {
                                             const isTicketHistoryOpen = expandedTicketId === t.id;
                                             const isTicketHistoryLoading = ticketHistoryLoadingId === t.id;
                                             const ticketHistory = ticketHistoryByTicketId[t.id] || [];
-                                            const statusText = remain === 0 ? "완료" : "사용가능";
-                                            const statusClass =
-                                                remain === 0
+                                            const statusText = t.isRefunded ? "환불됨" : remain === 0 ? "완료" : "사용가능";
+                                            const statusClass = t.isRefunded
+                                                ? "bg-rose-100 text-rose-600"
+                                                : remain === 0
                                                     ? "bg-gray-100 text-gray-600"
                                                     : "bg-[#D27A8C]/15 text-[#D27A8C]";
 
                                             return (
-                                                <div key={t.id} className="border border-[#F8DCE2] rounded-2xl bg-white p-2.5 text-[13px] hover:border-[#D27A8C]/30 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] transition-all duration-200 ease-in-out group">
+                                                <div key={t.id} className={`border rounded-2xl p-2.5 text-[13px] transition-all duration-200 ease-in-out group ${t.isRefunded ? "border-rose-200 bg-rose-50/30" : "border-[#F8DCE2] bg-white hover:border-[#D27A8C]/30 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)]"}`}>
                                                     <div className="flex justify-between items-start gap-2 mb-1">
-                                                        <span className="font-semibold text-[#242424] flex-1 min-w-0 break-words">{t.itemName}</span>
+                                                        <span className={`font-semibold flex-1 min-w-0 break-words ${t.isRefunded ? "text-slate-400 line-through" : "text-[#242424]"}`}>{t.itemName}</span>
                                                         <span className={`shrink-0 whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-bold tracking-[0.1px] ${statusClass}`}>{statusText}</span>
                                                     </div>
 

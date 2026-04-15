@@ -167,9 +167,14 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                 <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
                     {/* Master summary */}
                     <div className="rounded-xl border border-[#F8DCE2] bg-gradient-to-b from-[#FCF7F8] to-white px-4 py-3">
-                        <div className="flex items-center justify-between mb-1">
-                            <div className="text-[11px] font-extrabold text-[#8B3F50]">총 결제 금액</div>
-                            <div className="text-[10px] text-[#8B5A66]">{formatPaymentTime(paymentTime)}{receiptUserName ? ` · ${receiptUserName}` : ""}</div>
+                        <div className="flex items-center justify-between gap-3 mb-1">
+                            <div className="text-[11px] font-extrabold text-[#8B3F50] shrink-0">총 결제 금액</div>
+                            <div className="text-[12.5px] font-semibold text-[#5C2A35] text-right whitespace-nowrap">
+                                {formatPaymentTime(paymentTime)}
+                                {receiptUserName && (
+                                    <span className="ml-1.5 text-[#8B3F50]">· {receiptUserName}</span>
+                                )}
+                            </div>
                         </div>
                         <div className="text-[22px] font-black text-[#D27A8C] tabular-nums leading-none">{formatWon(totalAmount)}</div>
                     </div>
