@@ -6969,8 +6969,36 @@ function RefundHistoryList({
                                         })()}
                                     </div>
                                 </div>
-                                <div className="text-[14px] font-extrabold tabular-nums text-[#5C2A35] shrink-0">
-                                    {groupEntry.groupTotal.toLocaleString()}원
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <div className="text-[14px] font-extrabold tabular-nums text-[#5C2A35]">
+                                        {groupEntry.groupTotal.toLocaleString()}원
+                                    </div>
+                                    {!isReadOnly && eligibleInGroup.length > 0 && groupEntry.groupStatus !== "refunded" && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const selections: UnifiedRefundSelection[] = eligibleInGroup.map((c) => {
+                                                    const pd = c.itemPaymentDetails[0];
+                                                    return {
+                                                        paymentMasterId: c.record.paymentMasterId || c.record.id,
+                                                        paymentDetailId: pd.id,
+                                                        itemType: c.itemType as "ticket" | "membership",
+                                                        itemName: c.itemName,
+                                                        paymentType: pd.paymentType,
+                                                        terminalInfo: (pd.terminalAuthNo || pd.terminalAuthDate || pd.terminalVanKey)
+                                                            ? { authNo: pd.terminalAuthNo, authDate: pd.terminalAuthDate, vanKey: pd.terminalVanKey }
+                                                            : undefined,
+                                                    };
+                                                });
+                                                if (selections.length > 0) setUnifiedModalState(selections);
+                                            }}
+                                            className="rounded-lg bg-rose-50 border border-rose-200 px-2.5 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-100 transition-colors"
+                                            title={`이 수납 전체 환불 (티켓 ${eligibleInGroup.length}건)`}
+                                        >
+                                            수납 환불 ({eligibleInGroup.length})
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -7121,34 +7149,42 @@ function RefundHistoryList({
                                             정산
                                         </button>
                                     )}
-                                    {!isRefunded && !clientBlockReason && !isReadOnly && !isMembership && (
-                                        <button
-                                            type="button"
-                                            disabled={refundingPaymentId === card.record.id}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                const detailId = card.itemPaymentDetails[0]?.id;
-                                                if (!detailId) { void onRefund(card.record, card.itemName, 0); return; }
-                                                const detailBd = card.itemPaymentDetails.find(d => d.id === detailId) ?? card.itemPaymentDetails[0];
-                                                setRefundModalState({
-                                                    paymentMasterId: card.record.paymentMasterId || card.record.id,
-                                                    paymentDetailId: detailId,
-                                                    itemName: card.itemName,
-                                                    itemType: card.itemType,
-                                                    paymentType: detailBd?.paymentType,
-                                                    terminalInfo: detailBd ? {
-                                                        authNo: detailBd.terminalAuthNo,
-                                                        authDate: detailBd.terminalAuthDate,
-                                                        vanKey: detailBd.terminalVanKey,
-                                                    } : undefined,
-                                                });
-                                            }}
-                                            className="rounded px-2 py-1 text-[10px] font-bold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-                                            title="환불"
-                                        >
-                                            환불
-                                        </button>
-                                    )}
+                                    {(() => {
+                                        // 카드/페이로 결제된 티켓은 티켓별 환불 불가 (수납 단위 환불만 허용 — 새 2단계 패턴 안전성)
+                                        // 회원권 차감 / 현금 / 계좌이체 티켓만 티켓별 환불 가능
+                                        const hasTerminalPayment = card.itemPaymentDetails.some(
+                                            pd => pd.paymentType === "CARD" || pd.paymentType === "PAY"
+                                        );
+                                        if (isRefunded || clientBlockReason || isReadOnly || isMembership || hasTerminalPayment) return null;
+                                        return (
+                                            <button
+                                                type="button"
+                                                disabled={refundingPaymentId === card.record.id}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const detailId = card.itemPaymentDetails[0]?.id;
+                                                    if (!detailId) { void onRefund(card.record, card.itemName, 0); return; }
+                                                    const detailBd = card.itemPaymentDetails.find(d => d.id === detailId) ?? card.itemPaymentDetails[0];
+                                                    setRefundModalState({
+                                                        paymentMasterId: card.record.paymentMasterId || card.record.id,
+                                                        paymentDetailId: detailId,
+                                                        itemName: card.itemName,
+                                                        itemType: card.itemType,
+                                                        paymentType: detailBd?.paymentType,
+                                                        terminalInfo: detailBd ? {
+                                                            authNo: detailBd.terminalAuthNo,
+                                                            authDate: detailBd.terminalAuthDate,
+                                                            vanKey: detailBd.terminalVanKey,
+                                                        } : undefined,
+                                                    });
+                                                }}
+                                                className="rounded px-2 py-1 text-[10px] font-bold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                                title="환불"
+                                            >
+                                                환불
+                                            </button>
+                                        );
+                                    })()}
                                     <button
                                         type="button"
                                         onClick={(e) => { e.stopPropagation(); toggleCardExpanded(card.id); }}
