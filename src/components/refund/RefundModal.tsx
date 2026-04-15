@@ -218,6 +218,130 @@ export function RefundModal({
 
         setSubmitting(true);
 
+        // 카드/페이 위약금 + 카드 원거래 = 디커플링 흐름 (deduction-pay → finalize)
+        // 그 외 (현금 위약금 / 위약금 0 / 단말기 미사용) = atomic 흐름 (executeRefund) 유지
+        const useDecoupled =
+            useTerminal
+            && kisTerminalService.isConnected()
+            && (calc.penaltyAmount ?? 0) > 0
+            && rePaymentMethod !== "cash";
+
+        if (useDecoupled) {
+            // === 디커플링 흐름 ===
+            const repayTradeType = (rePaymentMethod === "pay") ? "v1" as const : "D1" as const;
+            const tradeRefType = (paymentType?.toUpperCase() === "PAY") ? "v2" as const : "D2" as const;
+            const paidAmount = calc.paidAmount;
+            const penaltyAmount = calc.penaltyAmount;
+
+            // Step A: 단말기 위약금 결제
+            setProgress({ phase: "repayment", amount: penaltyAmount });
+            let rePayResult;
+            try {
+                rePayResult = await kisTerminalService.requestPayment({ tradeType: repayTradeType, amount: penaltyAmount });
+                if (!rePayResult.success) {
+                    setProgress({ phase: "idle" });
+                    setSubmitting(false);
+                    showAlert({ message: `위약금 결제 실패: ${rePayResult.displayMsg || rePayResult.replyCode}`, type: "error" });
+                    return;
+                }
+            } catch (e: any) {
+                setProgress({ phase: "idle" });
+                setSubmitting(false);
+                showAlert({ message: `위약금 결제 호출 실패: ${e?.message || "오류"}`, type: "error" });
+                return;
+            }
+
+            // Step A 직후: BE 에 deduction-pay 호출 (위약금 detail 즉시 저장 + DEDUCTION_PAID 마킹)
+            let rePaymentDetailId: number | undefined;
+            try {
+                const dp = await paymentService.deductionPay({
+                    paymentMasterId,
+                    originPaymentDetailId: paymentDetailId,
+                    amount: penaltyAmount,
+                    method: rePaymentMethod.toUpperCase(),
+                    terminalAuthNo: rePayResult.authNo,
+                    terminalAuthDate: rePayResult.replyDate,
+                    vanKey: rePayResult.vanKey,
+                    cardCompany: rePayResult.issuerName || rePayResult.accepterName,
+                    installment: rePayResult.installment,
+                    terminalCardNo: rePayResult.cardNo,
+                    terminalTranNo: rePayResult.tranNo,
+                    terminalAccepterName: rePayResult.accepterName,
+                    terminalCatId: rePayResult.catId,
+                    terminalMerchantRegNo: rePayResult.merchantRegNo,
+                });
+                rePaymentDetailId = dp.rePaymentDetailId;
+            } catch (e: any) {
+                setProgress({ phase: "idle" });
+                setSubmitting(false);
+                showAlert({
+                    message: `위약금 단말기 결제는 승인되었으나 시스템 저장 실패\n승인번호: ${rePayResult.authNo}\n오류: ${e?.response?.data?.message || e?.message || "알 수 없음"}\n→ 운영자 문의 필요`,
+                    type: "error"
+                });
+                return;
+            }
+
+            // Step B: 단말기 원거래 전체취소
+            setProgress({ phase: "void", amount: paidAmount });
+            let voidResult;
+            try {
+                voidResult = await kisTerminalService.requestRefund({
+                    tradeType: tradeRefType,
+                    amount: paidAmount,
+                    orgAuthDate: effectiveTerminalInfo.authDate,
+                    orgAuthNo: effectiveTerminalInfo.authNo,
+                    vanKey: effectiveTerminalInfo.vanKey,
+                });
+            } catch (e: any) {
+                voidResult = { success: false, displayMsg: e?.message || "호출 실패", replyCode: "", authNo: "", replyDate: "", vanKey: "" } as any;
+            }
+
+            if (!voidResult.success) {
+                setProgress({ phase: "idle" });
+                setSubmitting(false);
+                showAlert({
+                    message: `원거래 전체취소 실패\n${voidResult.displayMsg || voidResult.replyCode}\n\n✅ 위약금 ${formatWon(penaltyAmount)} 결제는 시스템 저장 완료 (DEDUCTION_PAID)\n원거래 단말기에서 직접 취소 후 [결제/환불 탭] 의 [원거래 취소 재시도] 로 마무리하세요.`,
+                    type: "error"
+                });
+                // 환불 모달 닫고 결제/환불 탭으로 돌아가도록 callback
+                onRefunded({ refundAmount: 0, refundType: "deduction_paid" });
+                onClose();
+                return;
+            }
+
+            // Step B 성공 → finalize
+            setProgress({ phase: "backend" });
+            try {
+                const penaltyRate = penaltyRatePct === "" ? undefined : Number(penaltyRatePct) / 100;
+                const manualNum = manualAmount === "" ? undefined : Number(manualAmount);
+                const result = await paymentService.finalizeRefund(paymentMasterId, {
+                    originPaymentDetailId: paymentDetailId,
+                    rePaymentDetailId,
+                    refundType,
+                    penaltyRate,
+                    manualAmount: manualNum,
+                    reason: reason.trim() || undefined,
+                    terminalRefundAuthNo: voidResult.authNo,
+                    terminalRefundDate: voidResult.replyDate,
+                    terminalVanKey: voidResult.vanKey,
+                    refundMethod: "AUTO",
+                });
+                showAlert({ message: `${formatWon(result.refundAmount)} 환불 처리되었습니다.`, type: "success" });
+                onRefunded({ refundAmount: result.refundAmount, refundType: result.refundType });
+                onClose();
+            } catch (e: any) {
+                showAlert({
+                    message: `단말기 카드 처리는 정상이지만 시스템 기록 실패\n위약금 승인번호: ${rePayResult.authNo}\n원거래 취소 승인번호: ${voidResult.authNo}\n오류: ${e?.response?.data?.message || e?.message || "알 수 없음"}\n→ 운영자 문의 필요`,
+                    type: "error"
+                });
+            } finally {
+                setProgress({ phase: "idle" });
+                setSubmitting(false);
+            }
+            return;
+        }
+
+        // === Atomic 흐름 (현금 위약금 / 위약금 0 / 단말기 미사용) ===
         let rePaymentAuth: {
             amount: number;
             authNo: string;
@@ -234,47 +358,13 @@ export function RefundModal({
         let voidAuth: { amount: number; authNo: string; authDate: string; vanKey: string } | undefined;
 
         if (useTerminal && kisTerminalService.isConnected()) {
-            const tradePayType = (paymentType?.toUpperCase() === "PAY") ? "v1" as const : "D1" as const;
             const tradeRefType = (paymentType?.toUpperCase() === "PAY") ? "v2" as const : "D2" as const;
             const paidAmount = calc.paidAmount;
             const penaltyAmount = calc.penaltyAmount;
 
-            if (penaltyAmount > 0) {
-                setProgress({ phase: "repayment", amount: penaltyAmount });
-                if (rePaymentMethod === "cash") {
-                    // 현금 위약금: 단말기 호출 스킵, amount 만 기록
-                    rePaymentAuth = { amount: penaltyAmount, authNo: "", authDate: "", vanKey: "" };
-                } else {
-                    // 카드/페이 위약금: 단말기 호출
-                    const repayTradeType = (rePaymentMethod === "pay") ? "v1" as const : "D1" as const;
-                    try {
-                        const r = await kisTerminalService.requestPayment({ tradeType: repayTradeType, amount: penaltyAmount });
-                        if (!r.success) {
-                            setProgress({ phase: "idle" });
-                            setSubmitting(false);
-                            showAlert({ message: `위약금 재결제 실패: ${r.displayMsg || r.replyCode}`, type: "error" });
-                            return;
-                        }
-                        rePaymentAuth = {
-                            amount: penaltyAmount,
-                            authNo: r.authNo,
-                            authDate: r.replyDate,
-                            vanKey: r.vanKey,
-                            cardCompany: r.issuerName || r.accepterName,
-                            installment: r.installment,
-                            cardNo: r.cardNo,
-                            tranNo: r.tranNo,
-                            accepterName: r.accepterName,
-                            catId: r.catId,
-                            merchantRegNo: r.merchantRegNo,
-                        };
-                    } catch (e: any) {
-                        setProgress({ phase: "idle" });
-                        setSubmitting(false);
-                        showAlert({ message: `위약금 재결제 호출 실패: ${e?.message || "오류"}`, type: "error" });
-                        return;
-                    }
-                }
+            if (penaltyAmount > 0 && rePaymentMethod === "cash") {
+                // 현금 위약금: 단말기 호출 스킵, amount 만 기록
+                rePaymentAuth = { amount: penaltyAmount, authNo: "", authDate: "", vanKey: "" };
             }
 
             setProgress({ phase: "void", amount: paidAmount });
@@ -289,20 +379,14 @@ export function RefundModal({
                 if (!r.success) {
                     setProgress({ phase: "idle" });
                     setSubmitting(false);
-                    const warn = rePaymentAuth
-                        ? `\n⚠ 위약금 재결제(${formatWon(rePaymentAuth.amount)}, 승인번호 ${rePaymentAuth.authNo})는 이미 승인됨 → 직원이 수동으로 환불 처리 필요`
-                        : "";
-                    showAlert({ message: `원거래 전체취소 실패: ${r.displayMsg || r.replyCode}${warn}`, type: "error" });
+                    showAlert({ message: `원거래 전체취소 실패: ${r.displayMsg || r.replyCode}`, type: "error" });
                     return;
                 }
                 voidAuth = { amount: paidAmount, authNo: r.authNo, authDate: r.replyDate, vanKey: r.vanKey };
             } catch (e: any) {
                 setProgress({ phase: "idle" });
                 setSubmitting(false);
-                const warn = rePaymentAuth
-                    ? `\n⚠ 위약금 재결제(${formatWon(rePaymentAuth.amount)}, 승인번호 ${rePaymentAuth.authNo})는 이미 승인됨 → 직원이 수동으로 환불 처리 필요`
-                    : "";
-                showAlert({ message: `원거래 전체취소 호출 실패: ${e?.message || "오류"}${warn}`, type: "error" });
+                showAlert({ message: `원거래 전체취소 호출 실패: ${e?.message || "오류"}`, type: "error" });
                 return;
             }
         }
@@ -324,29 +408,13 @@ export function RefundModal({
                 refundMethod: voidAuth ? "AUTO" : (skipTerminal ? "MANUAL" : undefined),
                 rePaymentAmount: rePaymentAuth?.amount,
                 rePaymentMethod: rePaymentAuth ? rePaymentMethod.toUpperCase() : undefined,
-                rePaymentTerminalAuthNo: rePaymentAuth?.authNo,
-                rePaymentTerminalAuthDate: rePaymentAuth?.authDate,
-                rePaymentVanKey: rePaymentAuth?.vanKey,
-                rePaymentCardCompany: rePaymentAuth?.cardCompany,
-                rePaymentInstallment: rePaymentAuth?.installment,
-                rePaymentTerminalCardNo: rePaymentAuth?.cardNo,
-                rePaymentTerminalTranNo: rePaymentAuth?.tranNo,
-                rePaymentTerminalAccepterName: rePaymentAuth?.accepterName,
-                rePaymentTerminalCatId: rePaymentAuth?.catId,
-                rePaymentTerminalMerchantRegNo: rePaymentAuth?.merchantRegNo,
             });
-            showAlert({
-                message: `${formatWon(result.refundAmount)} 환불 처리되었습니다.`,
-                type: "success",
-            });
+            showAlert({ message: `${formatWon(result.refundAmount)} 환불 처리되었습니다.`, type: "success" });
             onRefunded({ refundAmount: result.refundAmount, refundType: result.refundType });
             onClose();
         } catch (e: any) {
             const message = e?.response?.data?.message || e?.message || "환불 처리 실패";
-            const warn = rePaymentAuth
-                ? `\n⚠ 단말기 카드 처리는 모두 정상이지만 시스템 기록 실패 → 운영자 문의 (위약금 결제 승인번호 ${rePaymentAuth.authNo}, 카드 환불 승인번호 ${voidAuth?.authNo})`
-                : "";
-            showAlert({ message: `${message}${warn}`, type: "error" });
+            showAlert({ message, type: "error" });
         } finally {
             setProgress({ phase: "idle" });
             setSubmitting(false);
