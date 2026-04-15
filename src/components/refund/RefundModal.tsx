@@ -649,7 +649,7 @@ export function RefundModal({
                                 : "0 8px 22px rgba(226, 107, 124, 0.38), inset 0 1px 0 rgba(255,255,255,0.18)",
                         }}
                     >
-                        {submitting ? "처리 중..." : "환불 확정"}
+                        {submitting ? "처리 중..." : "환불액 결제"}
                     </button>
                 </div>
 
