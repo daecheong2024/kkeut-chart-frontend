@@ -220,6 +220,8 @@ export interface RefundCalculateResult {
 // 위약금 재결제 + 원거래 전체취소 2단계 패턴
 export interface RePaymentFields {
     rePaymentAmount?: number;
+    /** 위약금 결제수단 ("CARD" / "PAY" / "CASH" / "BANKING"). 기본 CARD. */
+    rePaymentMethod?: string;
     rePaymentTerminalAuthNo?: string;
     rePaymentTerminalAuthDate?: string;
     rePaymentVanKey?: string;
