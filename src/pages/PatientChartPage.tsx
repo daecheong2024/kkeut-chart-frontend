@@ -6688,10 +6688,6 @@ function RefundHistoryList({
         [expandedGroupId, refundCheckByRecordId, getMatchedTicketsForItem, ticketHistoryByTicketId]
     );
 
-    if (groupedRecords.length === 0) {
-        return <div className="text-center text-[#616161] text-[14px] py-8">결제 내역이 없습니다.</div>;
-    }
-
     type ItemCard = {
         id: string;
         itemName: string;
@@ -6860,6 +6856,10 @@ function RefundHistoryList({
         });
         setUnifiedModalState(selections);
     };
+
+    if (groupedRecords.length === 0) {
+        return <div className="text-center text-[#616161] text-[14px] py-8">결제 내역이 없습니다.</div>;
+    }
 
     return (
         <div className="space-y-3">
