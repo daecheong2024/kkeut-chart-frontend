@@ -102,7 +102,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
       {dialog && (
         <div
           className={cn(
-            "fixed inset-0 z-[9999] flex items-center justify-center transition-opacity duration-150",
+            "fixed inset-0 z-[100000] flex items-center justify-center transition-opacity duration-150",
             dialog.visible ? "opacity-100" : "opacity-0 pointer-events-none"
           )}
         >
