@@ -6870,7 +6870,7 @@ function RefundHistoryList({
                                     )}
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="text-[13px] font-extrabold text-[#5C2A35]">{dateLabel}</span>
+                                            <span className="text-[13px] font-extrabold text-[#5C2A35] whitespace-nowrap">{dateLabel}</span>
                                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold leading-none ${groupStatusClass}`}>
                                                 {groupStatusLabel}
                                             </span>
