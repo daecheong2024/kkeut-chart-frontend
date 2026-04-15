@@ -7141,19 +7141,16 @@ function RefundHistoryList({
                                 )}
 
                                 <div className="min-w-0 flex-1">
-                                    {/* Line 1: badges + amount */}
-                                    <div className="flex items-center gap-1.5">
+                                    {/* Line 1: badges + time */}
+                                    <div className="flex items-center gap-1.5 flex-wrap">
                                         <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold leading-none shrink-0 ${isTicket ? "bg-pink-50 text-pink-700 border border-pink-200" : isMembership ? "bg-violet-50 text-violet-700 border border-violet-200" : "bg-slate-100 text-slate-600"}`}>
                                             {isTicket ? "티켓" : isMembership ? "회원권" : "결제"}
                                         </span>
                                         <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none shrink-0 ${isRefunded ? "bg-red-100 text-red-600" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
                                             {isRefunded ? "환불" : "정상"}
                                         </span>
-                                        <span className="text-[10px] text-slate-400 ml-1">
+                                        <span className="text-[10px] text-slate-400">
                                             {new Date(card.paidAt).toLocaleString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
-                                        </span>
-                                        <span className={`ml-auto text-[12px] font-extrabold tabular-nums shrink-0 ${isRefunded ? "text-slate-400 line-through" : "text-slate-900"}`}>
-                                            {(paidAmount ?? 0).toLocaleString()}원
                                         </span>
                                     </div>
                                     {/* Line 2: name */}
@@ -7162,7 +7159,11 @@ function RefundHistoryList({
                                     </div>
                                 </div>
 
-                                <div className="flex items-start gap-0.5 shrink-0 mt-0.5">
+                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                    <div className={`text-[13px] font-extrabold tabular-nums whitespace-nowrap ${isRefunded ? "text-slate-400 line-through" : "text-slate-900"}`}>
+                                        {(paidAmount ?? 0).toLocaleString()}원
+                                    </div>
+                                    <div className="flex items-center gap-0.5">
                                     {card.itemPaymentDetails[0]?.id && (
                                         <button
                                             type="button"
@@ -7247,6 +7248,7 @@ function RefundHistoryList({
                                     >
                                         {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                                     </button>
+                                    </div>
                                 </div>
                             </div>
 
