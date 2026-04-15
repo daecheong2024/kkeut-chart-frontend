@@ -506,7 +506,7 @@ export function RefundModal({
                                         onChange={(e) => setSkipTerminal(e.target.checked)}
                                         className="h-4 w-4 accent-[#D27A8C]"
                                     />
-                                    <span className="text-[12px] font-bold text-[#99354E]">단말기 호출 안 함 (DB만 기록)</span>
+                                    <span className="text-[12px] font-bold text-[#99354E]">다른 단말기로 결제</span>
                                 </label>
                             </div>
                         )}
