@@ -3,7 +3,7 @@ import type { RevenueDashboard, RevenueQuery } from "../types/revenue";
 
 export interface ReceivablesResponse {
   receivable: { patientCount: number; itemCount: number; totalAmount: number };
-  refundCompleted: { patientCount: number; itemCount: number; totalAmount: number };
+  refundCompleted: { patientCount: number; itemCount: number; totalAmount: number; rePaymentTotal: number; customerNetRefundTotal: number };
   receivablePatients: ReceivablePatientItem[];
   refundCompletedPatients: RefundPatientItem[];
 }
@@ -33,6 +33,9 @@ export interface RefundDetailItem {
   refundVatAmount: number;
   refundNonTaxAmount: number;
   refundDate: string;
+  rePaymentAmount: number;
+  rePaymentAuthNo?: string;
+  customerNetRefund: number;
 }
 
 export interface RefundPatientItem {
@@ -41,6 +44,8 @@ export interface RefundPatientItem {
   telNo: string;
   refundDate: string;
   refundAmount: number;
+  rePaymentAmount: number;
+  customerNetRefund: number;
   details: RefundDetailItem[];
 }
 

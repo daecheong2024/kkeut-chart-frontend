@@ -283,8 +283,8 @@ export default function RevenueStatsPage() {
   const filteredReceivablePatients = useMemo(() => {
     if (!receivablesData) return [];
     const source = receivablesCategory === "receivable"
-      ? receivablesData.receivablePatients.map((p) => ({ ...p, amount: p.receivableAmount, date: p.addedDate, tickets: p.tickets ?? [], details: [] as { paymentType: string; authNo: string; refundAmount: number; refundSupplyAmount: number; refundVatAmount: number; refundNonTaxAmount: number; refundDate: string }[] }))
-      : receivablesData.refundCompletedPatients.map((p) => ({ ...p, amount: p.refundAmount, date: p.refundDate, tickets: [] as { ticketId: number; ticketName: string; unitPrice: number; quantity: number; subTotal: number }[], details: p.details ?? [] }));
+      ? receivablesData.receivablePatients.map((p) => ({ ...p, amount: p.receivableAmount, date: p.addedDate, tickets: p.tickets ?? [], details: [] as { paymentType: string; authNo: string; refundAmount: number; refundSupplyAmount: number; refundVatAmount: number; refundNonTaxAmount: number; refundDate: string; rePaymentAmount: number; rePaymentAuthNo?: string; customerNetRefund: number }[], rePaymentAmount: 0, customerNetRefund: 0 }))
+      : receivablesData.refundCompletedPatients.map((p) => ({ ...p, amount: p.customerNetRefund || p.refundAmount, date: p.refundDate, tickets: [] as { ticketId: number; ticketName: string; unitPrice: number; quantity: number; subTotal: number }[], details: p.details ?? [] }));
 
     const q = receivablesSearch.trim().toLowerCase();
     if (!q) return source;
@@ -402,8 +402,8 @@ export default function RevenueStatsPage() {
             {/* Summary */}
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               <StatPill label="총 결제금액" value={won(data.summary.grossTotal)} />
-              <StatPill label="환불/취소" value={won(data.summary.refundTotal)} />
-              <StatPill label="순매출" value={won(data.summary.netTotal)} />
+              <StatPill label="환불/취소 (카드사 취소액 기준)" value={won(data.summary.refundTotal)} />
+              <StatPill label="순매출 (= 총 결제 − 환불, 위약금 차익 포함)" value={won(data.summary.netTotal)} />
             </div>
 
             {/* Method summary */}
@@ -425,11 +425,21 @@ export default function RevenueStatsPage() {
                     {data.byMethod.map((m) => (
                       <tr key={m.method} className="group hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
                         <td className="py-3 px-2 text-sm font-medium text-gray-900 text-center">{m.methodLabel}</td>
-                        <td className="py-3 px-2 text-sm text-gray-600 text-center">{m.count.toLocaleString("ko-KR")}</td>
+                        <td className="py-3 px-2 text-sm text-gray-600 text-center">
+                          {m.count.toLocaleString("ko-KR")}
+                          {(m.rePaymentCount ?? 0) > 0 && (
+                            <div className="text-[10px] text-amber-600 font-normal">위약금 {m.rePaymentCount}건 포함</div>
+                          )}
+                        </td>
                         <td className="py-3 px-2 text-sm text-gray-600 text-center">{won(m.taxableSupply)}</td>
                         <td className="py-3 px-2 text-sm text-gray-600 text-center">{won(m.taxableVat)}</td>
                         <td className="py-3 px-2 text-sm text-gray-600 text-center">{won(m.taxFreeTotal)}</td>
-                        <td className="py-3 px-2 text-sm font-semibold text-gray-900 text-center">{won(m.total)}</td>
+                        <td className="py-3 px-2 text-sm font-semibold text-gray-900 text-center">
+                          {won(m.total)}
+                          {(m.rePaymentAmount ?? 0) > 0 && (
+                            <div className="text-[10px] text-amber-600 font-normal">위약금 {won(m.rePaymentAmount ?? 0)} 포함</div>
+                          )}
+                        </td>
                         <td className="py-3 px-2 text-sm text-gray-600 text-center">{pct(m.ratio)}</td>
                       </tr>
                     ))}
@@ -483,11 +493,21 @@ export default function RevenueStatsPage() {
                       (data.byStaff ?? []).map((s) => (
                         <tr key={s.staffId} className="group hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
                           <td className="py-3 px-2 text-sm font-medium text-gray-900 text-center">{s.staffName}</td>
-                          <td className="py-3 px-2 text-sm text-gray-600 text-center">{s.count.toLocaleString("ko-KR")}</td>
+                          <td className="py-3 px-2 text-sm text-gray-600 text-center">
+                            {s.count.toLocaleString("ko-KR")}
+                            {(s.rePaymentCount ?? 0) > 0 && (
+                              <div className="text-[10px] text-amber-600 font-normal">위약금 {s.rePaymentCount}건</div>
+                            )}
+                          </td>
                           <td className="py-3 px-2 text-sm text-gray-600 text-center">{won(s.taxableSupply)}</td>
                           <td className="py-3 px-2 text-sm text-gray-600 text-center">{won(s.taxableVat)}</td>
                           <td className="py-3 px-2 text-sm text-gray-600 text-center">{won(s.taxFreeTotal)}</td>
-                          <td className="py-3 px-2 text-sm font-semibold text-gray-900 text-center">{won(s.total)}</td>
+                          <td className="py-3 px-2 text-sm font-semibold text-gray-900 text-center">
+                            {won(s.total)}
+                            {(s.rePaymentAmount ?? 0) > 0 && (
+                              <div className="text-[10px] text-amber-600 font-normal">위약금 {won(s.rePaymentAmount ?? 0)}</div>
+                            )}
+                          </td>
                           <td className="py-3 px-2 text-sm text-gray-600 text-center">{pct(s.ratio)}</td>
                         </tr>
                       ))
@@ -694,7 +714,7 @@ export default function RevenueStatsPage() {
                         </tr>
                       ) : (
                         filteredTransactions.map((t) => (
-                          <tr key={t.id} className="group hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+                          <tr key={t.id} className={`group hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors ${t.isRePayment ? "bg-amber-50/40" : ""}`}>
                             <td className="py-3 px-2 text-sm text-gray-700 text-center">
                               {format(new Date(t.paidAtISO), "HH:mm")}
                             </td>
@@ -706,7 +726,14 @@ export default function RevenueStatsPage() {
                             <td className="py-3 px-2 text-sm text-gray-700 text-center">{t.counselorName ?? "-"}</td>
                             <td className="py-3 px-2 text-sm text-gray-700 text-center">{t.doctorName ?? "-"}</td>
                             <td className="py-3 px-2 text-sm text-gray-700 text-center">{t.staffName ?? "-"}</td>
-                            <td className="py-3 px-2 text-sm text-gray-700 text-center">{t.methodLabel}</td>
+                            <td className="py-3 px-2 text-sm text-gray-700 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                {t.isRePayment && (
+                                    <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700" title={t.memo || "위약금 재결제"}>위약금</span>
+                                )}
+                                <span>{t.methodLabel}</span>
+                              </div>
+                            </td>
                             <td className="py-3 px-2 text-sm text-gray-700 text-center">{won(t.taxableSupply)}</td>
                             <td className="py-3 px-2 text-sm text-gray-700 text-center">{won(t.taxableVat)}</td>
                             <td className="py-3 px-2 text-sm text-gray-700 text-center">{won(t.taxFreeTotal)}</td>
@@ -781,7 +808,7 @@ export default function RevenueStatsPage() {
                   bg: "#E3F2FD",
                   border: "#90CAF9",
                   count: receivablesData?.refundCompleted.patientCount ?? 0,
-                  sub: `총 ${receivablesData?.refundCompleted.itemCount ?? 0}건/ ${won(receivablesData?.refundCompleted.totalAmount ?? 0)}`,
+                  sub: `총 ${receivablesData?.refundCompleted.itemCount ?? 0}건 · 고객수령 ${won(receivablesData?.refundCompleted.customerNetRefundTotal ?? receivablesData?.refundCompleted.totalAmount ?? 0)}${(receivablesData?.refundCompleted.rePaymentTotal ?? 0) > 0 ? ` (위약금 ${won(receivablesData?.refundCompleted.rePaymentTotal ?? 0)} 차감)` : ""}`,
                 },
               ].map((card) => (
                 <button
@@ -836,7 +863,7 @@ export default function RevenueStatsPage() {
                             {receivablesCategory === "receivable" ? "장바구니 추가일" : "환불일"}
                           </th>
                           <th className="w-28 py-3 px-2 text-center text-xs font-semibold text-[#5C2A35]">
-                            {receivablesCategory === "receivable" ? "미수 금액" : "환불 금액"}
+                            {receivablesCategory === "receivable" ? "미수 금액" : "고객 실수령액"}
                           </th>
                         </tr>
                       </thead>
@@ -869,7 +896,14 @@ export default function RevenueStatsPage() {
                                 <td className="py-3 px-2 text-sm font-medium text-gray-900 text-center">{p.customerName}</td>
                                 <td className="py-3 px-2 text-sm text-gray-700 text-center">{p.telNo}</td>
                                 <td className="py-3 px-2 text-sm text-gray-700 text-center">{p.date}</td>
-                                <td className="py-3 px-2 text-sm font-semibold text-gray-900 text-center">{won(p.amount)}</td>
+                                <td className="py-3 px-2 text-sm font-semibold text-gray-900 text-center">
+                                  <div>{won(p.amount)}</div>
+                                  {receivablesCategory === "refundCompleted" && (p.rePaymentAmount ?? 0) > 0 && (
+                                    <div className="text-[10px] text-amber-700 font-normal">
+                                      카드사 환불 {won(p.refundAmount)} − 위약금 재결제 {won(p.rePaymentAmount)}
+                                    </div>
+                                  )}
+                                </td>
                               </tr>
                               {isExpanded && receivablesCategory === "receivable" && p.tickets?.length > 0 && (
                                 <tr className="bg-[#FAFBFF]">
@@ -904,18 +938,25 @@ export default function RevenueStatsPage() {
                                       <thead>
                                         <tr className="border-b border-[#FFCCBC]">
                                           <th className="py-2 px-2 text-center text-xs font-semibold text-[#E64A19]">결제수단</th>
-                                          <th className="py-2 px-2 text-center text-xs font-semibold text-[#E64A19]">승인번호</th>
+                                          <th className="py-2 px-2 text-center text-xs font-semibold text-[#E64A19]">환불 승인번호</th>
                                           <th className="py-2 px-2 text-center text-xs font-semibold text-[#E64A19]">환불일시</th>
-                                          <th className="py-2 px-2 text-center text-xs font-semibold text-[#E64A19]">환불금액</th>
+                                          <th className="py-2 px-2 text-center text-xs font-semibold text-[#E64A19]">카드사 취소액</th>
+                                          <th className="py-2 px-2 text-center text-xs font-semibold text-[#E64A19]">위약금 재결제</th>
+                                          <th className="py-2 px-2 text-center text-xs font-semibold text-[#E64A19]">고객 실수령</th>
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {p.details.map((d: { paymentType: string; authNo: string; refundAmount: number; refundDate: string }, di: number) => (
+                                        {p.details.map((d: { paymentType: string; authNo: string; refundAmount: number; refundDate: string; rePaymentAmount: number; rePaymentAuthNo?: string; customerNetRefund: number }, di: number) => (
                                           <tr key={di} className="border-b border-[#FFE0D0] last:border-0">
                                             <td className="py-2 px-2 text-sm text-gray-700 text-center">{d.paymentType}</td>
                                             <td className="py-2 px-2 text-sm text-gray-600 text-center">{d.authNo}</td>
                                             <td className="py-2 px-2 text-sm text-gray-600 text-center">{d.refundDate}</td>
-                                            <td className="py-2 px-2 text-sm font-semibold text-gray-800 text-center tabular-nums">{won(d.refundAmount)}</td>
+                                            <td className="py-2 px-2 text-sm text-gray-700 text-center tabular-nums">{won(d.refundAmount)}</td>
+                                            <td className="py-2 px-2 text-sm text-amber-700 text-center tabular-nums">
+                                              {(d.rePaymentAmount ?? 0) > 0 ? `−${won(d.rePaymentAmount)}` : "-"}
+                                              {d.rePaymentAuthNo && <div className="text-[10px] text-amber-600">#{d.rePaymentAuthNo}</div>}
+                                            </td>
+                                            <td className="py-2 px-2 text-sm font-semibold text-gray-800 text-center tabular-nums">{won(d.customerNetRefund ?? d.refundAmount)}</td>
                                           </tr>
                                         ))}
                                       </tbody>

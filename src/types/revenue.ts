@@ -19,6 +19,8 @@ export type PaymentMethodSummary = {
   taxFreeTotal: number;
   total: number; // taxableSupply + taxableVat + taxFreeTotal
   ratio: number; // 0~1
+  rePaymentCount?: number;
+  rePaymentAmount?: number;
 };
 
 export type RevenueSummary = {
@@ -64,6 +66,7 @@ export type PaymentTransaction = {
   total: number;
   status: PaymentStatus;
   memo?: string;
+  isRePayment?: boolean;
 };
 
 export type StaffContribution = {
@@ -75,6 +78,8 @@ export type StaffContribution = {
   taxFreeTotal: number;
   total: number;
   ratio: number; // 0~1
+  rePaymentCount?: number;
+  rePaymentAmount?: number;
 };
 
 export type MembershipIncentiveSummary = {
