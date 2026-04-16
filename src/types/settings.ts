@@ -103,6 +103,8 @@ export interface StatusItem {
   // 사용 시, 상태 변경 시점마다 환자별로 알림 시간을 다시 입력할 수 있습니다.
   allowPerPatientAlertMinutes?: boolean;
   isCompletionStatus?: boolean;
+  // 사용 시, 이 상태로 전환 시 담당자 등록 모달을 띄우고 자동으로 procedure(할일/통계) 행을 생성합니다.
+  requiresAssignee?: boolean;
 }
 
 export interface ChartMemoSection {

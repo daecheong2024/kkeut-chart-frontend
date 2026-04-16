@@ -68,10 +68,10 @@ type PendingAssigneeModal = {
   alertMinutes?: number;
 };
 
-const PROCEDURE_STATUS_KEYS = new Set(["anesthesia", "proc"]);
-
-function statusRequiresAssignee(statusKey: string, label?: string): boolean {
-  if (PROCEDURE_STATUS_KEYS.has(statusKey)) return true;
+function statusRequiresAssignee(statusSetting?: StatusItem | null, statusKey?: string, label?: string): boolean {
+  if (statusSetting?.requiresAssignee === true) return true;
+  if (statusSetting?.requiresAssignee === false) return false;
+  if (statusKey === "anesthesia" || statusKey === "proc") return true;
   const lbl = (label || "").trim();
   return /(마취|모델링)/.test(lbl);
 }
@@ -342,7 +342,7 @@ export function WaitCard({
       ? sanitizeAlertMinutes(nextStatusSetting.alertAfterMinutes)
       : undefined;
 
-    if (statusRequiresAssignee(statusKey, statusLabel)) {
+    if (statusRequiresAssignee(nextStatusSetting, statusKey, statusLabel)) {
       setStatusDropdownOpen(false);
       setPendingAssigneeModal({
         statusId: statusKey,
@@ -856,7 +856,7 @@ export function WaitCard({
 
                 const sanitized = sanitizeAlertMinutes(parsed);
 
-                if (statusRequiresAssignee(pendingStatusAlertModal.statusId, pendingStatusAlertModal.label)) {
+                if (statusRequiresAssignee(getDynamicStatusSetting(pendingStatusAlertModal.statusId), pendingStatusAlertModal.statusId, pendingStatusAlertModal.label)) {
                   const target = {
                     statusId: pendingStatusAlertModal.statusId,
                     label: pendingStatusAlertModal.label,

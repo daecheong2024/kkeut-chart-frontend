@@ -303,6 +303,7 @@ type SimpleEditorState = {
   alertAfterMinutes: number;
   allowPerPatientAlertMinutes: boolean;
   isCompletionStatus: boolean;
+  requiresAssignee: boolean;
   discountPercent: number;
   createdAt: string;
 };
@@ -438,6 +439,7 @@ export default function ChartSettingsPage() {
       alertAfterMinutes: sanitizeAlertMinutes(item?.alertAfterMinutes),
       allowPerPatientAlertMinutes: item?.allowPerPatientAlertMinutes ?? false,
       isCompletionStatus: item?.isCompletionStatus ?? false,
+      requiresAssignee: item?.requiresAssignee ?? false,
       discountPercent: Math.min(100, Math.max(0, Math.round(Number(item?.discountPercent ?? 5)))),
       createdAt: item?.createdAt || `${yyyy}-${mm}-${dd}`,
     });
@@ -509,6 +511,7 @@ export default function ChartSettingsPage() {
           alertAfterMinutes: nextAlertMinutes,
           allowPerPatientAlertMinutes: simpleEditor.allowPerPatientAlertMinutes,
           isCompletionStatus: simpleEditor.isCompletionStatus,
+          requiresAssignee: simpleEditor.requiresAssignee,
         };
         update({ statuses: [...(draft.statuses || []), next] });
       } else {
@@ -524,6 +527,7 @@ export default function ChartSettingsPage() {
                   alertAfterMinutes: nextAlertMinutes,
                   allowPerPatientAlertMinutes: simpleEditor.allowPerPatientAlertMinutes,
                   isCompletionStatus: simpleEditor.isCompletionStatus,
+                  requiresAssignee: simpleEditor.requiresAssignee,
                 }
               : x
           ),
@@ -1275,6 +1279,7 @@ export default function ChartSettingsPage() {
                             alertAfterMinutes: sanitizeAlertMinutes(s.alertAfterMinutes),
                             allowPerPatientAlertMinutes: Boolean(s.allowPerPatientAlertMinutes),
                             isCompletionStatus: Boolean(s.isCompletionStatus),
+                            requiresAssignee: Boolean(s.requiresAssignee),
                           })
                         }
                       >
@@ -1283,6 +1288,7 @@ export default function ChartSettingsPage() {
                             <div className="truncate text-sm font-bold text-slate-800">{s.label || "이름 없음"}</div>
                             <div className="mt-1 text-[11px] text-slate-500">
                               {s.isCompletionStatus ? "완료 상태 · " : ""}
+                              {s.requiresAssignee ? "담당자 등록 · " : ""}
                               {s.alertEnabled
                                 ? `지연알림 ${sanitizeAlertMinutes(s.alertAfterMinutes)}분 · 환자별 ${s.allowPerPatientAlertMinutes ? "허용" : "미허용"}`
                                 : "지연알림 미사용"}
@@ -1594,6 +1600,19 @@ export default function ChartSettingsPage() {
                       checked={Boolean(simpleEditor.isCompletionStatus)}
                       onCheckedChange={(checked) =>
                         setSimpleEditor((prev) => (prev ? { ...prev, isCompletionStatus: checked } : prev))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-xl border border-[rgb(var(--kkeut-border))] bg-amber-50/40 px-3 py-2">
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">담당자 등록 (할일·통계 취급)</div>
+                      <div className="text-[11px] text-slate-500">예: 마취중, 모델링중. 이 상태로 전환 시 담당자 선택 모달이 떠서 시술자별 통계에 자동 합산됩니다.</div>
+                    </div>
+                    <Switch
+                      checked={Boolean(simpleEditor.requiresAssignee)}
+                      onCheckedChange={(checked) =>
+                        setSimpleEditor((prev) => (prev ? { ...prev, requiresAssignee: checked } : prev))
                       }
                     />
                   </div>
