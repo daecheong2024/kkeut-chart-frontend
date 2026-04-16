@@ -946,9 +946,21 @@ export default function RevenueStatsPage() {
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {p.details.map((d: { paymentType: string; authNo: string; refundAmount: number; refundDate: string; rePaymentAmount: number; rePaymentAuthNo?: string; customerNetRefund: number }, di: number) => (
+                                        {p.details.map((d: { paymentType: string; authNo: string; refundAmount: number; refundDate: string; rePaymentAmount: number; rePaymentAuthNo?: string; customerNetRefund: number }, di: number) => {
+                                          const ptLabel = (() => {
+                                            switch ((d.paymentType || "").toUpperCase()) {
+                                              case "CARD": return "카드";
+                                              case "CASH": return "현금";
+                                              case "BANKING": return "계좌이체";
+                                              case "PAY": return "간편결제";
+                                              case "MEMBERSHIP_CASH": return "회원권 현금";
+                                              case "MEMBERSHIP_POINT": return "회원권 포인트";
+                                              default: return d.paymentType;
+                                            }
+                                          })();
+                                          return (
                                           <tr key={di} className="border-b border-[#FFE0D0] last:border-0">
-                                            <td className="py-2 px-2 text-sm text-gray-700 text-center">{d.paymentType}</td>
+                                            <td className="py-2 px-2 text-sm text-gray-700 text-center">{ptLabel}</td>
                                             <td className="py-2 px-2 text-sm text-gray-600 text-center">{d.authNo}</td>
                                             <td className="py-2 px-2 text-sm text-gray-600 text-center">{d.refundDate}</td>
                                             <td className="py-2 px-2 text-sm text-gray-700 text-center tabular-nums">{won(d.refundAmount)}</td>
@@ -958,7 +970,8 @@ export default function RevenueStatsPage() {
                                             </td>
                                             <td className="py-2 px-2 text-sm font-semibold text-gray-800 text-center tabular-nums">{won(d.customerNetRefund ?? d.refundAmount)}</td>
                                           </tr>
-                                        ))}
+                                          );
+                                        })}
                                       </tbody>
                                     </table>
                                   </td>

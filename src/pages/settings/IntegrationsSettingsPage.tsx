@@ -5,9 +5,178 @@ import { Input } from "../../components/ui/Input";
 import { Switch } from "../../components/ui/Switch";
 import { useSettingsStore } from "../../stores/useSettingsStore";
 import type { IntegrationsConfig } from "../../types/settings";
-import { Printer, MessageSquare, Instagram, MonitorSmartphone, Layers, Link2, Copy, ExternalLink } from "lucide-react";
+import { MessageSquare, Instagram, MonitorSmartphone, Layers, Link2, Copy, ExternalLink, ReceiptText, CheckCircle2, XCircle, Download, RefreshCw } from "lucide-react";
 import { useCurrentUserPermissions } from "../../hooks/useCurrentUserPermissions";
 import { NoPermissionOverlay } from "../../components/common/NoPermissionOverlay";
+import {
+    printService,
+    PRINT_AGENT_DOWNLOAD_URL,
+    BIXOLON_DRIVER_URL,
+    type PrintAgentStatus,
+} from "../../services/printService";
+
+async function safeOpenDownload(url: string, label: string) {
+  const isExternal = /^https?:\/\//i.test(url);
+  if (isExternal) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+  try {
+    const res = await fetch(url, { method: "HEAD", redirect: "manual" });
+    const ct = res.headers.get("content-type") || "";
+    if (!res.ok || ct.includes("text/html")) {
+      alert(
+        `${label} 이(가) 아직 서버에 배포되지 않았습니다.\n\nIT 담당자에게 문의하거나, 프론트 배포 디렉터리의 'downloads/' 경로에 설치 파일을 업로드해야 합니다.\n\n요청 경로: ${url}`,
+      );
+      return;
+    }
+  } catch {
+    alert(`${label} 요청에 실패했습니다. IT 담당자에게 문의하세요.\n\n요청 경로: ${url}`);
+    return;
+  }
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function StatusRow({
+  label,
+  ok,
+  helperOk,
+  helperFail,
+  downloadHref,
+  downloadLabel,
+}: {
+  label: string;
+  ok: boolean;
+  helperOk?: string;
+  helperFail?: string;
+  downloadHref?: string;
+  downloadLabel?: string;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-[rgb(var(--kkeut-border))] bg-white p-3">
+      <div className="flex items-start gap-2 min-w-0">
+        {ok ? (
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+        ) : (
+          <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
+        )}
+        <div className="min-w-0">
+          <div className="text-sm font-bold text-gray-800">{label}</div>
+          <div className="mt-0.5 text-[11px] text-gray-500 break-all">
+            {ok ? helperOk : helperFail}
+          </div>
+        </div>
+      </div>
+      {!ok && downloadHref && (
+        <button
+          type="button"
+          onClick={() => safeOpenDownload(downloadHref, downloadLabel ?? "설치 파일")}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-violet-300 bg-violet-50 px-2 py-1 text-xs font-bold text-violet-700 hover:bg-violet-100"
+        >
+          <Download className="h-3.5 w-3.5" />
+          {downloadLabel ?? "다운로드"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ReceiptPrinterCard() {
+  const [status, setStatus] = useState<PrintAgentStatus | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  const refresh = React.useCallback(async () => {
+    setChecking(true);
+    try {
+      const s = await printService.getPrintAgentStatus();
+      setStatus(s);
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const agentOk = !!status?.agentAvailable;
+  const bixolonOk = !!status?.bixolonInstalled;
+
+  return (
+    <div className="flex flex-col rounded-2xl border border-[rgb(var(--kkeut-border))] bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${agentOk && bixolonOk ? "bg-emerald-100 text-emerald-600" : "bg-gray-100 text-gray-500"}`}>
+            <ReceiptText className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="font-extrabold text-gray-900">차트 프린터</div>
+            <div className="text-xs text-gray-500">
+              {agentOk && bixolonOk
+                ? "정상 동작 중"
+                : agentOk
+                ? "에이전트 실행중, 프린터 미확인"
+                : "에이전트 미실행 또는 미설치"}
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={refresh}
+          disabled={checking}
+          className="inline-flex items-center gap-1 rounded-md border border-[rgb(var(--kkeut-border))] bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          title="상태 새로고침"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`} />
+          새로고침
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        <StatusRow
+          label="끗차트 인쇄 에이전트"
+          ok={agentOk}
+          helperOk={
+            status
+              ? `v${status.agentVersion ?? "-"} · 포트 ${status.port ?? "-"} · 기본 프린터: ${status.defaultPrinter ?? "미설정"}`
+              : ""
+          }
+          helperFail="운영 PC에 에이전트가 실행되어 있지 않습니다. 설치 후 재부팅 하면 자동 상주합니다."
+          downloadHref={PRINT_AGENT_DOWNLOAD_URL}
+          downloadLabel="에이전트 설치파일"
+        />
+        <StatusRow
+          label="BIXOLON 프린터 드라이버"
+          ok={bixolonOk}
+          helperOk={
+            status?.bixolonIsDefault
+              ? "기본 프린터로 설정되어 있습니다."
+              : "설치됨 (기본 프린터로 설정 권장)"
+          }
+          helperFail={
+            agentOk
+              ? "설치된 프린터 중 BIXOLON 이 발견되지 않았습니다. 드라이버 설치 후 USB 연결을 확인하세요."
+              : "에이전트 실행 후 다시 확인해 주세요."
+          }
+          downloadHref={BIXOLON_DRIVER_URL}
+          downloadLabel="BIXOLON 드라이버"
+        />
+      </div>
+
+      {status?.installedPrinters && status.installedPrinters.length > 0 && (
+        <div className="mt-3 rounded-lg bg-slate-50 p-2 text-[11px] text-gray-500">
+          <div className="mb-1 font-bold text-gray-600">설치된 프린터 ({status.installedPrinters.length})</div>
+          <div className="break-all leading-relaxed">{status.installedPrinters.join(", ")}</div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Card({ title, icon: Icon, children, enabled, onToggle }: any) {
   return (
@@ -263,27 +432,8 @@ export default function IntegrationsSettingsPage() {
             </div>
           </Card>
 
-          {/* Name Printer */}
-          <Card
-            title="네모닉 프린터"
-            icon={Printer}
-            enabled={draft.nemonic.enabled}
-            onToggle={(v: boolean) => update({ nemonic: { ...draft.nemonic, enabled: v } })}
-          >
-            <div className="space-y-3 pt-2">
-              <div>
-                <label className="text-xs font-bold text-gray-500">프린터 장치명</label>
-                <Input
-                  value={draft.nemonic.printerName || ""}
-                  onChange={e => update({ nemonic: { ...draft.nemonic, printerName: e.target.value } })}
-                  placeholder="Nemonic_Printer_01"
-                />
-              </div>
-              <div className="text-xs text-gray-400">
-                * 로컬 네트워크 또는 블루투스로 연결된 프린터 이름을 정확히 입력하세요.
-              </div>
-            </div>
-          </Card>
+          {/* Chart Printer (BIXOLON + KkeutPrintAgent) */}
+          <ReceiptPrinterCard />
 
           {/* Devices */}
           <div className="flex flex-col rounded-2xl border border-[rgb(var(--kkeut-border))] bg-white p-5 shadow-sm">

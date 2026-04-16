@@ -5,6 +5,7 @@ import { useAuthStore } from "../stores/useAuthStore";
 import { useSettingsStore } from "../stores/useSettingsStore";
 import { resolveActiveBranchId } from "../utils/branch";
 import { kisTerminalService } from "../services/kisTerminalService";
+import { isManualPaymentMode, getTerminalMode } from "../utils/terminalMode";
 
 interface AddPaymentModalProps {
   isOpen: boolean;
@@ -227,6 +228,7 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
 
   const refreshTerminalStatus = async () => {
     if (terminalChecking) return;
+    if (isManualPaymentMode()) { setTerminalConnected(false); return; }
     setTerminalChecking(true);
     try {
       if (kisTerminalService.isConnected()) { setTerminalConnected(true); return; }
@@ -239,6 +241,7 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
 
   useEffect(() => {
     if (!isOpen) return;
+    if (isManualPaymentMode()) { setTerminalConnected(false); return; }
     void refreshTerminalStatus();
     const interval = setInterval(() => {
       setTerminalConnected(kisTerminalService.isConnected());
@@ -268,6 +271,21 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
   useEffect(() => {
     setSubMethod(DETAIL_OPTIONS[category][0]?.value || "");
   }, [category]);
+
+  useEffect(() => {
+    if (!submitting) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      try { kisTerminalService.cancelTransaction(); } catch {}
+      e.preventDefault();
+      e.returnValue = "단말기 결제 처리 중입니다. 페이지를 떠나면 거래가 취소됩니다.";
+      return e.returnValue;
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      try { kisTerminalService.cancelTransaction(); } catch {}
+    };
+  }, [submitting]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -468,9 +486,12 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
       setSubmitting(true);
 
       const terminalLines: SplitPaymentLine[] = [];
+      const manualMode = isManualPaymentMode();
       for (const line of submitLines) {
-        const needsTerminal = (line.paymentCategory === "card" && line.paymentSubMethod === "card_general")
-            || line.paymentCategory === "pay";
+        const needsTerminal = !manualMode && (
+          (line.paymentCategory === "card" && line.paymentSubMethod === "card_general")
+            || line.paymentCategory === "pay"
+        );
 
         if (needsTerminal) {
           const tradeType = line.paymentCategory === "pay" ? "v1" as const : "D1" as const;
@@ -478,9 +499,12 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
           const installment = installmentMap[line.installment || ""] || "00";
 
           let terminalSuccess = false;
+          let terminalErrorMsg = "";
           try {
             const connected = await kisTerminalService.connect();
-            if (connected) {
+            if (!connected) {
+              terminalErrorMsg = "단말기 연결 실패 — 단말기 전원 및 네트워크를 확인해 주세요.";
+            } else {
               const result = await kisTerminalService.requestPayment({
                 tradeType,
                 amount: line.amount,
@@ -504,11 +528,21 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                   terminalMerchantRegNo: result.merchantRegNo,
                 });
                 terminalSuccess = true;
+              } else {
+                terminalErrorMsg = `단말기 승인 실패: ${result.displayMsg || `응답코드 ${result.replyCode}`}`;
               }
             }
-          } catch {}
+          } catch (termErr: any) {
+            terminalErrorMsg = `단말기 통신 오류: ${termErr?.message || "알 수 없는 오류"}`;
+          }
 
           if (!terminalSuccess) {
+            const proceed = window.confirm(
+              `${terminalErrorMsg}\n\n단말기 없이 수기로 결제 기록을 남기시겠습니까?\n\n[확인] → 승인번호 없이 결제 기록 (수기)\n[취소] → 결제 중단`
+            );
+            if (!proceed) {
+              return;
+            }
             terminalLines.push({
               ...line,
               approvalNumber: line.approvalNumber || "",
@@ -661,20 +695,43 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                 <div>
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <label className="block text-xs font-semibold text-blue-600">결제방법 *</label>
-                    <button
-                      type="button"
-                      onClick={() => void refreshTerminalStatus()}
-                      disabled={terminalChecking}
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors ${
-                        terminalConnected
-                          ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                          : "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100"
-                      } disabled:opacity-50`}
-                      title="단말기 연결 상태 다시 확인"
-                    >
-                      <span className={`h-1.5 w-1.5 rounded-full ${terminalConnected ? "bg-emerald-500" : "bg-rose-500"}`} />
-                      {terminalChecking ? "확인 중..." : terminalConnected ? "단말기 연결됨" : "단말기 미연결"}
-                    </button>
+                    {(() => {
+                      const mode = getTerminalMode();
+                      if (mode === "manual") {
+                        return (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700"
+                            title="설정 > 병원 > 카드 단말기 모드 에서 변경 가능"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                            수기 결제 모드
+                          </span>
+                        );
+                      }
+                      if (mode === "nice") {
+                        return (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                            NICE 모드 (개발 예정)
+                          </span>
+                        );
+                      }
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => void refreshTerminalStatus()}
+                          disabled={terminalChecking}
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors ${
+                            terminalConnected
+                              ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              : "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                          } disabled:opacity-50`}
+                          title="단말기 연결 상태 다시 확인"
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${terminalConnected ? "bg-emerald-500" : "bg-rose-500"}`} />
+                          {terminalChecking ? "확인 중..." : terminalConnected ? "KIS 단말기 연결됨" : "KIS 단말기 미연결"}
+                        </button>
+                      );
+                    })()}
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {CATEGORY_OPTIONS.map((opt) => {

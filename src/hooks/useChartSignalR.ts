@@ -6,6 +6,40 @@ import { chartConfigService } from '../services/chartConfigService';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { usePermissionStore } from '../stores/usePermissionStore';
 
+function getCurrentUserIdFromToken(): number | null {
+    const token = getAuthToken();
+    if (!token) return null;
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        const raw = payload.nameid
+            ?? payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
+            ?? payload.sub;
+        if (raw == null) return null;
+        const n = typeof raw === 'string' ? parseInt(raw, 10) : Number(raw);
+        return Number.isFinite(n) ? n : null;
+    } catch {
+        return null;
+    }
+}
+
+function extractInvokerUserId(data: any): number | null {
+    if (data == null) return null;
+    const raw = data.InvokerUserId ?? data.invokerUserId;
+    if (raw == null) return null;
+    const n = typeof raw === 'string' ? parseInt(raw, 10) : Number(raw);
+    return Number.isFinite(n) ? n : null;
+}
+
+function isSelfEcho(data: any): boolean {
+    const invoker = extractInvokerUserId(data);
+    if (invoker == null) return false;
+    const self = getCurrentUserIdFromToken();
+    if (self == null) return false;
+    return invoker === self;
+}
+
 function resolveHubUrl(): string {
     const explicitHubUrl = (import.meta.env.VITE_SIGNALR_HUB_URL as string | undefined)?.trim();
     if (explicitHubUrl) {
@@ -43,6 +77,11 @@ export interface SignalREventData {
     userId?: number;
     userName?: string;
     isLocked?: boolean;
+    actionType?: string;
+    ticketId?: number;
+    membershipId?: number;
+    cartItemId?: number;
+    memoId?: number;
 }
 
 interface UseChartSignalROptions {
@@ -177,8 +216,71 @@ function buildConnection(): signalR.HubConnection {
         if (data?.ChartId || data?.chartId) notifyAll('onEventData', { chartId: data.ChartId ?? data.chartId, customerId: data.CustomerId ?? data.customerId, eventType: 'location_changed' });
     });
     connection.on('ReceivePaymentCompleted', (_message: string, data: any) => {
+        if (isSelfEcho(data)) return;
         notifyAll('onRefreshRequired');
-        if (data?.ChartId || data?.chartId) notifyAll('onEventData', { chartId: data.ChartId ?? data.chartId, customerId: data.CustomerId ?? data.customerId, eventType: 'payment_completed' });
+        const actionType = data?.ActionType ?? data?.actionType ?? 'PaymentCompleted';
+        notifyAll('onEventData', {
+            chartId: data?.ChartId ?? data?.chartId,
+            customerId: data?.CustomerId ?? data?.customerId,
+            eventType: 'payment_completed',
+            actionType,
+        } as any);
+    });
+
+    connection.on('ReceiveTicketUsed', (_message: string, data: any) => {
+        if (isSelfEcho(data)) return;
+        notifyAll('onRefreshRequired');
+        notifyAll('onEventData', {
+            eventType: 'ticket_used',
+            customerId: data?.CustomerId ?? data?.customerId,
+            ticketId: data?.TicketId ?? data?.ticketId,
+            membershipId: data?.MembershipId ?? data?.membershipId,
+            actionType: data?.ActionType ?? data?.actionType,
+        } as any);
+    });
+
+    connection.on('ReceiveCartUpdated', (_message: string, data: any) => {
+        if (isSelfEcho(data)) return;
+        notifyAll('onRefreshRequired');
+        notifyAll('onEventData', {
+            eventType: 'cart_updated',
+            customerId: data?.CustomerId ?? data?.customerId,
+            chartId: data?.VisitId ?? data?.visitId,
+            cartItemId: data?.CartItemId ?? data?.cartItemId,
+            actionType: data?.ActionType ?? data?.actionType,
+        } as any);
+    });
+
+    connection.on('ReceiveCustomerUpdated', (_message: string, data: any) => {
+        if (isSelfEcho(data)) return;
+        notifyAll('onRefreshRequired');
+        notifyAll('onEventData', {
+            eventType: 'customer_updated',
+            customerId: data?.CustomerId ?? data?.customerId,
+            actionType: data?.ActionType ?? data?.actionType,
+        } as any);
+    });
+
+    connection.on('ReceiveMemoUpdated', (_message: string, data: any) => {
+        if (isSelfEcho(data)) return;
+        notifyAll('onRefreshRequired');
+        notifyAll('onEventData', {
+            eventType: 'memo_updated',
+            customerId: data?.CustomerId ?? data?.customerId,
+            memoId: data?.MemoId ?? data?.memoId,
+            actionType: data?.ActionType ?? data?.actionType,
+        } as any);
+    });
+
+    connection.on('ReceiveChartUpdated', (_message: string, data: any) => {
+        if (isSelfEcho(data)) return;
+        notifyAll('onRefreshRequired');
+        notifyAll('onEventData', {
+            eventType: 'chart_updated',
+            customerId: data?.CustomerId ?? data?.customerId,
+            chartId: data?.ChartId ?? data?.chartId,
+            actionType: data?.ActionType ?? data?.actionType,
+        } as any);
     });
     connection.on('ReceiveChartSettingUpdate', () => {
         notifyAll('onEventData', { eventType: 'chart_setting_updated' });

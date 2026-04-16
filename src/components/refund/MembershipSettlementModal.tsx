@@ -8,12 +8,13 @@ import {
     type RefundType,
 } from "../../services/paymentService";
 import { kisTerminalService } from "../../services/kisTerminalService";
+import { isManualPaymentMode } from "../../utils/terminalMode";
 import { useAlert } from "../ui/AlertDialog";
 
 const SETTLEMENT_REFUND_TYPES: Array<{ value: RefundType; label: string; description: string }> = [
-    { value: "customer_change", label: "고객 단순변심", description: "잔액 + 티켓별 (결제액 - 1회 정상가 × 사용횟수) - 위약금" },
-    { value: "hospital_fault", label: "병원 귀책", description: "잔액 + 티켓별 (결제액 ÷ 총횟수 × 잔여횟수). 위약금 없음" },
-    { value: "manual", label: "기타 (직접 입력)", description: "직원이 총 환불액을 직접 입력 (사유 필수)" },
+    { value: "customer_change", label: "위약금/정상가 차감 환불", description: "잔액 + 티켓별 (결제액 - 1회 정상가 × 사용횟수) - 위약금" },
+    { value: "hospital_fault", label: "n/1 환불", description: "잔액 + 티켓별 (결제액 ÷ 총횟수 × 잔여횟수). 위약금 없음" },
+    { value: "manual", label: "기타", description: "직원이 총 환불액을 직접 입력 (사유 필수)" },
 ];
 
 export interface MembershipSettlementModalProps {
@@ -64,6 +65,21 @@ export function MembershipSettlementModal({
     const [rePaymentMethod, setRePaymentMethod] = useState<"card" | "cash" | "pay">("card");
     const [submitting, setSubmitting] = useState(false);
     const [progress, setProgress] = useState<SettlementProgressState>({ phase: "idle" });
+
+    useEffect(() => {
+        if (!submitting) return;
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            try { kisTerminalService.cancelTransaction(); } catch {}
+            e.preventDefault();
+            e.returnValue = "단말기 결제 처리 중입니다. 페이지를 떠나면 거래가 취소됩니다.";
+            return e.returnValue;
+        };
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+            try { kisTerminalService.cancelTransaction(); } catch {}
+        };
+    }, [submitting]);
 
     useEffect(() => {
         if (!open) return;
@@ -171,7 +187,8 @@ export function MembershipSettlementModal({
         // 2단계 패턴: 카드 결제된 회원권이면 (1) 위약금 재결제 → (2) 원거래 전체취소 → BE 기록
         const cardInfo = membershipCardTerminalInfo;
         const isCardRefundable =
-            refundType !== "manual"
+            !isManualPaymentMode()
+            && refundType !== "manual"
             && !!cardInfo
             && ((cardInfo.paymentType || "").toUpperCase() === "CARD" || (cardInfo.paymentType || "").toUpperCase() === "PAY")
             && !!cardInfo.authNo && !!cardInfo.authDate && !!cardInfo.vanKey

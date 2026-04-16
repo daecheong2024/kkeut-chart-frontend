@@ -9,6 +9,7 @@ import {
     type MembershipSettlementLinkedTicket,
 } from "../../services/paymentService";
 import { kisTerminalService } from "../../services/kisTerminalService";
+import { isManualPaymentMode } from "../../utils/terminalMode";
 import { useAlert } from "../ui/AlertDialog";
 
 // ============================================================
@@ -27,6 +28,7 @@ export interface UnifiedRefundSelection {
         authNo?: string;
         authDate?: string;
         vanKey?: string;
+        catId?: string;
     };
 }
 
@@ -42,9 +44,9 @@ export interface UnifiedRefundModalProps {
 // ============================================================
 
 const REFUND_TYPE_OPTIONS: Array<{ value: RefundType; label: string; description: string }> = [
-    { value: "customer_change", label: "고객 단순변심", description: "잔액 + (티켓 환불) - 위약금" },
-    { value: "hospital_fault", label: "병원 귀책", description: "잔액 + 티켓 환불, 위약금 없음" },
-    { value: "manual", label: "기타 (직접 입력)", description: "직원이 환불액 직접 입력 (사유 필수)" },
+    { value: "customer_change", label: "위약금/정상가 차감 환불", description: "잔액 + (티켓 환불) - 위약금" },
+    { value: "hospital_fault", label: "n/1 환불", description: "잔액 + 티켓 환불, 위약금 없음" },
+    { value: "manual", label: "기타", description: "직원이 환불액 직접 입력 (사유 필수)" },
 ];
 
 function formatWon(value: number): string {
@@ -96,7 +98,7 @@ interface TerminalPairResult {
         catId?: string;
         merchantRegNo?: string;
     };
-    refund: {
+    refund?: {
         amount: number;
         authNo: string;
         authDate: string;
@@ -106,6 +108,8 @@ interface TerminalPairResult {
     rePaymentDetailId?: number;
     /** true 면 atomic 흐름 (executeBulkRefund), false 면 디커플링 (finalize 개별 호출) */
     useAtomic?: boolean;
+    /** "다른 단말기로 결제" 체크 시 원거래 취소(Step B)를 스킵한 상태. DEDUCTION_PAID 유지 */
+    voidSkipped?: boolean;
 }
 
 export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: UnifiedRefundModalProps) {
@@ -115,6 +119,34 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
     const [penaltyRatePct, setPenaltyRatePct] = useState<string>("");
     const [reason, setReason] = useState<string>("");
     const [manualSkipTerminal, setManualSkipTerminal] = useState(false);
+    const [autoDetectedDifferentTerminal, setAutoDetectedDifferentTerminal] = useState(false);
+
+    useEffect(() => {
+        if (!open) return;
+        const currentCatId = kisTerminalService.getCurrentCatId();
+        if (!currentCatId) {
+            setAutoDetectedDifferentTerminal(false);
+            return;
+        }
+        const cardSelections = selections.filter(s => {
+            const t = (s.paymentType || "").toUpperCase();
+            return t === "CARD" || t === "PAY";
+        });
+        if (cardSelections.length === 0) {
+            setAutoDetectedDifferentTerminal(false);
+            return;
+        }
+        const anyDifferent = cardSelections.some(s => {
+            const orig = s.terminalInfo?.catId;
+            return orig && orig !== currentCatId;
+        });
+        if (anyDifferent) {
+            setAutoDetectedDifferentTerminal(true);
+            setManualSkipTerminal(true);
+        } else {
+            setAutoDetectedDifferentTerminal(false);
+        }
+    }, [open, selections]);
     // 위약금 받는 결제수단 (직원 선택). 기본: 카드 (원거래와 같은 카드로 재결제)
     const [rePaymentMethod, setRePaymentMethod] = useState<"card" | "cash" | "pay">("card");
     // 직접 입력 환불 시 티켓별 환불액 (refundType="manual" 일 때 사용)
@@ -312,6 +344,21 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
         setTerminalInfoDraft({});
     }, [open]);
 
+    useEffect(() => {
+        if (!submitting) return;
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            try { kisTerminalService.cancelTransaction(); } catch {}
+            e.preventDefault();
+            e.returnValue = "단말기 결제 처리 중입니다. 페이지를 떠나면 거래가 취소됩니다.";
+            return e.returnValue;
+        };
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+            try { kisTerminalService.cancelTransaction(); } catch {}
+        };
+    }, [submitting]);
+
     const getEffectiveTerminalInfo = (sel: UnifiedRefundSelection) => {
         const o = terminalInfoOverrides[sel.paymentDetailId];
         if (o) return o;
@@ -398,8 +445,9 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
             return;
         }
 
+        const manualMode = isManualPaymentMode();
         // 단말기 호출 여부 결정
-        const useTerminal = !manualSkipTerminal && terminalSelections.length > 0;
+        const useTerminal = !manualMode && !manualSkipTerminal && terminalSelections.length > 0;
         if (useTerminal) {
             const ok = await kisTerminalService.connect().catch(() => false);
             if (!ok) {
@@ -417,7 +465,55 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
 
         // === Phase 1: Terminal 2단계 패턴 (위약금 재결제 → 원거래 전체취소) ===
         const terminalResults: Record<number, TerminalPairResult | { error: string; repaymentDone?: boolean; repaymentAuthNo?: string; repaymentAmount?: number }> = {};
-        const skipTerminal = manualSkipTerminal || !kisTerminalService.isConnected();
+        const skipTerminal = manualMode || !kisTerminalService.isConnected();
+        const skipVoidOnly = manualSkipTerminal;
+
+        // Pre-loop: 공제액(위약금+사용분) 통합 결제 — 모든 디커플링 대상 티켓의 공제액 합계를 1회 KIS 호출로
+        // 공제액 = 결제액 - 환불예상액 (위약금 + 사용차감)
+        const computeDeduction = (sel: UnifiedRefundSelection): number => {
+            if (sel.itemType !== "ticket") return 0;
+            const calc = ticketCalcs[sel.paymentDetailId];
+            if (!calc) return 0;
+            const ded = Math.max(0, (calc.paidAmount ?? 0) - (calc.estimatedRefund ?? 0));
+            return ded;
+        };
+        let consolidatedPenaltyAuth: any = null;
+        let consolidatedPenaltySkipped = false;
+        if (!skipTerminal && terminalSelections.length > 0 && rePaymentMethod !== "cash") {
+            const decoupledItems = terminalSelections.filter((sel) => {
+                if (sel.itemType !== "ticket") return false;
+                return computeDeduction(sel) > 0;
+            });
+            const totalPenalty = decoupledItems.reduce((sum, sel) => sum + computeDeduction(sel), 0);
+            if (totalPenalty > 0 && decoupledItems.length > 0) {
+                const repayTradeType = (rePaymentMethod === "pay") ? "v1" as const : "D1" as const;
+                setProgress({ phase: "repayment", current: 0, total: 1, itemName: `위약금 통합 결제 (${decoupledItems.length}건)`, amount: totalPenalty });
+                try {
+                    const r = await kisTerminalService.requestPayment({ tradeType: repayTradeType, amount: totalPenalty });
+                    if (!r.success) {
+                        const proceed = await showConfirm({
+                            message: `위약금 통합 결제 실패: ${r.displayMsg || r.replyCode}\n\n총 위약금 ${totalPenalty.toLocaleString()}원을 현금 등 수기로 수납하고 환불을 진행하시겠습니까?`,
+                            type: "warning",
+                            confirmText: "수기 진행",
+                            cancelText: "환불 중단",
+                        });
+                        if (!proceed) { setProgress({ phase: "idle" }); setSubmitting(false); return; }
+                        consolidatedPenaltySkipped = true;
+                    } else {
+                        consolidatedPenaltyAuth = r;
+                    }
+                } catch (e: any) {
+                    const proceed = await showConfirm({
+                        message: `위약금 통합 결제 통신 오류: ${e?.message || "알 수 없는 오류"}\n\n총 위약금 ${totalPenalty.toLocaleString()}원을 현금 등 수기로 수납하고 환불을 진행하시겠습니까?`,
+                        type: "warning",
+                        confirmText: "수기 진행",
+                        cancelText: "환불 중단",
+                    });
+                    if (!proceed) { setProgress({ phase: "idle" }); setSubmitting(false); return; }
+                    consolidatedPenaltySkipped = true;
+                }
+            }
+        }
 
         if (!skipTerminal && terminalSelections.length > 0) {
             for (let i = 0; i < terminalSelections.length; i++) {
@@ -428,13 +524,13 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                     continue;
                 }
 
-                // 원결제액 / 위약금 산출
+                // 원결제액 / 공제액(위약금+사용분) 산출
                 let paidAmount = 0;
                 let penaltyAmount = 0;
                 if (sel.itemType === "ticket") {
                     const calc = ticketCalcs[sel.paymentDetailId];
                     paidAmount = calc?.paidAmount ?? 0;
-                    penaltyAmount = calc?.penaltyAmount ?? 0;
+                    penaltyAmount = Math.max(0, (calc?.paidAmount ?? 0) - (calc?.estimatedRefund ?? 0));
                 } else {
                     const preview = membershipPreviews.find((p) => p.selection.paymentDetailId === sel.paymentDetailId);
                     paidAmount = preview?.info?.discountedPurchasePrice ?? 0;
@@ -446,77 +542,80 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                 const tradeRefundType = (sel.paymentType?.toUpperCase() === "PAY") ? "v2" as const : "D2" as const;
 
                 // 디커플링 vs Atomic 결정:
-                // 카드/페이 위약금 + 카드/페이 원거래 = 디커플링 (deduction-pay → finalize)
-                // 그 외 (현금 위약금 / 위약금 0) = atomic (executeBulkRefund)
+                // 카드/페이 + 공제액(위약금+사용분) > 0 = 디커플링 (deduction-pay → finalize)
+                // 공제액 0 (전액 환불) = atomic (executeBulkRefund)
                 const isDecoupled =
-                    sel.itemType === "ticket"  // membership 은 settlement bundled 라 atomic 유지
+                    sel.itemType === "ticket"
                     && penaltyAmount > 0
                     && rePaymentMethod !== "cash";
 
-                // Step A: 위약금 재결제 (penalty > 0)
+                // Step A: 위약금 재결제 (penalty > 0) — 통합 결제된 authNo 재사용 또는 현금 처리
                 let rePaymentAuth: TerminalPairResult["rePayment"] | undefined = undefined;
                 let savedRePaymentDetailId: number | undefined;
                 if (penaltyAmount > 0) {
-                    setProgress({ phase: "repayment", current: i + 1, total: terminalSelections.length, itemName: sel.itemName, amount: penaltyAmount });
                     if (rePaymentMethod === "cash") {
                         rePaymentAuth = { amount: penaltyAmount, authNo: "", authDate: "", vanKey: "" };
-                    } else {
-                        const repayTradeType = (rePaymentMethod === "pay") ? "v1" as const : "D1" as const;
-                        try {
-                            const r = await kisTerminalService.requestPayment({ tradeType: repayTradeType, amount: penaltyAmount });
-                            if (!r.success) {
-                                terminalResults[sel.paymentDetailId] = { error: `위약금 재결제 실패: ${r.displayMsg || r.replyCode}` };
-                                continue;
-                            }
-                            rePaymentAuth = {
-                                amount: penaltyAmount,
-                                authNo: r.authNo,
-                                authDate: r.replyDate,
-                                vanKey: r.vanKey,
-                                cardCompany: r.issuerName || r.accepterName,
-                                installment: r.installment,
-                                cardNo: r.cardNo,
-                                tranNo: r.tranNo,
-                                accepterName: r.accepterName,
-                                catId: r.catId,
-                                merchantRegNo: r.merchantRegNo,
-                            };
+                    } else if (consolidatedPenaltySkipped) {
+                        rePaymentAuth = { amount: penaltyAmount, authNo: "", authDate: "", vanKey: "" };
+                    } else if (consolidatedPenaltyAuth) {
+                        rePaymentAuth = {
+                            amount: penaltyAmount,
+                            authNo: consolidatedPenaltyAuth.authNo,
+                            authDate: consolidatedPenaltyAuth.replyDate,
+                            vanKey: consolidatedPenaltyAuth.vanKey,
+                            cardCompany: consolidatedPenaltyAuth.issuerName || consolidatedPenaltyAuth.accepterName,
+                            installment: consolidatedPenaltyAuth.installment,
+                            cardNo: consolidatedPenaltyAuth.cardNo,
+                            tranNo: consolidatedPenaltyAuth.tranNo,
+                            accepterName: consolidatedPenaltyAuth.accepterName,
+                            catId: consolidatedPenaltyAuth.catId,
+                            merchantRegNo: consolidatedPenaltyAuth.merchantRegNo,
+                        };
+                    }
 
-                            // 디커플링: 위약금 단말기 OK 직후 즉시 BE 저장 (DEDUCTION_PAID 마킹)
-                            if (isDecoupled) {
-                                try {
-                                    const dp = await paymentService.deductionPay({
-                                        paymentMasterId: sel.paymentMasterId,
-                                        originPaymentDetailId: sel.paymentDetailId,
-                                        amount: penaltyAmount,
-                                        method: rePaymentMethod.toUpperCase(),
-                                        terminalAuthNo: r.authNo,
-                                        terminalAuthDate: r.replyDate,
-                                        vanKey: r.vanKey,
-                                        cardCompany: r.issuerName || r.accepterName,
-                                        installment: r.installment,
-                                        terminalCardNo: r.cardNo,
-                                        terminalTranNo: r.tranNo,
-                                        terminalAccepterName: r.accepterName,
-                                        terminalCatId: r.catId,
-                                        terminalMerchantRegNo: r.merchantRegNo,
-                                    });
-                                    savedRePaymentDetailId = dp.rePaymentDetailId;
-                                } catch (e: any) {
-                                    terminalResults[sel.paymentDetailId] = {
-                                        error: `위약금 단말기 결제는 OK이지만 시스템 저장 실패 (승인번호 ${r.authNo}): ${e?.response?.data?.message || e?.message || "오류"}`,
-                                    };
-                                    continue;
-                                }
-                            }
+                    if (isDecoupled && rePaymentAuth) {
+                        try {
+                            const dp = await paymentService.deductionPay({
+                                paymentMasterId: sel.paymentMasterId,
+                                originPaymentDetailId: sel.paymentDetailId,
+                                amount: penaltyAmount,
+                                method: (consolidatedPenaltySkipped || rePaymentMethod === "cash") ? "CASH" : rePaymentMethod.toUpperCase(),
+                                terminalAuthNo: rePaymentAuth.authNo,
+                                terminalAuthDate: rePaymentAuth.authDate,
+                                vanKey: rePaymentAuth.vanKey,
+                                cardCompany: rePaymentAuth.cardCompany || "",
+                                installment: rePaymentAuth.installment,
+                                terminalCardNo: rePaymentAuth.cardNo,
+                                terminalTranNo: rePaymentAuth.tranNo,
+                                terminalAccepterName: rePaymentAuth.accepterName,
+                                terminalCatId: rePaymentAuth.catId,
+                                terminalMerchantRegNo: rePaymentAuth.merchantRegNo,
+                            });
+                            savedRePaymentDetailId = dp.rePaymentDetailId;
                         } catch (e: any) {
-                            terminalResults[sel.paymentDetailId] = { error: `위약금 재결제 호출 실패: ${e?.message || "알 수 없는 오류"}` };
+                            terminalResults[sel.paymentDetailId] = {
+                                error: consolidatedPenaltySkipped
+                                    ? `위약금 수기 처리 시스템 저장 실패: ${e?.response?.data?.message || e?.message || "오류"}`
+                                    : `위약금 결제는 OK이지만 시스템 저장 실패 (승인번호 ${rePaymentAuth?.authNo ?? ""}): ${e?.response?.data?.message || e?.message || "오류"}`,
+                            };
                             continue;
                         }
                     }
                 }
 
-                // Step B: 원거래 전체취소
+                // Step B: 원거래 전체취소 (다른 단말기 옵션 시 스킵, 위약금 재결제만 마치고 DEDUCTION_PAID 유지)
+                if (skipVoidOnly) {
+                    terminalResults[sel.paymentDetailId] = {
+                        paidAmount,
+                        rePayment: rePaymentAuth,
+                        refund: undefined as any,
+                        rePaymentDetailId: savedRePaymentDetailId,
+                        useAtomic: false,
+                        voidSkipped: true,
+                    } as TerminalPairResult;
+                    continue;
+                }
+
                 setProgress({ phase: "void", current: i + 1, total: terminalSelections.length, itemName: sel.itemName, amount: paidAmount });
                 try {
                     const r = await kisTerminalService.requestRefund({
@@ -634,14 +733,20 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
         if (effectiveTickets.length > 0) {
             const refundableTickets = effectiveTickets.filter((t) => (ticketCalcs[t.paymentDetailId]?.estimatedRefund ?? 0) > 0);
 
-            // 디커플링: 위약금 deduction-pay 가 이미 저장된 항목 → finalize 개별 호출
+            // 디커플링: 위약금 deduction-pay 가 이미 저장된 항목 OR voidSkipped 항목 → finalize/atomic 호출 차단
             const decoupledTickets = refundableTickets.filter(t => {
                 const tr = terminalResults[t.paymentDetailId];
-                return tr && !("error" in tr) && !!tr.rePaymentDetailId && !tr.useAtomic;
+                if (!tr || "error" in tr) return false;
+                if (tr.voidSkipped) return true;
+                return !!tr.rePaymentDetailId && !tr.useAtomic;
             });
             for (const t of decoupledTickets) {
                 const tr = terminalResults[t.paymentDetailId];
                 if (!tr || "error" in tr) continue;
+                if (tr.voidSkipped) {
+                    totalSuccess++;
+                    continue;
+                }
                 setProgress({ phase: "backend", itemName: t.itemName });
                 try {
                     const penaltyRate = penaltyRatePct === "" ? undefined : Number(penaltyRatePct) / 100;
@@ -656,9 +761,9 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                         penaltyRate,
                         manualAmount,
                         reason: reason.trim() || undefined,
-                        terminalRefundAuthNo: tr.refund.authNo,
-                        terminalRefundDate: tr.refund.authDate,
-                        terminalVanKey: tr.refund.vanKey,
+                        terminalRefundAuthNo: tr.refund?.authNo,
+                        terminalRefundDate: tr.refund?.authDate,
+                        terminalVanKey: tr.refund?.vanKey,
                         refundMethod: "AUTO",
                     });
                     if (result.success) totalSuccess++;
@@ -690,9 +795,9 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                 penaltyRate,
                                 manualAmount,
                                 reason: reason.trim() || undefined,
-                                terminalRefundAuthNo: pair?.refund.authNo,
-                                terminalRefundDate: pair?.refund.authDate,
-                                terminalVanKey: pair?.refund.vanKey,
+                                terminalRefundAuthNo: pair?.refund?.authNo,
+                                terminalRefundDate: pair?.refund?.authDate,
+                                terminalVanKey: pair?.refund?.vanKey,
                                 refundMethod: pair ? "AUTO" : (skipTerminal ? "MANUAL" : undefined),
                                 rePaymentAmount: pair?.rePayment?.amount,
                                 rePaymentMethod: pair?.rePayment ? rePaymentMethod.toUpperCase() : undefined,
@@ -725,12 +830,18 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
         setProgress({ phase: "done" });
         setSubmitting(false);
 
+        const voidSkippedCount = Object.values(terminalResults).filter(v => !("error" in v) && (v as TerminalPairResult).voidSkipped).length;
+
         if (totalFail === 0) {
-            const lines: string[] = [`${totalSuccess}건 / 총 ${formatWon(grandTotal)} 환불 완료`];
+            const lines: string[] = [`${totalSuccess}건 / 총 ${formatWon(grandTotal)} 환불 처리 완료`];
             if (autoRefundTotal > 0) lines.push(`· 단말기 자동 환불: ${formatWon(autoRefundTotal)}`);
             if (manualRefundTotal > 0) lines.push(`· 수기 출금 필요 (현금/계좌): ${formatWon(manualRefundTotal)}`);
             if (skipTerminal && autoRefundTotal > 0) lines.push("\n※ 수동 환불 모드 — 카드사 환불은 별도 처리 필요");
-            showAlert({ message: lines.join("\n"), type: "success" });
+            if (voidSkippedCount > 0) {
+                lines.push(`\n⚠ ${voidSkippedCount}건은 위약금 재결제만 완료된 상태 (DEDUCTION_PAID).`);
+                lines.push(`원거래는 다른 단말기에서 직접 취소 후, 결제/환불 탭의 [원거래 취소 재시도]로 마무리하세요.`);
+            }
+            showAlert({ message: lines.join("\n"), type: voidSkippedCount > 0 ? "warning" : "success" });
         } else {
             showAlert({
                 message: `성공 ${totalSuccess}건 / 실패 ${totalFail}건\n\n${failureMessages.slice(0, 5).join("\n")}`,
@@ -1013,8 +1124,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                     단말기 자동 환불: {terminalSelections.length}건
                                 </div>
                                 <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-800 leading-relaxed">
-                                    ⚠ 원결제와 <b>같은 단말기</b>에서만 자동 취소 가능합니다.<br/>
-                                    다른 단말기면 본 결제 진행 후 그 단말기에서 직접 취소해야 합니다.
+                                    ⚠ 원결제와 <b>같은 단말기</b>에서만 공제액을 결제하는 경우 환불까지 자동 진행됩니다. 다른 단말기로 본 공제액 결제 후 원거래 결제 단말기에서 직접 취소해야 합니다.
                                 </div>
                                 <label className="flex items-center gap-2 cursor-pointer pt-1">
                                     <input
@@ -1023,8 +1133,13 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                         onChange={(e) => setManualSkipTerminal(e.target.checked)}
                                         className="h-4 w-4 accent-[#D27A8C]"
                                     />
-                                    <span className="text-[12px] font-bold text-[#99354E]">다른 단말기로 결제</span>
+                                    <span className="text-[12px] font-bold text-[#99354E]">원결제가 다른 단말기에서 진행된 경우 체크</span>
                                 </label>
+                                {autoDetectedDifferentTerminal && (
+                                    <div className="text-[10px] text-amber-700 font-bold bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                                        🔍 자동 감지: 원결제 단말기와 현재 단말기가 다릅니다 (CAT ID 불일치)
+                                    </div>
+                                )}
                             </div>
                         )}
 

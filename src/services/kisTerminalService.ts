@@ -195,7 +195,7 @@ export const kisTerminalService = {
     },
 
     async requestPayment(params: TerminalPaymentRequest): Promise<TerminalResult> {
-        return sendRequest({
+        const result = await sendRequest({
             KIS_ICApproval: {
                 inTranCode: "UC",
                 inTradeType: params.tradeType,
@@ -219,9 +219,18 @@ export const kisTerminalService = {
                 inPrintYN: "Y",
             },
         });
+        if (result.success && result.catId) {
+            try { localStorage.setItem("kis_current_cat_id", result.catId); } catch {}
+        }
+        return result;
+    },
+
+    getCurrentCatId(): string | null {
+        try { return localStorage.getItem("kis_current_cat_id"); } catch { return null; }
     },
 
     async requestRefund(params: TerminalRefundRequest): Promise<TerminalResult> {
+        const orgAuthDate6 = (params.orgAuthDate || "").replace(/\D/g, "").substring(0, 6);
         return sendRequest({
             KIS_ICApproval: {
                 inTranCode: "UC",
@@ -233,7 +242,7 @@ export const kisTerminalService = {
                 inTranAmt: String(params.amount),
                 inVatAmt: "",
                 inSvcAmt: "",
-                inOrgAuthDate: params.orgAuthDate,
+                inOrgAuthDate: orgAuthDate6,
                 inOrgAuthNo: params.orgAuthNo,
                 inCatTranGubun: "1",
                 inTranNo: "",

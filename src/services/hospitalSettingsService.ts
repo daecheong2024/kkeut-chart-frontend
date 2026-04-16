@@ -20,6 +20,7 @@ export interface HospitalSettings {
     stampHospitalDataUrl?: string;
     stampDirectorDataUrl?: string;
     operatingHours?: Record<string, string>;
+    terminalMode?: "kis" | "manual" | "nice";
 }
 
 export const hospitalSettingsService = {

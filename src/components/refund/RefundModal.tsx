@@ -7,6 +7,7 @@ import {
     type RefundType,
 } from "../../services/paymentService";
 import { kisTerminalService } from "../../services/kisTerminalService";
+import { isManualPaymentMode } from "../../utils/terminalMode";
 import { useAlert } from "../ui/AlertDialog";
 
 export interface RefundModalProps {
@@ -51,9 +52,9 @@ function isTerminalPayment(paymentType?: string): boolean {
 }
 
 const REFUND_TYPE_OPTIONS: Array<{ value: RefundType; label: string; description: string }> = [
-    { value: "customer_change", label: "고객 단순변심", description: "결제액 - 위약금 - (1회 정상가 × 사용횟수)" },
-    { value: "hospital_fault", label: "병원 귀책", description: "결제액 ÷ 총횟수 × 잔여횟수 (위약금 없음)" },
-    { value: "manual", label: "기타 (직접 입력)", description: "직원이 환불액을 직접 입력 (사유 필수)" },
+    { value: "customer_change", label: "위약금/정상가 차감 환불", description: "결제액 - 위약금 - (1회 정상가 × 사용횟수)" },
+    { value: "hospital_fault", label: "n/1 환불", description: "결제액 ÷ 총횟수 × 잔여횟수 (위약금 없음)" },
+    { value: "manual", label: "기타", description: "직원이 환불액을 직접 입력 (사유 필수)" },
 ];
 
 function formatWon(value: number): string {
@@ -103,7 +104,8 @@ export function RefundModal({
     }, [terminalInfo, terminalInfoSaved]);
 
     const canUseTerminal =
-        isTerminalPayment(paymentType)
+        !isManualPaymentMode()
+        && isTerminalPayment(paymentType)
         && !!effectiveTerminalInfo.authNo
         && !!effectiveTerminalInfo.authDate
         && !!effectiveTerminalInfo.vanKey;
@@ -141,6 +143,21 @@ export function RefundModal({
     const [calcLoading, setCalcLoading] = useState(false);
     const [calcError, setCalcError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!submitting) return;
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            try { kisTerminalService.cancelTransaction(); } catch {}
+            e.preventDefault();
+            e.returnValue = "단말기 결제 처리 중입니다. 페이지를 떠나면 거래가 취소됩니다.";
+            return e.returnValue;
+        };
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+            try { kisTerminalService.cancelTransaction(); } catch {}
+        };
+    }, [submitting]);
 
     const isMembership = itemType === "membership";
     const availableTypes = useMemo(() => {
@@ -235,20 +252,31 @@ export function RefundModal({
 
             // Step A: 단말기 위약금 결제
             setProgress({ phase: "repayment", amount: penaltyAmount });
-            let rePayResult;
+            let rePayResult: any = null;
+            let rePayTerminalSkipped = false;
             try {
-                rePayResult = await kisTerminalService.requestPayment({ tradeType: repayTradeType, amount: penaltyAmount });
-                if (!rePayResult.success) {
-                    setProgress({ phase: "idle" });
-                    setSubmitting(false);
-                    showAlert({ message: `위약금 결제 실패: ${rePayResult.displayMsg || rePayResult.replyCode}`, type: "error" });
-                    return;
+                const termResult = await kisTerminalService.requestPayment({ tradeType: repayTradeType, amount: penaltyAmount });
+                if (!termResult.success) {
+                    const proceed = await showConfirm({
+                        message: `위약금 단말기 결제 실패: ${termResult.displayMsg || termResult.replyCode}\n\n현금 등 수기로 위약금(${penaltyAmount.toLocaleString()}원)을 수납하고 환불을 진행하시겠습니까?\n\n[확인] → 수기 처리 후 환불 진행\n[취소] → 환불 중단`,
+                        type: "warning",
+                        confirmText: "수기 진행",
+                        cancelText: "취소",
+                    });
+                    if (!proceed) { setProgress({ phase: "idle" }); setSubmitting(false); return; }
+                    rePayTerminalSkipped = true;
+                } else {
+                    rePayResult = termResult;
                 }
             } catch (e: any) {
-                setProgress({ phase: "idle" });
-                setSubmitting(false);
-                showAlert({ message: `위약금 결제 호출 실패: ${e?.message || "오류"}`, type: "error" });
-                return;
+                const proceed = await showConfirm({
+                    message: `위약금 단말기 통신 오류: ${e?.message || "알 수 없는 오류"}\n\n현금 등 수기로 위약금(${penaltyAmount.toLocaleString()}원)을 수납하고 환불을 진행하시겠습니까?\n\n[확인] → 수기 처리 후 환불 진행\n[취소] → 환불 중단`,
+                    type: "warning",
+                    confirmText: "수기 진행",
+                    cancelText: "취소",
+                });
+                if (!proceed) { setProgress({ phase: "idle" }); setSubmitting(false); return; }
+                rePayTerminalSkipped = true;
             }
 
             // Step A 직후: BE 에 deduction-pay 호출 (위약금 detail 즉시 저장 + DEDUCTION_PAID 마킹)
@@ -258,24 +286,26 @@ export function RefundModal({
                     paymentMasterId,
                     originPaymentDetailId: paymentDetailId,
                     amount: penaltyAmount,
-                    method: rePaymentMethod.toUpperCase(),
-                    terminalAuthNo: rePayResult.authNo,
-                    terminalAuthDate: rePayResult.replyDate,
-                    vanKey: rePayResult.vanKey,
-                    cardCompany: rePayResult.issuerName || rePayResult.accepterName,
-                    installment: rePayResult.installment,
-                    terminalCardNo: rePayResult.cardNo,
-                    terminalTranNo: rePayResult.tranNo,
-                    terminalAccepterName: rePayResult.accepterName,
-                    terminalCatId: rePayResult.catId,
-                    terminalMerchantRegNo: rePayResult.merchantRegNo,
+                    method: rePayTerminalSkipped ? "CASH" : rePaymentMethod.toUpperCase(),
+                    terminalAuthNo: rePayResult?.authNo,
+                    terminalAuthDate: rePayResult?.replyDate,
+                    vanKey: rePayResult?.vanKey,
+                    cardCompany: rePayResult?.issuerName || rePayResult?.accepterName,
+                    installment: rePayResult?.installment,
+                    terminalCardNo: rePayResult?.cardNo,
+                    terminalTranNo: rePayResult?.tranNo,
+                    terminalAccepterName: rePayResult?.accepterName,
+                    terminalCatId: rePayResult?.catId,
+                    terminalMerchantRegNo: rePayResult?.merchantRegNo,
                 });
                 rePaymentDetailId = dp.rePaymentDetailId;
             } catch (e: any) {
                 setProgress({ phase: "idle" });
                 setSubmitting(false);
                 showAlert({
-                    message: `위약금 단말기 결제는 승인되었으나 시스템 저장 실패\n승인번호: ${rePayResult.authNo}\n오류: ${e?.response?.data?.message || e?.message || "알 수 없음"}\n→ 운영자 문의 필요`,
+                    message: rePayTerminalSkipped
+                        ? `위약금 수기 처리 시스템 저장 실패\n오류: ${e?.response?.data?.message || e?.message || "알 수 없음"}\n→ 운영자 문의 필요`
+                        : `위약금 단말기 결제는 승인되었으나 시스템 저장 실패\n승인번호: ${rePayResult?.authNo}\n오류: ${e?.response?.data?.message || e?.message || "알 수 없음"}\n→ 운영자 문의 필요`,
                     type: "error"
                 });
                 return;

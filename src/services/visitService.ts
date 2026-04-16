@@ -4,6 +4,8 @@ import { resolveActiveBranchId } from "../utils/branch";
 export interface VisitUpdateData {
     status?: string;
     statusAlertMinutes?: number;
+    managedByUserId?: number;
+    procedureName?: string;
     checkInAt?: string;
     isWalkIn?: boolean;
     room?: string;

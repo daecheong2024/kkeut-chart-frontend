@@ -60,6 +60,22 @@ type PendingStatusAlertModal = {
   defaultAlertMinutes: number;
 };
 
+type PendingAssigneeModal = {
+  statusId: string;
+  label: string;
+  colorHex?: string;
+  procedureName: string;
+  alertMinutes?: number;
+};
+
+const PROCEDURE_STATUS_KEYS = new Set(["anesthesia", "proc"]);
+
+function statusRequiresAssignee(statusKey: string, label?: string): boolean {
+  if (PROCEDURE_STATUS_KEYS.has(statusKey)) return true;
+  const lbl = (label || "").trim();
+  return /(마취|모델링)/.test(lbl);
+}
+
 type WaitCardProps = {
   patient: Patient;
   isHighlighted?: boolean;
@@ -131,6 +147,8 @@ export function WaitCard({
   const [todoActorById, setTodoActorById] = useState<Record<number, string>>({});
   const [pendingStatusAlertModal, setPendingStatusAlertModal] = useState<PendingStatusAlertModal | null>(null);
   const [isSavingStatusAlert, setIsSavingStatusAlert] = useState(false);
+  const [pendingAssigneeModal, setPendingAssigneeModal] = useState<PendingAssigneeModal | null>(null);
+  const [isSavingAssignee, setIsSavingAssignee] = useState(false);
 
   const waitTime = patient.lastMovedAt ? differenceInMinutes(new Date(), new Date(patient.lastMovedAt)) : 0;
   const resolvedLocationOptions =
@@ -211,6 +229,29 @@ export function WaitCard({
     onStatusDropdownChange?.(false);
   };
 
+  const closeAssigneeModal = () => {
+    setPendingAssigneeModal(null);
+    onStatusDropdownChange?.(false);
+  };
+
+  const departmentUserGroups = (() => {
+    const users = (settings.members?.users || []) as any[];
+    const depts = (settings.members?.departments || []) as any[];
+    const groups: { deptName: string; users: { id: number; name: string }[] }[] = [];
+    for (const dept of depts) {
+      const deptUsers = users
+        .filter((u: any) => String(u.departmentId) === String(dept.id))
+        .map((u: any) => ({ id: Number(u.id), name: String(u.name || "") }));
+      if (deptUsers.length > 0) groups.push({ deptName: dept.name, users: deptUsers });
+    }
+    const assignedIds = new Set(users.filter((u: any) => u.departmentId).map((u: any) => String(u.id)));
+    const unassigned = users
+      .filter((u: any) => !assignedIds.has(String(u.id)))
+      .map((u: any) => ({ id: Number(u.id), name: String(u.name || "") }));
+    if (unassigned.length > 0) groups.push({ deptName: "기타", users: unassigned });
+    return groups;
+  })();
+
   useEffect(() => {
     const onMouseDown = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -248,13 +289,19 @@ export function WaitCard({
     });
   }, [patientTodos]);
 
-  const applyStatusChange = async (statusKey: string, statusAlertMinutes?: number) => {
+  const applyStatusChange = async (
+    statusKey: string,
+    statusAlertMinutes?: number,
+    extras?: { managedByUserId?: number; procedureName?: string }
+  ) => {
     updatePatientStatus?.(patient.id, statusKey, { statusAlertMinutes });
     setStatusDropdownOpen(false);
     try {
       await visitService.updateVisit(patient.id, {
         status: statusKey,
         statusAlertMinutes,
+        managedByUserId: extras?.managedByUserId,
+        procedureName: extras?.procedureName,
       });
       return true;
     } catch (error) {
@@ -270,6 +317,9 @@ export function WaitCard({
       return;
     }
     const nextStatusSetting = getDynamicStatusSetting(statusKey);
+    const fallbackLabel = STATUS_CONFIG[statusKey]?.label;
+    const statusLabel = nextStatusSetting?.label || fallbackLabel || statusKey;
+
     if (nextStatusSetting?.alertEnabled && nextStatusSetting.allowPerPatientAlertMinutes) {
       const defaultMinutes =
         patient.status === statusKey && typeof patient.statusAlertMinutes === "number"
@@ -291,6 +341,19 @@ export function WaitCard({
     const nextAlertMinutes = nextStatusSetting?.alertEnabled
       ? sanitizeAlertMinutes(nextStatusSetting.alertAfterMinutes)
       : undefined;
+
+    if (statusRequiresAssignee(statusKey, statusLabel)) {
+      setStatusDropdownOpen(false);
+      setPendingAssigneeModal({
+        statusId: statusKey,
+        label: statusLabel,
+        colorHex: nextStatusSetting?.colorHex,
+        procedureName: statusLabel,
+        alertMinutes: nextAlertMinutes,
+      });
+      onStatusDropdownChange?.(true);
+      return;
+    }
 
     await applyStatusChange(statusKey, nextAlertMinutes);
   };
@@ -791,11 +854,26 @@ export function WaitCard({
                   return;
                 }
 
+                const sanitized = sanitizeAlertMinutes(parsed);
+
+                if (statusRequiresAssignee(pendingStatusAlertModal.statusId, pendingStatusAlertModal.label)) {
+                  const target = {
+                    statusId: pendingStatusAlertModal.statusId,
+                    label: pendingStatusAlertModal.label,
+                    colorHex: pendingStatusAlertModal.colorHex,
+                    procedureName: pendingStatusAlertModal.label,
+                    alertMinutes: sanitized,
+                  };
+                  setPendingStatusAlertModal(null);
+                  setPendingAssigneeModal(target);
+                  return;
+                }
+
                 setIsSavingStatusAlert(true);
                 try {
                   const success = await applyStatusChange(
                     pendingStatusAlertModal.statusId,
-                    sanitizeAlertMinutes(parsed)
+                    sanitized
                   );
                   if (success) {
                     closeStatusAlertModal();
@@ -807,6 +885,100 @@ export function WaitCard({
               className="h-10 rounded-xl bg-[#D27A8C] px-5 text-sm font-bold text-white shadow-sm hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSavingStatusAlert ? "저장중..." : "적용"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {pendingAssigneeModal && (
+      <div className="fixed inset-0 z-[10040] flex items-center justify-center bg-slate-950/35 p-4">
+        <div className="w-full max-w-md overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
+          <div className="border-b border-slate-100 bg-[linear-gradient(135deg,rgba(240,249,255,0.95),rgba(248,250,252,0.92))] px-6 py-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#9E9E9E]">Assignee</div>
+                <div className="mt-2 text-xl font-bold text-[#242424]">{pendingAssigneeModal.label} 담당자 선택</div>
+                <div className="mt-1 text-sm text-[#616161]">
+                  {patient.name}님의 <span className="font-bold text-[#242424]">{pendingAssigneeModal.procedureName}</span> 진행자를 선택해주세요.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeAssigneeModal}
+                disabled={isSavingAssignee}
+                className="rounded-full p-2 text-[#9E9E9E] transition hover:bg-white/80 hover:text-[#616161] disabled:cursor-not-allowed disabled:opacity-40"
+                title="닫기"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="max-h-[60vh] overflow-y-auto px-4 py-3">
+            {departmentUserGroups.length === 0 ? (
+              <div className="px-2 py-6 text-center text-sm text-[#9E9E9E]">등록된 사용자가 없습니다. 직원 설정에서 추가해주세요.</div>
+            ) : (
+              departmentUserGroups.map((group) => (
+                <div key={group.deptName} className="mb-3">
+                  <div className="mb-1 px-2 text-[11px] font-bold uppercase tracking-wide text-[#5C2A35]">{group.deptName}</div>
+                  <div className="flex flex-wrap gap-2">
+                    {group.users.map((u) => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        disabled={isSavingAssignee}
+                        onClick={async () => {
+                          setIsSavingAssignee(true);
+                          try {
+                            const success = await applyStatusChange(
+                              pendingAssigneeModal.statusId,
+                              pendingAssigneeModal.alertMinutes,
+                              { managedByUserId: u.id, procedureName: pendingAssigneeModal.procedureName }
+                            );
+                            if (success) closeAssigneeModal();
+                          } finally {
+                            setIsSavingAssignee(false);
+                          }
+                        }}
+                        className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-[#242424] transition hover:border-[#D27A8C] hover:bg-[#D27A8C]/10 hover:text-[#D27A8C] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {u.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 border-t border-slate-100 bg-slate-50 px-6 py-4">
+            <button
+              type="button"
+              disabled={isSavingAssignee}
+              onClick={async () => {
+                setIsSavingAssignee(true);
+                try {
+                  const success = await applyStatusChange(
+                    pendingAssigneeModal.statusId,
+                    pendingAssigneeModal.alertMinutes
+                  );
+                  if (success) closeAssigneeModal();
+                } finally {
+                  setIsSavingAssignee(false);
+                }
+              }}
+              className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-[#616161] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              담당자 없이 진행
+            </button>
+            <button
+              type="button"
+              onClick={closeAssigneeModal}
+              disabled={isSavingAssignee}
+              className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-[#616161] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              취소
             </button>
           </div>
         </div>

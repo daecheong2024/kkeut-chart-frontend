@@ -62,6 +62,9 @@ export interface HospitalSettings {
   stampHospitalDataUrl?: string;
   stampDirectorDataUrl?: string;
   operatingHours?: Record<string, string>;
+
+  /** 카드 단말기 모드: kis (기본) / manual (수기 전용) / nice (예정) */
+  terminalMode?: "kis" | "manual" | "nice";
 }
 
 /** ================================

@@ -13,6 +13,11 @@ export const SIGNALR_EVENTS = {
     STATISTICS: 'statistics',
     CHART_SETTING: 'chart_setting',
     AUTHORITY_UPDATE: 'authority_update',
+    TICKET_USED: 'ticket_used',
+    CART: 'cart',
+    CUSTOMER: 'customer',
+    MEMO: 'memo',
+    CHART: 'chart',
 } as const;
 
 export type SignalREventName = (typeof SIGNALR_EVENTS)[keyof typeof SIGNALR_EVENTS];
@@ -29,6 +34,11 @@ export const VIEW_EVENT_MAP: Record<string, SignalREventName[]> = {
         SIGNALR_EVENTS.PROCEDURE_STATUS,
         SIGNALR_EVENTS.CHART_SETTING,
         SIGNALR_EVENTS.AUTHORITY_UPDATE,
+        SIGNALR_EVENTS.TICKET_USED,
+        SIGNALR_EVENTS.CART,
+        SIGNALR_EVENTS.CUSTOMER,
+        SIGNALR_EVENTS.MEMO,
+        SIGNALR_EVENTS.CHART,
     ],
     board: [
         SIGNALR_EVENTS.RECEPTION,
@@ -36,11 +46,13 @@ export const VIEW_EVENT_MAP: Record<string, SignalREventName[]> = {
         SIGNALR_EVENTS.PATIENT_STATUS,
         SIGNALR_EVENTS.CHART_SETTING,
         SIGNALR_EVENTS.AUTHORITY_UPDATE,
+        SIGNALR_EVENTS.CUSTOMER,
     ],
     reservation: [
         SIGNALR_EVENTS.RESERVATION,
         SIGNALR_EVENTS.CHART_SETTING,
         SIGNALR_EVENTS.AUTHORITY_UPDATE,
+        SIGNALR_EVENTS.CUSTOMER,
     ],
     procedure: [
         SIGNALR_EVENTS.PROCEDURE_STATUS,

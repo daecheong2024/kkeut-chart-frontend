@@ -189,15 +189,29 @@ export function WaitView() {
                 }
             }
             if (printSections.length === 0) { setAlertMessage("인쇄할 차트 내용이 없습니다."); return; }
+            const rawBirth = (todayVisit as any)?.customerBirthDate
+                || (patient as any)?.birthDate
+                || (patient as any)?.customerBirthDate
+                || "";
+            const birthDisplay = rawBirth ? String(rawBirth).substring(0, 10) : "";
             const patientAge = patient.age || "";
+            const birthWithAge = birthDisplay && patientAge !== ""
+                ? `${birthDisplay} (${patientAge}세)`
+                : birthDisplay || undefined;
             const visitDate = format(new Date(todayVisit.scheduledAt || todayVisit.registerTime || todayVisit.createTime), "yyyy-MM-dd HH:mm:ss");
-            const headerParts: string[] = [`${patient.name}${patientAge ? ` (${patientAge}세)` : ""}\n${visitDate}`];
             const staffParts: string[] = [];
             if (isPrintEnabled("counselor") && (todayVisit as any)?.counselorName) staffParts.push(`상담:${(todayVisit as any).counselorName}`);
             if (isPrintEnabled("doctorCounselor") && (todayVisit as any)?.doctorCounselorName) staffParts.push(`원장상담:${(todayVisit as any).doctorCounselorName}`);
-            if (isPrintEnabled("doctor") && (todayVisit as any)?.doctorName) staffParts.push(`담당의:${(todayVisit as any).doctorName}`);
-            if (staffParts.length > 0) headerParts.push(staffParts.join("  "));
-            await printService.printChartSections(printSections, headerParts.join("\n"));
+            await printService.printChart({
+                header: staffParts.length > 0 ? staffParts.join("  ") : undefined,
+                patientName: patient.name,
+                chartNo: (patient as any).chartNo || String(patient.id),
+                birthDate: birthWithAge,
+                gender: patient.gender,
+                visitDate,
+                doctor: isPrintEnabled("doctor") && (todayVisit as any)?.doctorName ? (todayVisit as any).doctorName : undefined,
+                sections: printSections,
+            });
         } catch (error) { console.error("failed to print chart", error); setAlertMessage("인쇄 중 오류가 발생했습니다."); }
     };
 

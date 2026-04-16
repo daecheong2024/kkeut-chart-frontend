@@ -2,6 +2,7 @@
 import { createPortal } from "react-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { kisTerminalService } from "../services/kisTerminalService";
+import { isManualPaymentMode } from "../utils/terminalMode";
 import {
     Calendar,
     User,
@@ -506,7 +507,7 @@ export default function PatientChartPage() {
     const [ticketTab, setTicketTab] = useState<"active" | "completed" | "refunded">("active");
     const [ticketSearch, setTicketSearch] = useState<string>("");
     const [assigningTodoId, setAssigningTodoId] = useState<number | null>(null);
-    const [dailySummaryTab, setDailySummaryTab] = useState<"purchase" | "usage" | "refund">("purchase");
+    const [dailySummaryTab, setDailySummaryTab] = useState<"purchase_refund" | "usage">("purchase_refund");
     const [expandedRefundId, setExpandedRefundId] = useState<string | null>(null);
     const [isFinalAmountExpanded, setIsFinalAmountExpanded] = useState(false);
     const [visitViewMode, setVisitViewMode] = useState<"summary" | "detail">("summary");
@@ -1755,6 +1756,17 @@ export default function PatientChartPage() {
     };
 
     const handleUseTicket = async (ticket: any) => {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        if (selectedVisitDate && selectedVisitDate !== todayStr) {
+            const allow = await showConfirm({
+                message: `현재 차트는 오늘 날짜(${todayStr})가 아닙니다 (차트 날짜: ${selectedVisitDate}).\n그래도 티켓을 사용 처리하시겠습니까?`,
+                type: "warning",
+                confirmText: "사용",
+                cancelText: "취소",
+            });
+            if (!allow) return;
+        }
+
         const ticketDef = settings.tickets?.items?.find(
             (item: any) => item.name === ticket.itemName || String(item.id) === String(ticket.itemId)
         );
@@ -1950,6 +1962,10 @@ export default function PatientChartPage() {
             }
 
             showAlert({ message: "티켓이 사용되었습니다.", type: "success" });
+
+            try {
+                if (patientIdStr) await loadPersistenceData(Number(patientIdStr));
+            } catch {}
         } catch (e: any) {
             const errMsg = e?.response?.data?.message || e?.message || "Unknown Error";
             const warnPrefix = errMsg.startsWith("CYCLE_WARN|")
@@ -1985,6 +2001,9 @@ export default function PatientChartPage() {
                             })
                         );
                         showAlert({ message: "티켓이 사용되었습니다.", type: "success" });
+                        try {
+                            if (patientIdStr) await loadPersistenceData(Number(patientIdStr));
+                        } catch {}
                     } catch (retryErr: any) {
                         showAlert({ message: "티켓 사용 실패: " + (retryErr?.response?.data?.message || retryErr?.message || "Unknown Error"), type: "error" });
                     }
@@ -2741,18 +2760,29 @@ export default function PatientChartPage() {
             return doctorMembers.find((m) => m.id === docId)?.name || selectedDoctorCounselorLabel;
         })();
 
-        const birthDate = (patient as any).birthDate || "";
-        const patientAge = birthDate ? differenceInYears(new Date(), new Date(birthDate)) : "";
-        const birthDisplay = birthDate ? birthDate.substring(0, 10) : "";
-        const headerParts: string[] = [`${patient.name} (${patientAge}세, ${birthDisplay})\n${formattedDate}`];
+        const rawBirth = (patient as any).birthDate
+            || (selectedVisit as any)?.customerBirthDate
+            || "";
+        const birthDisplay = rawBirth ? String(rawBirth).substring(0, 10) : "";
+        const patientAge = rawBirth ? differenceInYears(new Date(), new Date(rawBirth)) : "";
+        const birthWithAge = birthDisplay && patientAge !== ""
+            ? `${birthDisplay} (${patientAge}세)`
+            : birthDisplay || undefined;
         const staffParts: string[] = [];
         if (isPrintEnabled("counselor")) staffParts.push(`상담:${selectedCounselorLabel}`);
         if (isPrintEnabled("doctorCounselor")) staffParts.push(`원장상담:${selectedDoctorCounselorLabel}`);
-        if (isPrintEnabled("doctor")) staffParts.push(`담당의:${doctorLabel}`);
-        if (staffParts.length > 0) headerParts.push(staffParts.join("  "));
-        const header = headerParts.join("\n");
+        const header = staffParts.length > 0 ? staffParts.join("  ") : undefined;
 
-        await printService.printChartSections(sections, header);
+        await printService.printChart({
+            header,
+            patientName: patient.name,
+            chartNo: (patient as any).chartNo || String(patient.id),
+            birthDate: birthWithAge,
+            gender: patient.gender,
+            visitDate: formattedDate,
+            doctor: isPrintEnabled("doctor") ? doctorLabel : undefined,
+            sections,
+        });
     };
 
     const handleUpdateVisitRoom = async (roomId: string) => {
@@ -3107,7 +3137,7 @@ export default function PatientChartPage() {
                                     e.currentTarget.style.transform = "translateY(0)";
                                 }
                             }}
-                            onClick={() => !isReadOnly && setShowVisitCreationModal(true)}
+                            onClick={() => !isReadOnly && setShowReceptionModal(true)}
                             disabled={isReadOnly}
                         >
                             <Plus className="w-3.5 h-3.5" /> 새차트
@@ -3638,7 +3668,7 @@ export default function PatientChartPage() {
                                         </div>
                                         <div
                                             className="px-3 py-2 cursor-pointer text-gray-400 hover:text-gray-600"
-                                            onClick={() => setIsSearchOpen(false)}
+                                            onClick={() => { setIsSearchOpen(false); setSearchQuery(""); }}
                                         >
                                             <X className="w-4 h-4" />
                                         </div>
@@ -3829,8 +3859,21 @@ export default function PatientChartPage() {
                                 />
                             </div>
                             <div className="space-y-1 max-h-[150px] overflow-y-auto">
-                                {visibleTodos.map((todo) => {
+                                {visibleTodos.map((todo, idx) => {
                                     const todoStatus = (todo as any).status || (todo.isCompleted ? "done" : "todo");
+                                    const moveTodo = (direction: -1 | 1) => {
+                                        const targetIdx = idx + direction;
+                                        if (targetIdx < 0 || targetIdx >= visibleTodos.length) return;
+                                        const otherId = visibleTodos[targetIdx].id;
+                                        setTodos((prev) => {
+                                            const next = [...prev];
+                                            const a = next.findIndex((t) => t.id === todo.id);
+                                            const b = next.findIndex((t) => t.id === otherId);
+                                            if (a < 0 || b < 0) return prev;
+                                            [next[a], next[b]] = [next[b], next[a]];
+                                            return next;
+                                        });
+                                    };
                                     return (
                                     <div key={todo.id} className="flex items-center gap-2 group text-[13px] text-gray-600 hover:bg-gray-50 p-1 rounded relative">
                                         <svg
@@ -3910,6 +3953,20 @@ export default function PatientChartPage() {
                                         {todo.assignee && (
                                             <span className="text-[11px] text-[#D27A8C] font-semibold flex-shrink-0">{todo.assignee}</span>
                                         )}
+                                        <button
+                                            type="button"
+                                            disabled={idx === 0}
+                                            onClick={() => moveTodo(-1)}
+                                            className="text-gray-300 hover:text-[#D27A8C] disabled:opacity-20 disabled:cursor-not-allowed opacity-0 group-hover:opacity-100 flex-shrink-0 text-[14px] leading-none px-0.5"
+                                            title="위로"
+                                        >▲</button>
+                                        <button
+                                            type="button"
+                                            disabled={idx === visibleTodos.length - 1}
+                                            onClick={() => moveTodo(1)}
+                                            className="text-gray-300 hover:text-[#D27A8C] disabled:opacity-20 disabled:cursor-not-allowed opacity-0 group-hover:opacity-100 flex-shrink-0 text-[14px] leading-none px-0.5"
+                                            title="아래로"
+                                        >▼</button>
                                         <Trash
                                             className="w-3 h-3 text-gray-300 cursor-pointer hover:text-red-500 opacity-0 group-hover:opacity-100 flex-shrink-0"
                                             onClick={() => handleRemoveTodo(todo.id)}
@@ -4161,9 +4218,8 @@ export default function PatientChartPage() {
                                 <div className="px-2 py-2 bg-[#FCF7F8] border-b border-[#F8DCE2]">
                                     <div className="flex gap-1">
                                         {([
-                                            { key: "purchase" as const, label: "구매", items: dailyPurchaseItems },
+                                            { key: "purchase_refund" as const, label: "구매·환불", items: [...dailyPurchaseItems, ...dailyRefundItems] },
                                             { key: "usage" as const, label: "사용", items: dailyUsageItems },
-                                            { key: "refund" as const, label: "환불", items: dailyRefundItems },
                                         ]).map((tab) => {
                                             const active = dailySummaryTab === tab.key;
                                             return (
@@ -4184,13 +4240,18 @@ export default function PatientChartPage() {
                                 </div>
                                 <div className="px-2 py-1.5">
                                     {(() => {
-                                        const visibleItems = dailySummaryTab === "purchase" ? dailyPurchaseItems
-                                            : dailySummaryTab === "usage" ? dailyUsageItems
-                                            : dailyRefundItems;
+                                        const sortByTime = (a: any, b: any) => {
+                                            const ta = new Date(a?.occurredAt || a?.paidAt || 0).getTime();
+                                            const tb = new Date(b?.occurredAt || b?.paidAt || 0).getTime();
+                                            return tb - ta;
+                                        };
+                                        const visibleItems = dailySummaryTab === "purchase_refund"
+                                            ? [...dailyPurchaseItems, ...dailyRefundItems].sort(sortByTime)
+                                            : dailyUsageItems;
                                         if (visibleItems.length === 0) {
                                             return (
                                                 <div className="text-center text-[12px] text-[#9E9E9E] py-3">
-                                                    {dailySummaryTab === "purchase" ? "당일 구매 이력이 없습니다." : dailySummaryTab === "usage" ? "당일 사용 이력이 없습니다." : "당일 환불 이력이 없습니다."}
+                                                    {dailySummaryTab === "purchase_refund" ? "당일 구매·환불 이력이 없습니다." : "당일 사용 이력이 없습니다."}
                                                 </div>
                                             );
                                         }
@@ -4333,9 +4394,17 @@ export default function PatientChartPage() {
                                 { id: "record", label: "환자기록", count: patientRecords.length },
                                 { id: "reservation", label: "예약기록", count: customerReservations.length },
                                 { id: "membership", label: "회원권", count: memberships.length },
-                                { id: "ticket", label: "티켓 이력", count: tickets.length },
+                                { id: "ticket", label: "티켓 이력", count: tickets.filter((t) => !t.isRefunded && ((getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null)).length },
                                 { id: "consent", label: "동의서", count: undefined },
-                                { id: "refund", label: "결제/환불", count: paymentRecords.reduce((sum, r) => sum + (r.items || []).filter(it => { const s = String((it as any).status || r.status || "paid").trim().toLowerCase(); return s !== "refunded" && s !== "cancelled"; }).length, 0) },
+                                { id: "refund", label: "결제/환불", count: paymentRecords.reduce((sum, r) => sum + (r.items || []).filter(it => {
+                                    const s = String((it as any).status || r.status || "paid").trim().toLowerCase();
+                                    if (s === "refunded" || s === "cancelled") return false;
+                                    const isRePayment = ((it as any).paymentDetails ?? []).some(
+                                        (pd: any) => pd?.memo && String(pd.memo).startsWith("위약금 재결제")
+                                    );
+                                    if (isRePayment) return false;
+                                    return true;
+                                }).length, 0) },
                             ];
 
                             return (
@@ -5446,12 +5515,12 @@ export default function PatientChartPage() {
                                         {[
                                             {
                                                 value: "customer" as RefundResponsibilityType,
-                                                title: "소비자 귀책",
+                                                title: "위약금/정상가 차감 환불",
                                                 description: "결제금액 기준 10% 위약금을 차감합니다.",
                                             },
                                             {
                                                 value: "hospital" as RefundResponsibilityType,
-                                                title: "병원 귀책",
+                                                title: "n/1 환불",
                                                 description: "위약금 없이 사용분만 차감합니다.",
                                             },
                                         ].map((option) => {
@@ -5711,8 +5780,8 @@ export default function PatientChartPage() {
 
                                 <div className="mt-3 rounded-[8px] px-3 py-2 text-[11px] leading-relaxed" style={{ backgroundColor: "#FFFFFF", border: "1px solid #FCEBEF", color: "#616161" }}>
                                     {refundModal.responsibilityType === "customer"
-                                        ? "소비자 귀책은 결제건별 10% 위약금이 적용됩니다."
-                                        : "병원 귀책은 위약금 없이 사용분만 차감합니다."}
+                                        ? "위약금/정상가 차감 환불은 결제건별 10% 위약금이 적용됩니다."
+                                        : "n/1 환불은 위약금 없이 사용분만 차감합니다."}
                                 </div>
 
                                 {refundModalPreviewAmount > 0 && (() => {
@@ -6274,7 +6343,7 @@ function RefundHistoryList({
         id: string;
         records: PaymentRecord[];
         latestPaidAt: string;
-        status: "paid" | "partial_refunded" | "refunded";
+        status: "paid" | "partial_refunded" | "refunded" | "deduction_paid";
         totalActualPaid: number;
         totalMembershipDeduction: number;
         itemSummaries: RefundItemSummary[];
@@ -6379,6 +6448,8 @@ function RefundHistoryList({
             let status: RefundRecordGroup["status"] = "paid";
             if (refundedCount === records.length) status = "refunded";
             else if (refundedCount > 0) status = "partial_refunded";
+            const hasDeductionPaid = records.some((r) => getRecordStatus(r) === "deduction_paid");
+            if (hasDeductionPaid && status !== "refunded") status = "deduction_paid";
 
             const itemMap = new Map<string, RefundItemSummary>();
             for (const record of records) {
@@ -6743,9 +6814,15 @@ function RefundHistoryList({
                         : (recordRawStatus === "refunded" || recordRawStatus === "cancelled")
                         ? "refunded" as const
                         : "paid" as const;
+                    const isRePaymentDetail = ((item as any).paymentDetails ?? []).some(
+                        (pd: any) => pd?.memo && String(pd.memo).startsWith("위약금 재결제")
+                    );
+                    const displayItemName = isRePaymentDetail
+                        ? "공제액 결제 (환불 위약금)"
+                        : String(item.itemName || "항목");
                     cards.push({
                         id: `item-${record.id}-${(item as any).paymentDetailId || item.itemName}-${item.itemType}`,
-                        itemName: String(item.itemName || "항목"),
+                        itemName: displayItemName,
                         itemType: String(item.itemType || "").toLowerCase(),
                         quantity: Number(item.quantity || 1),
                         totalPrice: Number(item.totalPrice || 0),
@@ -6875,6 +6952,7 @@ function RefundHistoryList({
                         authNo: pd.terminalAuthNo,
                         authDate: pd.terminalAuthDate,
                         vanKey: pd.terminalVanKey,
+                        catId: pd.terminalCatId,
                     }
                     : undefined,
             };
@@ -7055,7 +7133,7 @@ function RefundHistoryList({
                                                     )}
                                                     {rePaymentDetails.length > 0 && (
                                                         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-amber-700">
-                                                            <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold">위약금 재결제</span>
+                                                            <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold">위약금 재결제 완료</span>
                                                             {rePaymentDetails.map(pd => (
                                                                 <button
                                                                     key={pd.id}
@@ -7158,7 +7236,7 @@ function RefundHistoryList({
                                                         itemName: c.itemName,
                                                         paymentType: pd.paymentType,
                                                         terminalInfo: (pd.terminalAuthNo || pd.terminalAuthDate || pd.terminalVanKey)
-                                                            ? { authNo: pd.terminalAuthNo, authDate: pd.terminalAuthDate, vanKey: pd.terminalVanKey }
+                                                            ? { authNo: pd.terminalAuthNo, authDate: pd.terminalAuthDate, vanKey: pd.terminalVanKey, catId: pd.terminalCatId }
                                                             : undefined,
                                                     };
                                                 });
@@ -7490,6 +7568,35 @@ function RefundHistoryList({
             {retryRefundState && (() => {
                 const s = retryRefundState;
                 const closeRetry = () => setRetryRefundState(null);
+                const handleManualClose = async () => {
+                    if (retryRefundSubmitting) return;
+                    const proceed = await showConfirm({
+                        message: "원거래 카드 취소를 다른 단말기에서 직접 완료하셨습니까?\n\n[확인] 시 시스템 환불 마감만 진행됩니다.\n단말기 호출은 하지 않습니다.",
+                        type: "warning",
+                        confirmText: "수동 마감",
+                        cancelText: "취소",
+                    });
+                    if (!proceed) return;
+                    setRetryRefundSubmitting(true);
+                    try {
+                        await paymentService.finalizeRefund(s.paymentMasterId, {
+                            originPaymentDetailId: s.originPaymentDetailId,
+                            rePaymentDetailId: s.rePaymentDetailId,
+                            refundType: "customer_change",
+                            terminalRefundAuthNo: undefined,
+                            terminalRefundDate: undefined,
+                            terminalVanKey: undefined,
+                            refundMethod: "MANUAL",
+                        });
+                        showAlert({ message: "환불 처리가 완료되었습니다 (수동 마감).", type: "success" });
+                        closeRetry();
+                        if (typeof onRefundCompleted === "function") void onRefundCompleted();
+                    } catch (e: any) {
+                        showAlert({ message: `수동 마감 실패: ${e?.response?.data?.message || e?.message || "오류"}`, type: "error" });
+                    } finally {
+                        setRetryRefundSubmitting(false);
+                    }
+                };
                 const handleRetry = async () => {
                     if (retryRefundSubmitting) return;
                     if (!s.terminalInfo?.authNo || !s.terminalInfo?.authDate || !s.terminalInfo?.vanKey) {
@@ -7498,9 +7605,10 @@ function RefundHistoryList({
                     }
                     setRetryRefundSubmitting(true);
                     try {
-                        const ok = await kisTerminalService.connect().catch(() => false);
+                        const manualMode = isManualPaymentMode();
+                        const ok = manualMode ? false : await kisTerminalService.connect().catch(() => false);
                         if (!ok) {
-                            const proceed = await showConfirm({
+                            const proceed = manualMode ? true : await showConfirm({
                                 message: "단말기 연결 실패. 수동 처리(단말기 호출 없이 시스템만 환불 마감) 로 진행하시겠습니까?\n\n※ 원거래 카드 환불은 직원이 그 단말기에서 직접 수행한 상태여야 합니다.",
                                 type: "warning",
                                 confirmText: "수동 마감",
@@ -7567,8 +7675,9 @@ function RefundHistoryList({
                                     원결제와 <b>같은 단말기</b>여야 자동 처리됩니다. 다른 단말기에서 직접 취소했다면 [수동 마감] 으로 진행하세요.
                                 </div>
                             </div>
-                            <div className="border-t border-amber-200 px-5 py-3 bg-amber-50/50 flex justify-end gap-2">
+                            <div className="border-t border-amber-200 px-5 py-3 bg-amber-50/50 flex justify-end gap-2 flex-wrap">
                                 <button type="button" onClick={closeRetry} disabled={retryRefundSubmitting} className="h-9 rounded-lg border border-amber-200 bg-white px-4 text-[12px] font-bold text-amber-800 hover:bg-amber-50 disabled:opacity-50">취소</button>
+                                <button type="button" onClick={() => void handleManualClose()} disabled={retryRefundSubmitting} className="h-9 rounded-lg border border-amber-300 bg-white px-4 text-[12px] font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50">{retryRefundSubmitting ? "처리 중..." : "수동 마감"}</button>
                                 <button type="button" onClick={() => void handleRetry()} disabled={retryRefundSubmitting} className="h-9 rounded-lg bg-amber-600 px-4 text-[12px] font-extrabold text-white hover:bg-amber-700 disabled:opacity-50">{retryRefundSubmitting ? "처리 중..." : "단말기 취소 + 마무리"}</button>
                             </div>
                         </div>
