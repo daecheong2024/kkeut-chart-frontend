@@ -2220,6 +2220,9 @@ export default function PatientChartPage() {
             const amount = typeof paymentData === 'number' ? paymentData : (paymentData?.amount || 0);
             const method = paymentData?.method || 'card';
 
+            const actualPaid = paymentData?.paidAmount ?? amount;
+            const isPartial = paymentData?.isPartialPayment === true;
+
             await cartService.checkout(pid, {
                 visitId: selectedVisit?.id,
                 useMembership: prioritizedMembershipIds.length > 0,
@@ -2233,13 +2236,18 @@ export default function PatientChartPage() {
                 paymentSubMethodLabel: paymentData?.paymentSubMethodLabel,
                 paymentLines: paymentData?.paymentLines,
                 taxFreeAmount: paymentData?.taxFreeAmount,
-                paidAmount: amount,
+                paidAmount: actualPaid,
                 memo: paymentData?.memo,
                 assignee: paymentData?.assignee,
             });
 
             await loadPersistenceData(pid);
-            showAlert({ message: "수납 및 티켓 발급이 완료되었습니다.", type: "success" });
+            showAlert({
+                message: isPartial
+                    ? `부분 수납 완료 (${actualPaid.toLocaleString()}원 / ${amount.toLocaleString()}원). 나머지는 추가 수납해 주세요.`
+                    : "수납 및 티켓 발급이 완료되었습니다.",
+                type: isPartial ? "warning" : "success",
+            });
             setShowPaymentModal(false);
         } catch (e: any) {
             console.error(e);

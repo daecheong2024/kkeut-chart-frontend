@@ -545,11 +545,21 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
           }
 
           if (!terminalSuccess) {
-            const proceed = window.confirm(
-              `${terminalErrorMsg}\n\n단말기 없이 수기로 결제 기록을 남기시겠습니까?\n\n[확인] → 승인번호 없이 결제 기록 (수기)\n[취소] → 결제 중단`
-            );
-            if (!proceed) {
-              return;
+            if (terminalLines.length > 0) {
+              const successTotal = terminalLines.reduce((s, l) => s + l.amount, 0);
+              const proceed = window.confirm(
+                `${terminalErrorMsg}\n\n이미 승인된 ${terminalLines.length}건(${successTotal.toLocaleString()}원)이 있습니다.\n\n[확인] → 이 건도 수기로 추가하여 전체 수납\n[취소] → 성공한 ${successTotal.toLocaleString()}원만 부분 수납 (나머지는 미수납 처리)`
+              );
+              if (!proceed) {
+                break;
+              }
+            } else {
+              const proceed = window.confirm(
+                `${terminalErrorMsg}\n\n단말기 없이 수기로 결제 기록을 남기시겠습니까?\n\n[확인] → 승인번호 없이 결제 기록 (수기)\n[취소] → 결제 중단`
+              );
+              if (!proceed) {
+                return;
+              }
             }
             terminalLines.push({
               ...line,
@@ -562,6 +572,11 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
         }
       }
 
+      if (terminalLines.length === 0) return;
+
+      const actualPaidTotal = terminalLines.reduce((s, l) => s + l.amount, 0);
+      const isPartial = actualPaidTotal < totalAmount;
+
       let taxFreeRemain = taxFreeAmount;
       const withTax = terminalLines.map((line, idx) => {
         const lineTaxFree = idx === terminalLines.length - 1 ? taxFreeRemain : roundRatio(taxFreeAmount, totalAmount, line.amount);
@@ -573,6 +588,8 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
 
       const payload = {
         amount: totalAmount,
+        paidAmount: actualPaidTotal,
+        isPartialPayment: isPartial,
         method: firstLine.paymentCategory,
         paymentCategory: firstLine.paymentCategory,
         paymentSubMethod: firstLine.paymentSubMethod,
