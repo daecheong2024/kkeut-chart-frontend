@@ -421,6 +421,10 @@ export function RefundModal({
             }
         }
 
+        if (!rePaymentAuth && (calc.penaltyAmount ?? 0) > 0) {
+            rePaymentAuth = { amount: calc.penaltyAmount, authNo: "", authDate: "", vanKey: "" };
+        }
+
         setProgress({ phase: "backend" });
         try {
             const penaltyRate = penaltyRatePct === "" ? undefined : Number(penaltyRatePct) / 100;
@@ -435,7 +439,7 @@ export function RefundModal({
                 terminalRefundAuthNo: voidAuth?.authNo,
                 terminalRefundDate: voidAuth?.authDate,
                 terminalVanKey: voidAuth?.vanKey,
-                refundMethod: voidAuth ? "AUTO" : (skipTerminal ? "MANUAL" : undefined),
+                refundMethod: voidAuth ? "AUTO" : "MANUAL",
                 rePaymentAmount: rePaymentAuth?.amount,
                 rePaymentMethod: rePaymentAuth ? rePaymentMethod.toUpperCase() : undefined,
             });

@@ -788,6 +788,8 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                             const manualAmount = refundType === "manual" && manualVal && manualVal.trim() !== ""
                                 ? Math.max(0, Number(manualVal.replace(/[^0-9]/g, "")))
                                 : undefined;
+                            const ticketCalc = ticketCalcs[t.paymentDetailId];
+                            const manualPenalty = !pair && (ticketCalc?.penaltyAmount ?? 0) > 0 ? ticketCalc.penaltyAmount : undefined;
                             return {
                                 paymentMasterId: t.paymentMasterId,
                                 paymentDetailId: t.paymentDetailId,
@@ -798,9 +800,9 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                 terminalRefundAuthNo: pair?.refund?.authNo,
                                 terminalRefundDate: pair?.refund?.authDate,
                                 terminalVanKey: pair?.refund?.vanKey,
-                                refundMethod: pair ? "AUTO" : (skipTerminal ? "MANUAL" : undefined),
-                                rePaymentAmount: pair?.rePayment?.amount,
-                                rePaymentMethod: pair?.rePayment ? rePaymentMethod.toUpperCase() : undefined,
+                                refundMethod: pair ? "AUTO" : "MANUAL",
+                                rePaymentAmount: pair?.rePayment?.amount ?? manualPenalty,
+                                rePaymentMethod: (pair?.rePayment || manualPenalty) ? rePaymentMethod.toUpperCase() : undefined,
                                 rePaymentTerminalAuthNo: pair?.rePayment?.authNo,
                                 rePaymentTerminalAuthDate: pair?.rePayment?.authDate,
                                 rePaymentVanKey: pair?.rePayment?.vanKey,

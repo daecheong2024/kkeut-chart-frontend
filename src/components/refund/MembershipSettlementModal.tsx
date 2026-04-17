@@ -294,6 +294,10 @@ export function MembershipSettlementModal({
             }
         }
 
+        if (!rePaymentAuth && preview.penalty > 0) {
+            rePaymentAuth = { amount: preview.penalty, authNo: "", authDate: "", vanKey: "" };
+        }
+
         setProgress({ phase: "backend" });
         try {
             const result = await paymentService.executeMembershipSettlement(info.membershipRootId, {
@@ -306,7 +310,7 @@ export function MembershipSettlementModal({
                 membershipCardRefundAuthNo: voidAuth?.authNo,
                 membershipCardRefundDate: voidAuth?.authDate,
                 membershipCardRefundVanKey: voidAuth?.vanKey,
-                refundMethod: voidAuth ? "AUTO" : undefined,
+                refundMethod: voidAuth ? "AUTO" : "MANUAL",
                 rePaymentAmount: rePaymentAuth?.amount,
                 rePaymentMethod: rePaymentAuth ? rePaymentMethod.toUpperCase() : undefined,
                 rePaymentTerminalAuthNo: rePaymentAuth?.authNo,
