@@ -486,6 +486,7 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
 
       const terminalLines: SplitPaymentLine[] = [];
       const manualMode = isManualPaymentMode();
+      let prevTerminalSuccess = false;
       for (const line of submitLines) {
         const needsTerminal = !manualMode && (
           (line.paymentCategory === "card" && line.paymentSubMethod === "card_general")
@@ -493,6 +494,13 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
         );
 
         if (needsTerminal) {
+          if (prevTerminalSuccess) {
+            const ok = window.confirm(
+              "이전 카드 결제가 완료되었습니다.\n\n카드를 단말기에서 빼신 후 [확인]을 눌러주세요.\n→ 다음 분할 결제를 진행합니다."
+            );
+            if (!ok) { setSubmitting(false); return; }
+          }
+
           const tradeType = line.paymentCategory === "pay" ? "v1" as const : "D1" as const;
           const installmentMap: Record<string, string> = { "일시불": "00", "2개월": "02", "3개월": "03", "4개월": "04", "5개월": "05", "6개월": "06" };
           const installment = installmentMap[line.installment || ""] || "00";
@@ -527,6 +535,7 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                   terminalMerchantRegNo: result.merchantRegNo,
                 });
                 terminalSuccess = true;
+                prevTerminalSuccess = true;
               } else {
                 terminalErrorMsg = `단말기 승인 실패: ${result.displayMsg || `응답코드 ${result.replyCode}`}`;
               }
