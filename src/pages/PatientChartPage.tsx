@@ -7810,9 +7810,9 @@ function RefundHistoryList({
                             terminalVanKey: undefined,
                             refundMethod: "MANUAL",
                         });
-                        showAlert({ message: "환불 처리가 완료되었습니다 (수동 마감).", type: "success" });
                         closeRetry();
                         if (typeof onRefundCompleted === "function") void onRefundCompleted();
+                        showAlert({ message: "환불 처리가 완료되었습니다 (수동 마감).", type: "success" });
                     } catch (e: any) {
                         showAlert({ message: `수동 마감 실패: ${e?.response?.data?.message || e?.message || "오류"}`, type: "error" });
                     } finally {
@@ -7873,9 +7873,9 @@ function RefundHistoryList({
                             terminalVanKey: r.vanKey,
                             refundMethod: "AUTO",
                         });
-                        showAlert({ message: "환불 처리가 완료되었습니다.", type: "success" });
                         closeRetry();
                         if (typeof onRefundCompleted === "function") void onRefundCompleted();
+                        showAlert({ message: "환불 처리가 완료되었습니다.", type: "success" });
                     } catch (e: any) {
                         showAlert({ message: `재시도 실패: ${e?.response?.data?.message || e?.message || "오류"}`, type: "error" });
                     } finally {
