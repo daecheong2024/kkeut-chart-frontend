@@ -366,7 +366,6 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
     lineAmount > 0 &&
     lineAmount <= remainingAmount &&
     !!subMethod &&
-    (category !== "card" || !!cardCompany.trim()) &&
     manualTerminalInputProvided;
 
   if (!isOpen) return null;
