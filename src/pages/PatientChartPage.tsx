@@ -7635,8 +7635,34 @@ function RefundHistoryList({
                                         </button>
                                     )}
                                     {(() => {
-                                        // 카드/페이로 결제된 티켓은 티켓별 환불 불가 (수납 단위 환불만 허용 — 새 2단계 패턴 안전성)
-                                        // 회원권 차감 / 현금 / 계좌이체 티켓만 티켓별 환불 가능
+                                        const isRePayCard = card.itemName.startsWith("공제액 결제");
+                                        if (isRePayCard && !isRefunded && !isReadOnly && card.itemPaymentDetails[0]?.id) {
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const pd = card.itemPaymentDetails[0];
+                                                        setRefundModalState({
+                                                            paymentMasterId: card.record.paymentMasterId || card.record.id,
+                                                            paymentDetailId: pd.id,
+                                                            itemName: card.itemName,
+                                                            itemType: "ticket",
+                                                            paymentType: pd.paymentType,
+                                                            terminalInfo: pd.terminalAuthNo ? {
+                                                                authNo: pd.terminalAuthNo,
+                                                                authDate: pd.terminalAuthDate,
+                                                                vanKey: pd.terminalVanKey,
+                                                            } : undefined,
+                                                        });
+                                                    }}
+                                                    className="rounded px-2 py-1 text-[10px] font-bold text-red-600 hover:bg-red-50 transition-colors"
+                                                    title="공제액(위약금) 환불"
+                                                >
+                                                    환불
+                                                </button>
+                                            );
+                                        }
                                         const hasTerminalPayment = card.itemPaymentDetails.some(
                                             pd => pd.paymentType === "CARD" || pd.paymentType === "PAY"
                                         );
