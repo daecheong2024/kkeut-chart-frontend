@@ -506,6 +506,10 @@ export default function PatientChartPage() {
 
     const [ticketTab, setTicketTab] = useState<"active" | "completed" | "refunded">("active");
     const [ticketSearch, setTicketSearch] = useState<string>("");
+    const [reservationSearch, setReservationSearch] = useState<string>("");
+    const [membershipSearch, setMembershipSearch] = useState<string>("");
+    const [consentSearch, setConsentSearch] = useState<string>("");
+    const [refundSearch, setRefundSearch] = useState<string>("");
     const [assigningTodoId, setAssigningTodoId] = useState<number | null>(null);
     const [dailySummaryTab, setDailySummaryTab] = useState<"purchase_refund" | "usage">("purchase_refund");
     const [expandedRefundId, setExpandedRefundId] = useState<string | null>(null);
@@ -4523,10 +4527,34 @@ export default function PatientChartPage() {
                         {/* Reservation */}
                         {activeRightSidebarTab === "reservation" && (
                             <div className="space-y-3">
+                                <div className="relative mb-1">
+                                    <input
+                                        type="text"
+                                        value={reservationSearch}
+                                        onChange={(e) => setReservationSearch(e.target.value)}
+                                        placeholder="카테고리, 메모, 방문목적 검색..."
+                                        className="w-full h-9 rounded-xl border border-[#F8DCE2] bg-white pl-8 pr-8 text-[12px] outline-none focus:border-[#D27A8C] focus:ring-2 focus:ring-[#F49EAF]/20"
+                                    />
+                                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C9A0A8]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                                    {reservationSearch && (
+                                        <button type="button" onClick={() => setReservationSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-full text-[#C9A0A8] hover:bg-[#FCEBEF] hover:text-[#8B3F50]">
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    )}
+                                </div>
                                 {customerReservations.length === 0 ? (
                                     <div className="text-center py-6 text-[13px]" style={{ color: "#616161" }}>예약 기록이 없습니다.</div>
                                 ) : (
                                     customerReservations
+                                        .filter((rsv: any) => {
+                                            if (!reservationSearch.trim()) return true;
+                                            const q = reservationSearch.trim().toLowerCase();
+                                            const cat = String(rsv.reservCategoryName || "").toLowerCase();
+                                            const memo = String(rsv.reservationMemo || "").toLowerCase();
+                                            const purposes = (rsv.visitPurposes || []).map((vp: any) => String(vp.name || vp || "").toLowerCase()).join(" ");
+                                            const dateStr = new Date(rsv.reservDateTime || rsv.reservDate).toLocaleDateString("ko-KR");
+                                            return cat.includes(q) || memo.includes(q) || purposes.includes(q) || dateStr.includes(q);
+                                        })
                                         .sort((a: any, b: any) => new Date(b.reservDateTime || b.reservDate).getTime() - new Date(a.reservDateTime || a.reservDate).getTime())
                                         .map((rsv: any) => {
                                             const rsvDate = new Date(rsv.reservDateTime || rsv.reservDate);
@@ -4831,6 +4859,21 @@ export default function PatientChartPage() {
                         {/* Membership Logs */}
                         {activeRightSidebarTab === "membership" && (
                             <div className="space-y-3">
+                                <div className="relative mb-1">
+                                    <input
+                                        type="text"
+                                        value={membershipSearch}
+                                        onChange={(e) => setMembershipSearch(e.target.value)}
+                                        placeholder="회원권명 검색..."
+                                        className="w-full h-9 rounded-xl border border-[#F8DCE2] bg-white pl-8 pr-8 text-[12px] outline-none focus:border-[#D27A8C] focus:ring-2 focus:ring-[#F49EAF]/20"
+                                    />
+                                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C9A0A8]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                                    {membershipSearch && (
+                                        <button type="button" onClick={() => setMembershipSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-full text-[#C9A0A8] hover:bg-[#FCEBEF] hover:text-[#8B3F50]">
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    )}
+                                </div>
                                 <div className="flex items-center rounded-[8px] bg-[#FAF3F5] p-0.5 gap-0.5">
                                     <button
                                         onClick={() => { setMembershipFilter('active'); setExpandedMembershipId(null); }}
@@ -4847,7 +4890,12 @@ export default function PatientChartPage() {
                                 </div>
 
                                 {(() => {
-                                    const filtered = memberships.filter(m => membershipFilter === 'active' ? m.status === 'active' : m.status !== 'active');
+                                    const filtered = memberships
+                                        .filter(m => membershipFilter === 'active' ? m.status === 'active' : m.status !== 'active')
+                                        .filter(m => {
+                                            if (!membershipSearch.trim()) return true;
+                                            return String(m.membershipName || "").toLowerCase().includes(membershipSearch.trim().toLowerCase());
+                                        });
                                     if (filtered.length === 0) return (
                                         <div className="text-center text-[#616161] text-[13px] py-6">
                                             {membershipFilter === 'active' ? '사용중인 회원권이 없습니다.' : '사용완료 회원권이 없습니다.'}
@@ -5028,6 +5076,21 @@ export default function PatientChartPage() {
                         {/* Consent */}
                         {activeRightSidebarTab === "consent" && (
                             <div className="space-y-4">
+                                <div className="relative mb-1">
+                                    <input
+                                        type="text"
+                                        value={consentSearch}
+                                        onChange={(e) => setConsentSearch(e.target.value)}
+                                        placeholder="동의서명, 상태 검색..."
+                                        className="w-full h-9 rounded-xl border border-[#F8DCE2] bg-white pl-8 pr-8 text-[12px] outline-none focus:border-[#D27A8C] focus:ring-2 focus:ring-[#F49EAF]/20"
+                                    />
+                                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C9A0A8]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                                    {consentSearch && (
+                                        <button type="button" onClick={() => setConsentSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-full text-[#C9A0A8] hover:bg-[#FCEBEF] hover:text-[#8B3F50]">
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    )}
+                                </div>
                                 <div className="rounded-xl border border-[#F8DCE2] bg-[#FCF7F8] overflow-hidden">
                                     <div className="px-4 py-3 border-b border-[#F8DCE2]">
                                         <div className="text-[13px] font-semibold text-[#5C2A35]">동의서 발송</div>
@@ -5046,12 +5109,29 @@ export default function PatientChartPage() {
                                 <ConsentHistoryList
                                     patientId={Number(patient.id)}
                                     branchId={String(settings.activeBranchId || "1")}
+                                    searchQuery={consentSearch}
                                 />
                             </div>
                         )}
 
                         {/* Refund */}
                         {activeRightSidebarTab === "refund" && (
+                            <>
+                            <div className="relative mb-2">
+                                <input
+                                    type="text"
+                                    value={refundSearch}
+                                    onChange={(e) => setRefundSearch(e.target.value)}
+                                    placeholder="티켓명, 결제수단, 날짜 검색..."
+                                    className="w-full h-9 rounded-xl border border-[#F8DCE2] bg-white pl-8 pr-8 text-[12px] outline-none focus:border-[#D27A8C] focus:ring-2 focus:ring-[#F49EAF]/20"
+                                />
+                                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C9A0A8]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                                {refundSearch && (
+                                    <button type="button" onClick={() => setRefundSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-full text-[#C9A0A8] hover:bg-[#FCEBEF] hover:text-[#8B3F50]">
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                )}
+                            </div>
                             <RefundHistoryList
                                 patientId={Number(patientIdStr)}
                                 paymentRecords={paymentRecords}
@@ -5062,7 +5142,9 @@ export default function PatientChartPage() {
                                 onRefundGroup={canEditPayment ? handleRefundPaymentGroup : undefined}
                                 onRefundCompleted={() => loadPersistenceData(Number(patientIdStr))}
                                 isReadOnly={isReadOnly || !canEditPayment}
+                                searchQuery={refundSearch}
                             />
+                            </>
                         )}
                     </div>
                 </div>
@@ -5941,7 +6023,7 @@ export default function PatientChartPage() {
 }
 
 /** Inline component: 동의서 발송 이력 목록 */
-function ConsentHistoryList({ patientId, branchId }: { patientId: number; branchId: string }) {
+function ConsentHistoryList({ patientId, branchId, searchQuery = "" }: { patientId: number; branchId: string; searchQuery?: string }) {
     const { showAlert, showConfirm } = useAlert();
     const [items, setItems] = React.useState<any[]>([]);
     const [loading, setLoading] = React.useState(true);
@@ -6149,7 +6231,14 @@ function ConsentHistoryList({ patientId, branchId }: { patientId: number; branch
                     <span className="text-[11px] text-[#616161]">{items.length}건</span>
                 </div>
                 <div className="divide-y divide-[#FCEBEF]">
-                    {items.map((item: any) => {
+                    {items.filter((item: any) => {
+                        if (!searchQuery.trim()) return true;
+                        const q = searchQuery.trim().toLowerCase();
+                        const name = String(item?.formTemplateName || item?.templateName || "").toLowerCase();
+                        const st = String(item?.status || "").toLowerCase();
+                        const stLabel = st === "signed" ? "서명완료" : st === "cancelled" ? "취소" : st === "expired" ? "만료" : "대기";
+                        return name.includes(q) || stLabel.includes(q);
+                    }).map((item: any) => {
                         const status = String(item?.status || "");
                         const normalizedStatus = normalizeStatus(status);
                         const canOpenQr = normalizedStatus === "pending";
@@ -6331,6 +6420,7 @@ function RefundHistoryList({
     onRefundGroup: (records: PaymentRecord[]) => Promise<void>;
     onRefundCompleted?: () => void | Promise<void>;
     isReadOnly?: boolean;
+    searchQuery?: string;
 }) {
     type RefundItemSummary = {
         key: string;
@@ -6859,9 +6949,19 @@ function RefundHistoryList({
         return cards.sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
     }, [groupedRecords]);
 
-    // ISSUE-176: 탭 필터 제거 — 전체 결제내역 노출, 그룹화로 정리
-    const filteredCards = useMemo(() => itemCards, [itemCards]);
-    // refundFilterTab 은 더 이상 사용하지 않지만 state 유지 (호환성)
+    const filteredCards = useMemo(() => {
+        if (!searchQuery?.trim()) return itemCards;
+        const q = searchQuery.trim().toLowerCase();
+        return itemCards.filter((c) => {
+            const name = c.itemName.toLowerCase();
+            const dateStr = new Date(c.paidAt).toLocaleDateString("ko-KR");
+            const payType = c.itemPaymentDetails.map(pd => {
+                const t = pd.paymentType;
+                return t === "CARD" ? "카드" : t === "CASH" ? "현금" : t === "PAY" ? "간편결제" : t === "BANKING" ? "계좌이체" : t || "";
+            }).join(" ").toLowerCase();
+            return name.includes(q) || dateStr.includes(q) || payType.includes(q);
+        });
+    }, [itemCards, searchQuery]);
     void refundFilterTab;
 
     type GroupedCardEntry = {
