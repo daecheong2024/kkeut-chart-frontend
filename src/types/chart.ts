@@ -7,6 +7,7 @@ export interface Patient {
     chartNo: string;
     gender: string;
     age: number;
+    birthDate?: string;
     phone?: string;
     location: string;
     status: string;

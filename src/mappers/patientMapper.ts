@@ -74,6 +74,7 @@ export function mapVisitToPatient(appt: any, dateISO: string, completionStatusId
         chartNo: appt.chartNumber || `${appt.customerId}`,
         gender: appt.customerGender || appt.gender || 'M',
         age: calcAge(appt.customerBirthDate || appt.birthDate),
+        birthDate: appt.customerBirthDate || appt.birthDate || undefined,
         phone: appt.customerTelNo || appt.phone,
         location: inferredLocation,
         status,
