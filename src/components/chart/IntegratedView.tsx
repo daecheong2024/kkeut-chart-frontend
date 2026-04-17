@@ -925,11 +925,21 @@ export function IntegratedView() {
             const rawBirth = (todayVisit as any)?.customerBirthDate
                 || (patient as any)?.birthDate
                 || (patient as any)?.customerBirthDate
+                || (() => {
+                    const rn = String((patient as any)?.residentNumber || "").replace(/[^0-9]/g, "");
+                    if (rn.length < 7) return "";
+                    const prefix = rn[6];
+                    const yy = rn.substring(0, 2);
+                    const mm = rn.substring(2, 4);
+                    const dd = rn.substring(4, 6);
+                    const century = prefix === "1" || prefix === "2" ? "19" : "20";
+                    return `${century}${yy}-${mm}-${dd}`;
+                })()
                 || "";
             const birthDisplay = rawBirth ? String(rawBirth).substring(0, 10) : "";
             const patientAge = patient.age || (rawBirth ? differenceInYears(new Date(), new Date(rawBirth)) : "");
-            const birthWithAge = birthDisplay && patientAge !== ""
-                ? `${birthDisplay} (${patientAge}세)`
+            const birthWithAge = patientAge !== ""
+                ? (birthDisplay ? `${birthDisplay} (${patientAge}세)` : `${patientAge}세`)
                 : birthDisplay || undefined;
             const visitDate = format(new Date(todayVisit.scheduledAt || todayVisit.registerTime || todayVisit.createTime), "yyyy-MM-dd HH:mm:ss");
 
