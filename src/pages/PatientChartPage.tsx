@@ -5515,12 +5515,12 @@ export default function PatientChartPage() {
                                         {[
                                             {
                                                 value: "customer" as RefundResponsibilityType,
-                                                title: "위약금/정상가 차감 환불",
+                                                title: "위약금/정상가 차감",
                                                 description: "결제금액 기준 10% 위약금을 차감합니다.",
                                             },
                                             {
                                                 value: "hospital" as RefundResponsibilityType,
-                                                title: "n/1 환불",
+                                                title: "n/1 차감",
                                                 description: "위약금 없이 사용분만 차감합니다.",
                                             },
                                         ].map((option) => {
@@ -5780,8 +5780,8 @@ export default function PatientChartPage() {
 
                                 <div className="mt-3 rounded-[8px] px-3 py-2 text-[11px] leading-relaxed" style={{ backgroundColor: "#FFFFFF", border: "1px solid #FCEBEF", color: "#616161" }}>
                                     {refundModal.responsibilityType === "customer"
-                                        ? "위약금/정상가 차감 환불은 결제건별 10% 위약금이 적용됩니다."
-                                        : "n/1 환불은 위약금 없이 사용분만 차감합니다."}
+                                        ? "위약금/정상가 차감은 결제건별 10% 위약금이 적용됩니다."
+                                        : "n/1 차감은 위약금 없이 사용분만 차감합니다."}
                                 </div>
 
                                 {refundModalPreviewAmount > 0 && (() => {

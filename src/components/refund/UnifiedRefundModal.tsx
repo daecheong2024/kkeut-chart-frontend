@@ -44,8 +44,8 @@ export interface UnifiedRefundModalProps {
 // ============================================================
 
 const REFUND_TYPE_OPTIONS: Array<{ value: RefundType; label: string; description: string }> = [
-    { value: "customer_change", label: "위약금/정상가 차감 환불", description: "잔액 + (티켓 환불) - 위약금" },
-    { value: "hospital_fault", label: "n/1 환불", description: "잔액 + 티켓 환불, 위약금 없음" },
+    { value: "customer_change", label: "위약금/정상가 차감", description: "잔액 + (티켓 환불) - 위약금" },
+    { value: "hospital_fault", label: "n/1 차감", description: "잔액 + 티켓 환불, 위약금 없음" },
     { value: "manual", label: "기타", description: "직원이 환불액 직접 입력 (사유 필수)" },
 ];
 
