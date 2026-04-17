@@ -780,6 +780,15 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                 setProgress({ phase: "backend", itemName: `${atomicTickets.length}건 일괄 환불` });
                 try {
                     const penaltyRate = penaltyRatePct === "" ? undefined : Number(penaltyRatePct) / 100;
+                    const totalManualPenalty = atomicTickets.reduce((sum, t) => {
+                        const termRes = terminalResults[t.paymentDetailId];
+                        const pair = termRes && !("error" in termRes) ? termRes : undefined;
+                        if (pair) return sum;
+                        const tc = ticketCalcs[t.paymentDetailId];
+                        return sum + (tc?.penaltyAmount ?? 0);
+                    }, 0);
+                    let manualPenaltyAssigned = false;
+
                     const result = await paymentService.executeBulkRefund({
                         items: atomicTickets.map((t) => {
                             const termRes = terminalResults[t.paymentDetailId];
@@ -788,8 +797,13 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                             const manualAmount = refundType === "manual" && manualVal && manualVal.trim() !== ""
                                 ? Math.max(0, Number(manualVal.replace(/[^0-9]/g, "")))
                                 : undefined;
-                            const ticketCalc = ticketCalcs[t.paymentDetailId];
-                            const manualPenalty = !pair && (ticketCalc?.penaltyAmount ?? 0) > 0 ? ticketCalc.penaltyAmount : undefined;
+                            let itemRePayAmount = pair?.rePayment?.amount;
+                            let itemRePayMethod = pair?.rePayment ? rePaymentMethod.toUpperCase() : undefined;
+                            if (!pair && totalManualPenalty > 0 && !manualPenaltyAssigned) {
+                                itemRePayAmount = totalManualPenalty;
+                                itemRePayMethod = rePaymentMethod.toUpperCase();
+                                manualPenaltyAssigned = true;
+                            }
                             return {
                                 paymentMasterId: t.paymentMasterId,
                                 paymentDetailId: t.paymentDetailId,
@@ -801,8 +815,8 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                 terminalRefundDate: pair?.refund?.authDate,
                                 terminalVanKey: pair?.refund?.vanKey,
                                 refundMethod: pair ? "AUTO" : "MANUAL",
-                                rePaymentAmount: pair?.rePayment?.amount ?? manualPenalty,
-                                rePaymentMethod: (pair?.rePayment || manualPenalty) ? rePaymentMethod.toUpperCase() : undefined,
+                                rePaymentAmount: itemRePayAmount,
+                                rePaymentMethod: itemRePayMethod,
                                 rePaymentTerminalAuthNo: pair?.rePayment?.authNo,
                                 rePaymentTerminalAuthDate: pair?.rePayment?.authDate,
                                 rePaymentVanKey: pair?.rePayment?.vanKey,
