@@ -7065,6 +7065,13 @@ function RefundHistoryList({
             for (const record of group.records) {
                 const recordRawStatus = getRecordStatus(record);
                 for (const item of (record.items || [])) {
+                    const rawName = String(item.itemName || "").trim();
+                    if (!rawName) {
+                        const groupHasNamedItems = group.records.some((r) =>
+                            (r.items || []).some((it) => String(it.itemName || "").trim().length > 0)
+                        );
+                        if (groupHasNamedItems) continue;
+                    }
                     const itemStatus = String((item as any).status || "").trim().toLowerCase();
                     const resolvedStatus = (itemStatus === "refunded" || itemStatus === "cancelled")
                         ? "refunded" as const
@@ -7076,7 +7083,7 @@ function RefundHistoryList({
                     );
                     const displayItemName = isRePaymentDetail
                         ? "공제액 결제 (환불 위약금)"
-                        : String(item.itemName || "항목");
+                        : (rawName || "항목");
                     cards.push({
                         id: `item-${record.id}-${(item as any).paymentDetailId || item.itemName}-${item.itemType}`,
                         itemName: displayItemName,
