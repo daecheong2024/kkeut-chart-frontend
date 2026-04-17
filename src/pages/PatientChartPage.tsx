@@ -4259,6 +4259,105 @@ export default function PatientChartPage() {
                                                 </div>
                                             );
                                         }
+
+                                        const groupByItem = dailySummaryTab === "purchase_refund";
+                                        const itemGrouped = (() => {
+                                            if (!groupByItem) return null;
+                                            const map = new Map<string, typeof visibleItems>();
+                                            for (const item of visibleItems) {
+                                                const isDeduction = (item.sourceType === "membership_deduction");
+                                                const key = isDeduction ? `deduction-${item.id}` : (item.itemName || "기타").trim();
+                                                const list = map.get(key) || [];
+                                                list.push(item);
+                                                map.set(key, list);
+                                            }
+                                            return Array.from(map.entries()).map(([key, items]) => ({
+                                                key,
+                                                itemName: items.find(i => i.sourceType !== "refund" && i.sourceType !== "ticket_refund")?.itemName || items[0]?.itemName || key,
+                                                items: items.sort((a, b) => new Date(a.occurredAt || 0).getTime() - new Date(b.occurredAt || 0).getTime()),
+                                                hasPurchase: items.some(i => i.sourceType === "ticket_new" || i.sourceType === "membership_new"),
+                                                hasRefund: items.some(i => i.sourceType === "refund" || i.sourceType === "ticket_refund"),
+                                            }));
+                                        })();
+
+                                        if (itemGrouped) {
+                                            return (
+                                                <div className="max-h-56 space-y-1.5 overflow-y-auto pr-0.5">
+                                                    {itemGrouped.map((group) => (
+                                                        <div key={group.key} className="rounded-lg border border-[#FCEBEF] bg-[#FCF7F8] overflow-hidden">
+                                                            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-[#FCEBEF]/40">
+                                                                <span className="text-[12px] font-bold text-[#5C2A35] truncate" title={group.itemName}>{group.itemName}</span>
+                                                                <div className="flex items-center gap-1 shrink-0">
+                                                                    {group.hasPurchase && <span className="rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">구매</span>}
+                                                                    {group.hasRefund && <span className="rounded-full bg-red-50 border border-red-200 px-1.5 py-0.5 text-[9px] font-bold text-red-600">환불</span>}
+                                                                </div>
+                                                            </div>
+                                                            <div className="divide-y divide-[#FCEBEF]">
+                                                                {group.items.map((item) => {
+                                                                    const badgeClassName =
+                                                                        USAGE_SUMMARY_SOURCE_STYLES[item.sourceType] ||
+                                                                        "border-slate-200 bg-white text-slate-600";
+                                                                    return (
+                                                                        <div key={item.id} className="px-2.5 py-1.5 hover:bg-[#FCEBEF]/30 transition-colors">
+                                                                            <div className="flex items-start justify-between gap-2">
+                                                                                <div className="min-w-0 flex-1 flex items-center gap-1.5">
+                                                                                    <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-bold shrink-0 ${badgeClassName}`}>
+                                                                                        {item.sourceLabel || "결제"}
+                                                                                    </span>
+                                                                                    <span className="text-[10px] text-[#616161]">{formatUsageSummaryTime(item.occurredAt)}</span>
+                                                                                </div>
+                                                                                {item.sourceType !== "ticket_usage" && (item.sourceType === "refund" || item.sourceType === "ticket_refund" ? (
+                                                                                    <div className="shrink-0 text-right">
+                                                                                        {item.paidAmount != null && (
+                                                                                            <span className="text-[10px] text-[#616161] tabular-nums mr-1.5">수납 {Math.max(0, Number(item.paidAmount || 0)).toLocaleString()}원</span>
+                                                                                        )}
+                                                                                        <span className="text-[11px] font-bold text-red-500 tabular-nums">환불 -{Math.max(0, Number(item.amount || 0)).toLocaleString()}원</span>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <span className="shrink-0 text-[11px] font-bold tabular-nums text-[#242424]">
+                                                                                        {Math.max(0, Number(item.amount || 0)).toLocaleString()}원
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                            {item.sourceType === "ticket_new" && item.originalPrice != null && (
+                                                                                <div className="mt-0.5 flex items-center gap-2 text-[10px] pl-1">
+                                                                                    <span className="text-[#616161]">정상가 {item.originalPrice.toLocaleString()}원</span>
+                                                                                    {item.eventPrice != null && item.eventPrice < item.originalPrice && (
+                                                                                        <span className="text-red-500 font-bold">이벤트가 {item.eventPrice.toLocaleString()}원</span>
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                            {(item.sourceType === "refund" || item.sourceType === "ticket_refund") && (item as any).refundDetails?.length > 0 && (
+                                                                                <div className="mt-1">
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={(e) => { e.stopPropagation(); setExpandedRefundId(prev => prev === item.id ? null : item.id); }}
+                                                                                        className="text-[10px] font-bold text-[#D27A8C]"
+                                                                                    >
+                                                                                        {expandedRefundId === item.id ? "접기 ▲" : "상세펼치기 ▼"}
+                                                                                    </button>
+                                                                                    {expandedRefundId === item.id && (
+                                                                                        <div className="mt-1 rounded-[6px] px-2 py-1.5 space-y-0.5 bg-[#FFF3F3] border border-[#FFCDD2]">
+                                                                                            {((item as any).refundDetails as Array<{ paymentType: string; amount: number }>).map((detail, idx) => (
+                                                                                                <div key={idx} className="flex items-center justify-between text-[10px]">
+                                                                                                    <span className="text-[#616161]">{detail.paymentType}</span>
+                                                                                                    <span className="font-bold tabular-nums text-[#E53935]">{detail.amount.toLocaleString()}원</span>
+                                                                                                </div>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            );
+                                        }
+
                                         return (
                                             <div className="max-h-56 space-y-1 overflow-y-auto pr-0.5">
                                                 {visibleItems.map((item) => {
@@ -6973,65 +7072,23 @@ function RefundHistoryList({
         cards: typeof filteredCards;
     };
     const cardsByGroup = useMemo<GroupedCardEntry[]>(() => {
-        const isRePayCard = (c: typeof filteredCards[number]) =>
-            c.itemName.startsWith("공제액 결제");
-        const rePayCards = filteredCards.filter(isRePayCard);
-        const normalCards = filteredCards.filter((c) => !isRePayCard(c));
-
         const map = new Map<string, GroupedCardEntry>();
-        for (const card of normalCards) {
-            const entityId = (card as any).record?.items?.[0]?.issuedEntityId;
-            const itemKey = entityId
-                ? `entity-${entityId}`
-                : `${card.itemType}::${normalizeItemKey(card.itemName)}`;
-
-            const existing = map.get(itemKey);
+        for (const card of filteredCards) {
+            const groupId = card.group.id;
+            const existing = map.get(groupId);
             if (existing) {
                 existing.cards.push(card);
-                if (new Date(card.paidAt).getTime() > new Date(existing.latestPaidAt).getTime()) {
-                    existing.latestPaidAt = card.paidAt;
-                }
-                existing.groupTotal += card.totalPrice;
             } else {
-                map.set(itemKey, {
-                    groupId: `item-group-${itemKey}`,
-                    groupKey: itemKey,
-                    latestPaidAt: card.paidAt,
-                    groupTotal: card.totalPrice,
-                    groupStatus: card.status,
+                map.set(groupId, {
+                    groupId,
+                    groupKey: groupId,
+                    latestPaidAt: card.group.latestPaidAt || card.paidAt,
+                    groupTotal: card.group.totalActualPaid,
+                    groupStatus: card.group.status,
                     cards: [card],
                 });
             }
         }
-
-        for (const entry of map.values()) {
-            const hasRefund = entry.cards.some((c) => c.status === "refunded");
-            const hasPaid = entry.cards.some((c) => c.status === "paid");
-            if (hasRefund && hasPaid) entry.groupStatus = "partial_refunded";
-            else if (hasRefund) entry.groupStatus = "refunded";
-            else entry.groupStatus = entry.cards.some((c) => (c as any).record?.status?.toLowerCase() === "deduction_paid") ? "deduction_paid" : "paid";
-            entry.cards.sort((a, b) => new Date(a.paidAt).getTime() - new Date(b.paidAt).getTime());
-        }
-
-        for (const repay of rePayCards) {
-            const parentGroup = Array.from(map.values()).find((g) =>
-                g.cards.some((c) => c.group.id === repay.group.id && c.itemType === "ticket")
-            );
-            if (parentGroup) {
-                parentGroup.cards.push(repay);
-            } else {
-                const key = `repay-${repay.id}`;
-                map.set(key, {
-                    groupId: `item-group-${key}`,
-                    groupKey: key,
-                    latestPaidAt: repay.paidAt,
-                    groupTotal: repay.totalPrice,
-                    groupStatus: "paid",
-                    cards: [repay],
-                });
-            }
-        }
-
         return Array.from(map.values()).sort((a, b) => new Date(b.latestPaidAt).getTime() - new Date(a.latestPaidAt).getTime());
     }, [filteredCards]);
 
@@ -7147,8 +7204,8 @@ function RefundHistoryList({
                     const eligibleInGroup = groupEntry.cards.filter(isCardEligible);
                     const groupAllSelected = eligibleInGroup.length > 0 && eligibleInGroup.every((c) => selectedCardKeys.has(c.id));
                     const groupSomeSelected = eligibleInGroup.some((c) => selectedCardKeys.has(c.id));
-                    const mainCard = groupEntry.cards.find((c) => !c.itemName.startsWith("공제액 결제")) || groupEntry.cards[0];
-                    const groupItemName = mainCard?.itemName || "항목";
+                    const groupDate = new Date(groupEntry.latestPaidAt);
+                    const dateLabel = groupDate.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
                     const isDeductionPaid = String(groupEntry.groupStatus || "").toLowerCase() === "deduction_paid";
                     const groupStatusLabel = isDeductionPaid
                         ? "원거래 취소 대기"
@@ -7179,10 +7236,11 @@ function RefundHistoryList({
                                     )}
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="text-[13px] font-extrabold text-[#5C2A35] truncate max-w-[200px]" title={groupItemName}>{groupItemName}</span>
+                                            <span className="text-[13px] font-extrabold text-[#5C2A35] whitespace-nowrap">{dateLabel}</span>
                                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold leading-none ${groupStatusClass}`}>
                                                 {groupStatusLabel}
                                             </span>
+                                            <span className="text-[10px] text-[#8B5A66]">{groupEntry.cards.length}건</span>
                                         </div>
                                         {(() => {
                                             const memDeduct = groupEntry.cards[0]?.group.totalMembershipDeduction ?? 0;
@@ -7494,19 +7552,16 @@ function RefundHistoryList({
                                         <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold leading-none shrink-0 ${isTicket ? "bg-pink-50 text-pink-700 border border-pink-200" : isMembership ? "bg-violet-50 text-violet-700 border border-violet-200" : "bg-slate-100 text-slate-600"}`}>
                                             {isTicket ? "티켓" : isMembership ? "회원권" : "결제"}
                                         </span>
-                                        {(() => {
-                                            const isRePayItem = card.itemName.startsWith("공제액 결제");
-                                            const eventLabel = isRePayItem ? "공제액" : isRefunded ? "환불" : "구매";
-                                            const eventColor = isRePayItem ? "bg-amber-100 text-amber-700 border border-amber-200" : isRefunded ? "bg-red-100 text-red-600" : "bg-emerald-50 text-emerald-700 border border-emerald-200";
-                                            return (
-                                                <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none shrink-0 ${eventColor}`}>
-                                                    {eventLabel}
-                                                </span>
-                                            );
-                                        })()}
-                                        <span className="text-[10px] text-slate-400">
-                                            {new Date(card.paidAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                                        <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none shrink-0 ${isRefunded ? "bg-red-100 text-red-600" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
+                                            {isRefunded ? "환불" : "정상"}
                                         </span>
+                                        <span className="text-[10px] text-slate-400">
+                                            {new Date(card.paidAt).toLocaleString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                                        </span>
+                                    </div>
+                                    {/* Line 2: name */}
+                                    <div className={`mt-1 text-[13px] font-semibold break-words ${isRefunded ? "text-slate-400 line-through" : "text-slate-800"}`} title={card.itemName}>
+                                        {card.itemName}{card.quantity > 1 ? ` x${card.quantity}` : ""}
                                     </div>
                                 </div>
 
