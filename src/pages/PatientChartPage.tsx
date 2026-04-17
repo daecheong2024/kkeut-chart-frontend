@@ -6509,6 +6509,7 @@ function RefundHistoryList({
     onRefundGroup,
     onRefundCompleted,
     isReadOnly,
+    searchQuery,
 }: {
     patientId: number;
     paymentRecords: PaymentRecord[];
