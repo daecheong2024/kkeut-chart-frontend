@@ -551,6 +551,7 @@ export default function PatientChartPage() {
 
     const [expandedMembershipId, setExpandedMembershipId] = useState<number | null>(null);
     const [membershipHistory, setMembershipHistory] = useState<MembershipHistory[]>([]);
+    const [membershipHistoryCache, setMembershipHistoryCache] = useState<Record<number, MembershipHistory[]>>({});
     const [membershipFilter, setMembershipFilter] = useState<'active' | 'completed'>('active');
     const [expandedTicketId, setExpandedTicketId] = useState<number | null>(null);
     const [ticketHistoryByTicketId, setTicketHistoryByTicketId] = useState<Record<number, TicketHistory[]>>({});
@@ -562,11 +563,17 @@ export default function PatientChartPage() {
             setMembershipHistory([]);
         } else {
             setExpandedMembershipId(membershipId);
-            try {
-                const history = await membershipService.getHistory(membershipId, Number(patientIdStr));
-                setMembershipHistory(history);
-            } catch (e) {
-                console.error("Failed to load history", e);
+            const cached = membershipHistoryCache[membershipId];
+            if (cached) {
+                setMembershipHistory(cached);
+            } else {
+                try {
+                    const history = await membershipService.getHistory(membershipId, Number(patientIdStr));
+                    setMembershipHistory(history);
+                    setMembershipHistoryCache((prev) => ({ ...prev, [membershipId]: history }));
+                } catch (e) {
+                    console.error("Failed to load history", e);
+                }
             }
         }
     };
@@ -1142,9 +1149,22 @@ export default function PatientChartPage() {
             if (results[5].status === "fulfilled") setPaymentRecords((results[5].value as any[]) || []);
             else console.error("Failed to load payment records:", results[5].reason);
 
-            // Memberships
-            if (results[6].status === "fulfilled") setMemberships((results[6].value as any[]) || []);
-            else console.error("Failed to load memberships:", results[6].reason);
+            if (results[6].status === "fulfilled") {
+                const mList = (results[6].value as any[]) || [];
+                setMemberships(mList);
+                Promise.all(
+                    mList.map(async (m: any) => {
+                        try {
+                            const hist = await membershipService.getHistory(m.id, pId);
+                            return { id: m.id as number, hist };
+                        } catch { return { id: m.id as number, hist: [] as MembershipHistory[] }; }
+                    })
+                ).then((results) => {
+                    const cache: Record<number, MembershipHistory[]> = {};
+                    for (const r of results) cache[r.id] = r.hist;
+                    setMembershipHistoryCache(cache);
+                });
+            } else console.error("Failed to load memberships:", results[6].reason);
 
             // Queue stats for ticket guidance
             if (results[7].status === "fulfilled") {
@@ -4963,7 +4983,7 @@ export default function PatientChartPage() {
                                         type="text"
                                         value={membershipSearch}
                                         onChange={(e) => setMembershipSearch(e.target.value)}
-                                        placeholder="회원권명 검색..."
+                                        placeholder="회원권명 또는 시술 티켓명 검색..."
                                         className="w-full h-9 rounded-xl border border-[#F8DCE2] bg-white pl-8 pr-8 text-[12px] outline-none focus:border-[#D27A8C] focus:ring-2 focus:ring-[#F49EAF]/20"
                                     />
                                     <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C9A0A8]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
@@ -4993,7 +5013,10 @@ export default function PatientChartPage() {
                                         .filter(m => membershipFilter === 'active' ? m.status === 'active' : m.status !== 'active')
                                         .filter(m => {
                                             if (!membershipSearch.trim()) return true;
-                                            return String(m.membershipName || "").toLowerCase().includes(membershipSearch.trim().toLowerCase());
+                                            const q = membershipSearch.trim().toLowerCase();
+                                            if (String(m.membershipName || "").toLowerCase().includes(q)) return true;
+                                            const hist = membershipHistoryCache[m.id] || [];
+                                            return hist.some(h => String(h.ticketName || "").toLowerCase().includes(q) || String(h.description || "").toLowerCase().includes(q));
                                         });
                                     if (filtered.length === 0) return (
                                         <div className="text-center text-[#616161] text-[13px] py-6">
