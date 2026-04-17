@@ -511,6 +511,8 @@ export default function PatientChartPage() {
     const [consentSearch, setConsentSearch] = useState<string>("");
     const [refundSearch, setRefundSearch] = useState<string>("");
     const [assigningTodoId, setAssigningTodoId] = useState<number | null>(null);
+    const [editingTodoId, setEditingTodoId] = useState<number | null>(null);
+    const [editingTodoContent, setEditingTodoContent] = useState<string>("");
     const [dailySummaryTab, setDailySummaryTab] = useState<"purchase_refund" | "usage">("purchase_refund");
     const [expandedRefundId, setExpandedRefundId] = useState<string | null>(null);
     const [isFinalAmountExpanded, setIsFinalAmountExpanded] = useState(false);
@@ -2597,6 +2599,20 @@ export default function PatientChartPage() {
         }
     };
 
+    const handleSaveTodoContent = async (todoId: number, newContent: string) => {
+        const trimmed = newContent.trim();
+        if (!trimmed) return;
+        try {
+            await todoService.updateTodoContent(todoId, trimmed);
+            setTodos((prev) => prev.map((t) => t.id === todoId ? { ...t, content: trimmed } : t));
+        } catch (e) {
+            console.error("Failed to update todo content:", e);
+        } finally {
+            setEditingTodoId(null);
+            setEditingTodoContent("");
+        }
+    };
+
     const handleToggleTodo = async (todo: TodoItem) => {
         try {
             const currentStatus = (todo as any).status || (todo.isCompleted ? "done" : "todo");
@@ -3914,7 +3930,27 @@ export default function PatientChartPage() {
                                                 <circle cx="8" cy="8" r="5.5" fill="#10B981" />
                                             )}
                                         </svg>
-                                        <span className={`flex-1 min-w-0 truncate ${todoStatus === "done" ? "line-through text-gray-400" : ""}`}>{todo.content}</span>
+                                        {editingTodoId === todo.id ? (
+                                            <input
+                                                autoFocus
+                                                className="flex-1 min-w-0 text-[13px] bg-white border border-[#D27A8C] rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-[#D27A8C]/30"
+                                                value={editingTodoContent}
+                                                onChange={(e) => setEditingTodoContent(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") { e.preventDefault(); void handleSaveTodoContent(todo.id, editingTodoContent); }
+                                                    if (e.key === "Escape") { setEditingTodoId(null); setEditingTodoContent(""); }
+                                                }}
+                                                onBlur={() => void handleSaveTodoContent(todo.id, editingTodoContent)}
+                                            />
+                                        ) : (
+                                            <span
+                                                className={`flex-1 min-w-0 truncate cursor-pointer hover:text-[#D27A8C] ${todoStatus === "done" ? "line-through text-gray-400" : ""}`}
+                                                onClick={() => { setEditingTodoId(todo.id); setEditingTodoContent(todo.content); }}
+                                                title="클릭하여 수정"
+                                            >
+                                                {todo.content}
+                                            </span>
+                                        )}
                                         {todoStatus === "doing" && (todo as any).startedAt && (
                                             <span className="text-[11px] text-[#D27A8C] flex-shrink-0">{format(new Date((todo as any).startedAt), "HH:mm:ss")} ~</span>
                                         )}
