@@ -6356,7 +6356,7 @@ function ConsentHistoryList({ patientId, branchId, searchQuery = "" }: { patient
                     {items.filter((item: any) => {
                         if (!searchQuery.trim()) return true;
                         const q = searchQuery.trim().toLowerCase();
-                        const name = String(item?.formTemplateName || item?.templateName || "").toLowerCase();
+                        const name = String(item?.formTitle || item?.formTemplateName || item?.templateName || "").toLowerCase();
                         const st = String(item?.status || "").toLowerCase();
                         const stLabel = st === "signed" ? "서명완료" : st === "cancelled" ? "취소" : st === "expired" ? "만료" : "대기";
                         return name.includes(q) || stLabel.includes(q);
