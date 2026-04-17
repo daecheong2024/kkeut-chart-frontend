@@ -7088,20 +7088,23 @@ function RefundHistoryList({
                     });
                 }
                 if ((record.items || []).length === 0) {
-                    const fallbackStatus = (recordRawStatus === "refunded" || recordRawStatus === "cancelled") ? "refunded" as const : "paid" as const;
-                    cards.push({
-                        id: `item-${record.id}-noitem`,
-                        itemName: "결제",
-                        itemType: "payment",
-                        quantity: 1,
-                        totalPrice: paymentService.calcActualPaidAmount(record),
-                        paidAt: record.paidAt,
-                        status: fallbackStatus,
-                        collectorName: record.collectorName,
-                        itemPaymentDetails: [],
-                        group,
-                        record,
-                    });
+                    const groupHasRealItems = group.records.some((r) => (r.items || []).length > 0);
+                    if (!groupHasRealItems) {
+                        const fallbackStatus = (recordRawStatus === "refunded" || recordRawStatus === "cancelled") ? "refunded" as const : "paid" as const;
+                        cards.push({
+                            id: `item-${record.id}-noitem`,
+                            itemName: "결제",
+                            itemType: "payment",
+                            quantity: 1,
+                            totalPrice: paymentService.calcActualPaidAmount(record),
+                            paidAt: record.paidAt,
+                            status: fallbackStatus,
+                            collectorName: record.collectorName,
+                            itemPaymentDetails: [],
+                            group,
+                            record,
+                        });
+                    }
                 }
             }
         }
