@@ -616,6 +616,15 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                     continue;
                 }
 
+                if (rePaymentAuth && penaltyAmount > 0) {
+                    await showConfirm({
+                        message: "위약금 결제가 완료되었습니다.\n\n카드를 단말기에서 빼신 후 [확인]을 눌러주세요.\n→ 원거래 전체취소를 진행합니다.",
+                        type: "info",
+                        confirmText: "확인",
+                        cancelText: "",
+                    });
+                }
+
                 setProgress({ phase: "void", current: i + 1, total: terminalSelections.length, itemName: sel.itemName, amount: paidAmount });
                 try {
                     const r = await kisTerminalService.requestRefund({

@@ -312,6 +312,12 @@ export function RefundModal({
             }
 
             // Step B: 단말기 원거래 전체취소
+            await showConfirm({
+                message: "위약금 결제가 완료되었습니다.\n\n카드를 단말기에서 빼신 후 [확인]을 눌러주세요.\n→ 원거래 전체취소를 진행합니다.",
+                type: "info",
+                confirmText: "확인",
+                cancelText: "",
+            });
             setProgress({ phase: "void", amount: paidAmount });
             let voidResult;
             try {
