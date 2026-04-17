@@ -224,7 +224,7 @@ export default function TicketsSettingsPage() {
       maximumUseCount: item.usageUnit === "session" ? (item.totalCount ?? null) : (item.maxTotalCount ?? null),
       expireDate: item.usageUnit === "period" && item.validDays ? formatDateForApi(new Date(Date.now() + item.validDays * 86400000).toISOString().substring(0, 10)) : null,
       saleStartDate: formatDateForApi(item.saleStartDate) || new Date().toISOString(),
-      saleEndDate: formatDateForApi(item.saleEndDate) || new Date().toISOString(),
+      saleEndDate: item.saleEndDate ? formatDateForApi(item.saleEndDate) : null,
       procOpTime: minutesToProcOpTime(item.queueDurationMinutes),
       todoTemplate: item.autoTodoTitleTemplate ?? null,
       autoTodoTasks: item.autoTodoTasks ?? [],
@@ -758,7 +758,7 @@ export default function TicketsSettingsPage() {
                           <div className="truncate break-keep font-bold text-gray-900">{item.name}</div>
                           {(item.saleStartDate || item.saleEndDate) && (
                             <div className="mt-0.5 whitespace-nowrap text-[10px] text-gray-500">
-                              {`${item.saleStartDate || "..."} ~ ${item.saleEndDate || "..."}`}
+                              {`${item.saleStartDate || "..."} ~ ${item.saleEndDate || "제한없음"}`}
                             </div>
                           )}
                         </td>
@@ -1169,7 +1169,7 @@ export default function TicketsSettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-bold text-gray-500">판매 종료일</label>
+                    <label className="mb-1 block text-xs font-bold text-gray-500">판매 종료일 <span className="font-normal text-gray-400">(비우면 제한없음)</span></label>
                     <Input
                       type="date"
                       value={editingItem.saleEndDate || ""}
