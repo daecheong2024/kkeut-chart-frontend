@@ -83,6 +83,67 @@ export interface PaymentOperationSummary {
     legs: PaymentOperationLeg[];
 }
 
+export interface PaymentWorkCenterAction {
+    actionCode: string;
+    label: string;
+    isPrimary: boolean;
+}
+
+export interface PaymentWorkCenterTerminalGap {
+    paymentDetailId: number;
+    paymentType: string;
+    amount: number;
+    paymentSubMethodLabel?: string;
+    cardCompany?: string;
+    missingFieldSummary: string;
+}
+
+export interface PaymentWorkCenterItem {
+    workItemKey: string;
+    paymentMasterId: number;
+    paidAt: string;
+    lastUpdatedAt: string;
+    workType: string;
+    statusTone: string;
+    statusLabel: string;
+    headline: string;
+    description: string;
+    itemSummary: string;
+    nextActionCode?: string;
+    nextActionLabel?: string;
+    canResumeCollection: boolean;
+    canRetry: boolean;
+    canManualClose: boolean;
+    canEditTerminalInfo: boolean;
+    totalAmount: number;
+    completedAmount: number;
+    outstandingAmount: number;
+    totalLegCount: number;
+    succeededLegCount: number;
+    pendingLegCount: number;
+    unknownLegCount: number;
+    manualActionLegCount: number;
+    missingTerminalDetailCount: number;
+    focusedPaymentDetailId?: number;
+    originPaymentDetailId?: number;
+    rePaymentDetailId?: number;
+    originPaymentType?: string;
+    originAmount?: number;
+    availableActions: PaymentWorkCenterAction[];
+    missingTerminalDetails: PaymentWorkCenterTerminalGap[];
+    operation?: PaymentOperationSummary | null;
+}
+
+export interface PaymentWorkCenterSummary {
+    customerId: number;
+    totalWorkItemCount: number;
+    needsAttentionCount: number;
+    outstandingCollectionCount: number;
+    refundFollowUpCount: number;
+    terminalInfoRequiredCount: number;
+    items: PaymentWorkCenterItem[];
+}
+
 export interface SyncPaymentOperationLegRequest {
     legKey: string;
     sequence: number;
@@ -880,5 +941,64 @@ export const paymentService = {
     async getOperationByKey(operationKey: string): Promise<PaymentOperationSummary | null> {
         const response = await apiClient.get(`/payments/operations/by-key?operationKey=${encodeURIComponent(operationKey)}`);
         return response?.data ?? null;
+    },
+
+    async getWorkCenter(patientId: number): Promise<PaymentWorkCenterSummary> {
+        const response = await apiClient.get(`/payments/operations/work-center?patientId=${encodeURIComponent(String(patientId))}`);
+        const d = response?.data ?? {};
+        return {
+            customerId: Number(d.customerId || patientId || 0),
+            totalWorkItemCount: Number(d.totalWorkItemCount || 0),
+            needsAttentionCount: Number(d.needsAttentionCount || 0),
+            outstandingCollectionCount: Number(d.outstandingCollectionCount || 0),
+            refundFollowUpCount: Number(d.refundFollowUpCount || 0),
+            terminalInfoRequiredCount: Number(d.terminalInfoRequiredCount || 0),
+            items: Array.isArray(d.items) ? d.items.map((item: any) => ({
+                workItemKey: String(item.workItemKey || ""),
+                paymentMasterId: Number(item.paymentMasterId || 0),
+                paidAt: String(item.paidAt || ""),
+                lastUpdatedAt: String(item.lastUpdatedAt || item.paidAt || ""),
+                workType: String(item.workType || ""),
+                statusTone: String(item.statusTone || "neutral"),
+                statusLabel: String(item.statusLabel || ""),
+                headline: String(item.headline || ""),
+                description: String(item.description || ""),
+                itemSummary: String(item.itemSummary || ""),
+                nextActionCode: item.nextActionCode ? String(item.nextActionCode) : undefined,
+                nextActionLabel: item.nextActionLabel ? String(item.nextActionLabel) : undefined,
+                canResumeCollection: Boolean(item.canResumeCollection),
+                canRetry: Boolean(item.canRetry),
+                canManualClose: Boolean(item.canManualClose),
+                canEditTerminalInfo: Boolean(item.canEditTerminalInfo),
+                totalAmount: Number(item.totalAmount || 0),
+                completedAmount: Number(item.completedAmount || 0),
+                outstandingAmount: Number(item.outstandingAmount || 0),
+                totalLegCount: Number(item.totalLegCount || 0),
+                succeededLegCount: Number(item.succeededLegCount || 0),
+                pendingLegCount: Number(item.pendingLegCount || 0),
+                unknownLegCount: Number(item.unknownLegCount || 0),
+                manualActionLegCount: Number(item.manualActionLegCount || 0),
+                missingTerminalDetailCount: Number(item.missingTerminalDetailCount || 0),
+                focusedPaymentDetailId: item.focusedPaymentDetailId == null ? undefined : Number(item.focusedPaymentDetailId),
+                originPaymentDetailId: item.originPaymentDetailId == null ? undefined : Number(item.originPaymentDetailId),
+                rePaymentDetailId: item.rePaymentDetailId == null ? undefined : Number(item.rePaymentDetailId),
+                originPaymentType: item.originPaymentType ? String(item.originPaymentType) : undefined,
+                originAmount: item.originAmount == null ? undefined : Number(item.originAmount),
+                availableActions: Array.isArray(item.availableActions) ? item.availableActions.map((action: any) => ({
+                    actionCode: String(action.actionCode || ""),
+                    label: String(action.label || ""),
+                    isPrimary: Boolean(action.isPrimary),
+                })) : [],
+                missingTerminalDetails: Array.isArray(item.missingTerminalDetails) ? item.missingTerminalDetails.map((gap: any) => ({
+                    paymentDetailId: Number(gap.paymentDetailId || 0),
+                    paymentType: String(gap.paymentType || ""),
+                    amount: Number(gap.amount || 0),
+                    paymentSubMethodLabel: gap.paymentSubMethodLabel ? String(gap.paymentSubMethodLabel) : undefined,
+                    cardCompany: gap.cardCompany ? String(gap.cardCompany) : undefined,
+                    missingFieldSummary: String(gap.missingFieldSummary || ""),
+                })) : [],
+                operation: item.operation ?? null,
+            })) : [],
+        };
     }
 };

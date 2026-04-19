@@ -37,7 +37,7 @@ import { ko } from "date-fns/locale";
 import { patientService, PatientDetail } from '../services/patientService';
 import { visitService, ReservationChangeHistoryItem } from '../services/visitService';
 import { chartConfigService } from '../services/chartConfigService';
-import { paymentService, PaymentItem, PaymentRecord, PaymentUsageSummaryItem, PaymentDetailBreakdown, PaymentOperationSummary } from '../services/paymentService';
+import { paymentService, PaymentItem, PaymentRecord, PaymentUsageSummaryItem, PaymentDetailBreakdown, PaymentOperationSummary, PaymentWorkCenterSummary } from '../services/paymentService';
 import { memberConfigService } from '../services/memberConfigService';
 import { categoryTicketDefService } from '../services/categoryTicketDefService';
 import { membershipService, PatientMembership, MembershipBalance, MembershipHistory } from '../services/membershipService';
@@ -354,6 +354,7 @@ import { PaymentInfoModal } from "../components/refund/PaymentInfoModal";
 import { BulkRefundModal, type BulkRefundModalItem } from "../components/refund/BulkRefundModal";
 import { MembershipSettlementModal } from "../components/refund/MembershipSettlementModal";
 import { RefundDetailModal } from "../components/refund/RefundDetailModal";
+import { RefundWorkCenterPanel } from "../components/refund/RefundWorkCenterPanel";
 import { UnifiedRefundModal, type UnifiedRefundSelection } from "../components/refund/UnifiedRefundModal";
 import SmartTextarea from "../components/SmartTextarea";
 import { printService, PrintSection } from "../services/printService";
@@ -417,6 +418,7 @@ export default function PatientChartPage() {
     const [ticketQueueByProcedure, setTicketQueueByProcedure] = useState<Record<string, ProcedureQueueSummary>>({});
     const [patientRecords, setPatientRecords] = useState<PatientRecordData[]>([]);
     const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([]);
+    const [paymentWorkCenter, setPaymentWorkCenter] = useState<PaymentWorkCenterSummary | null>(null);
     const [resumeCheckoutOperation, setResumeCheckoutOperation] = useState<PaymentOperationSummary | null>(null);
     const [memberships, setMemberships] = useState<PatientMembership[]>([]);
     const [customerReservations, setCustomerReservations] = useState<any[]>([]);
@@ -470,6 +472,11 @@ export default function PatientChartPage() {
 
     const [showReceptionModal, setShowReceptionModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [selectedOutstandingPaymentMaster, setSelectedOutstandingPaymentMaster] = useState<{
+        masterId: number;
+        outstandingAmount: number;
+        activeOperation?: PaymentOperationSummary | null;
+    } | null>(null);
     const [showVisitCreationModal, setShowVisitCreationModal] = useState(false);
     const [isReservationHistoryModalOpen, setIsReservationHistoryModalOpen] = useState(false);
     const [isReservationHistoryLoading, setIsReservationHistoryLoading] = useState(false);
@@ -867,11 +874,28 @@ export default function PatientChartPage() {
         }
         return null;
     }, [paymentRecords, selectedVisitDate]);
+    const paymentModalTarget = selectedOutstandingPaymentMaster ?? outstandingPaymentMaster;
     const dueAmount = cartPreview?.totalCashRequired ?? totalAmount;
     const cartRemaining = Math.max(0, dueAmount - paidAmount);
     const remaining = outstandingPaymentMaster
         ? outstandingPaymentMaster.outstandingAmount + cartRemaining
         : cartRemaining;
+
+    useEffect(() => {
+        if (!selectedOutstandingPaymentMaster?.masterId) return;
+        const matched = paymentRecords.find((row) => Number(row?.paymentMasterId ?? row?.id ?? 0) === selectedOutstandingPaymentMaster.masterId);
+        if (!matched) return;
+        const nextOutstanding = Math.max(0, Number(matched.outstandingAmount ?? 0));
+        if (nextOutstanding <= 0) {
+            setSelectedOutstandingPaymentMaster(null);
+            return;
+        }
+        setSelectedOutstandingPaymentMaster({
+            masterId: selectedOutstandingPaymentMaster.masterId,
+            outstandingAmount: nextOutstanding,
+            activeOperation: matched.activeOperation ?? null,
+        });
+    }, [paymentRecords, selectedOutstandingPaymentMaster?.masterId]);
 
     useEffect(() => {
         if (!patientIdStr) {
@@ -1200,6 +1224,7 @@ export default function PatientChartPage() {
                     toDateISO: statsDate,
                 }),
                 visitService.getAllReservationsByCustomer(pId),
+                paymentService.getWorkCenter(pId),
             ]);
 
             // Cart
@@ -1286,11 +1311,22 @@ export default function PatientChartPage() {
                 setTicketQueueByProcedure({});
             }
             // Customer reservations
-            if (results[8]?.status === "fulfilled") setCustomerReservations((results[8].value as any[]) || []);
+            if (results[8]?.status === "fulfilled") {
+                setCustomerReservations((results[8].value as any[]) || []);
+            } else {
+                setCustomerReservations([]);
+            }
+
+            if (results[9]?.status === "fulfilled") {
+                setPaymentWorkCenter((results[9].value as PaymentWorkCenterSummary) || null);
+            } else {
+                setPaymentWorkCenter(null);
+            }
 
         } catch (e) {
             console.error("Critical error loading persistence data", e);
             setTicketQueueByProcedure({});
+            setPaymentWorkCenter(null);
         }
     }, [settings.activeBranchId]);
 
@@ -2361,9 +2397,31 @@ export default function PatientChartPage() {
         if (cashRequired <= 0 && prioritizedMembershipIds.length > 0) {
             handleMembershipAutoCheckout();
         } else {
+            setSelectedOutstandingPaymentMaster(null);
             setShowPaymentModal(true);
         }
     };
+
+    const handleResumeOutstandingCollection = useCallback((paymentMasterId: number) => {
+        const targetRecord = paymentRecords.find((row) => Number(row?.paymentMasterId ?? row?.id ?? 0) === paymentMasterId);
+        if (!targetRecord) {
+            showAlert({ message: "이어갈 수납 건을 찾지 못했습니다.", type: "warning" });
+            return;
+        }
+
+        const outstandingAmount = Math.max(0, Number(targetRecord.outstandingAmount ?? 0));
+        if (outstandingAmount <= 0) {
+            showAlert({ message: "남은 잔액이 없어 이어서 수납할 항목이 없습니다.", type: "warning" });
+            return;
+        }
+
+        setSelectedOutstandingPaymentMaster({
+            masterId: paymentMasterId,
+            outstandingAmount,
+            activeOperation: targetRecord.activeOperation ?? null,
+        });
+        setShowPaymentModal(true);
+    }, [paymentRecords, showAlert]);
 
     const handleAddPayment = async (paymentData: any) => {
         if (!patientIdStr) return;
@@ -2377,9 +2435,9 @@ export default function PatientChartPage() {
             const actualPaid = paymentData?.paidAmount ?? amount;
             const isPartial = paymentData?.isPartialPayment === true;
 
-            if (outstandingPaymentMaster && cartItems.length === 0) {
+            if (paymentModalTarget && cartItems.length === 0) {
                 const result = await paymentService.addPaymentDetail(
-                    outstandingPaymentMaster.masterId,
+                    paymentModalTarget.masterId,
                     paymentData?.paymentLines ?? [],
                     {
                         operationKey,
@@ -2393,13 +2451,14 @@ export default function PatientChartPage() {
                         operationKey: result.operation.operationKey,
                         operationType: result.operation.operationType,
                         patientId: pid,
-                        paymentMasterId: result.operation.paymentMasterId ?? outstandingPaymentMaster.masterId,
+                        paymentMasterId: result.operation.paymentMasterId ?? paymentModalTarget.masterId,
                         status: result.operation.status,
                         nextAction: result.operation.nextAction,
                         summaryMessage: result.operation.summaryMessage,
                     });
                 }
                 await loadPersistenceData(pid);
+                setSelectedOutstandingPaymentMaster(null);
                 showAlert({
                     message: result.outstandingAmount > 0
                         ? `잔액 수납 완료 (잔액 ${result.outstandingAmount.toLocaleString()}원 남음)`
@@ -2444,6 +2503,7 @@ export default function PatientChartPage() {
             }
 
             await loadPersistenceData(pid);
+            setSelectedOutstandingPaymentMaster(null);
             showAlert({
                 message: isPartial
                     ? `부분 수납 완료 (${actualPaid.toLocaleString()}원 / ${amount.toLocaleString()}원). 나머지는 추가 수납해 주세요.`
@@ -4855,7 +4915,7 @@ export default function PatientChartPage() {
                                 { id: "membership", label: "회원권", count: memberships.length },
                                 { id: "ticket", label: "티켓 이력", count: tickets.filter((t) => !t.isRefunded && ((getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null)).length },
                                 { id: "consent", label: "동의서", count: undefined },
-                                { id: "refund", label: "결제/환불", count: paymentRecords.reduce((sum, r) => sum + (r.items || []).filter(it => {
+                                { id: "refund", label: "결제/환불", count: paymentWorkCenter?.totalWorkItemCount ?? paymentRecords.reduce((sum, r) => sum + (r.items || []).filter(it => {
                                     const s = String((it as any).status || r.status || "paid").trim().toLowerCase();
                                     if (s === "refunded" || s === "cancelled") return false;
                                     const isRePayment = ((it as any).paymentDetails ?? []).some(
@@ -5593,12 +5653,14 @@ export default function PatientChartPage() {
                             <RefundHistoryList
                                 patientId={Number(patientIdStr)}
                                 paymentRecords={paymentRecords}
+                                workCenter={paymentWorkCenter}
                                 tickets={tickets}
                                 memberships={memberships}
                                 refundingPaymentId={refundingPaymentId}
                                 onRefund={canEditPayment ? handleRefundPaymentRecord : undefined}
                                 onRefundGroup={canEditPayment ? handleRefundPaymentGroup : undefined}
                                 onRefundCompleted={() => loadPersistenceData(Number(patientIdStr))}
+                                onResumeCollection={handleResumeOutstandingCollection}
                                 isReadOnly={isReadOnly || !canEditPayment}
                                 searchQuery={refundSearch}
                             />
@@ -5971,13 +6033,16 @@ export default function PatientChartPage() {
                 showPaymentModal && (
                     <AddPaymentModal
                         isOpen={showPaymentModal}
-                        onClose={() => setShowPaymentModal(false)}
+                        onClose={() => {
+                            setShowPaymentModal(false);
+                            setSelectedOutstandingPaymentMaster(null);
+                        }}
                         onAddPayment={handleAddPayment}
                         patientId={patient ? patient.id : undefined}
-                        paymentMasterId={outstandingPaymentMaster?.masterId}
-                        resumeOperation={outstandingPaymentMaster?.activeOperation ?? resumeCheckoutOperation}
-                        totalAmount={Math.max(0, outstandingPaymentMaster && cartItems.length === 0
-                            ? outstandingPaymentMaster.outstandingAmount
+                        paymentMasterId={paymentModalTarget?.masterId}
+                        resumeOperation={paymentModalTarget?.activeOperation ?? resumeCheckoutOperation}
+                        totalAmount={Math.max(0, paymentModalTarget && cartItems.length === 0
+                            ? paymentModalTarget.outstandingAmount
                             : (cartPreview?.totalCashRequired ?? remaining))}
                         patientPhone={patient?.phone}
                     />
@@ -6867,23 +6932,27 @@ function ConsentHistoryList({ patientId, branchId, searchQuery = "" }: { patient
 function RefundHistoryList({
     patientId,
     paymentRecords,
+    workCenter,
     tickets,
     memberships,
     refundingPaymentId,
     onRefund,
     onRefundGroup,
     onRefundCompleted,
+    onResumeCollection,
     isReadOnly,
     searchQuery,
 }: {
     patientId: number;
     paymentRecords: PaymentRecord[];
+    workCenter?: PaymentWorkCenterSummary | null;
     tickets: any[];
     memberships: PatientMembership[];
     refundingPaymentId: number | null;
-    onRefund: (record: PaymentRecord, itemName?: string, refundRate?: number, paymentDetailId?: number) => Promise<void>;
-    onRefundGroup: (records: PaymentRecord[]) => Promise<void>;
+    onRefund?: (record: PaymentRecord, itemName?: string, refundRate?: number, paymentDetailId?: number) => Promise<void>;
+    onRefundGroup?: (records: PaymentRecord[]) => Promise<void>;
     onRefundCompleted?: () => void | Promise<void>;
+    onResumeCollection?: (paymentMasterId: number) => void;
     isReadOnly?: boolean;
     searchQuery?: string;
 }) {
@@ -6918,6 +6987,14 @@ function RefundHistoryList({
         summary: string;
         detailLines: string[];
     };
+    type RetryRefundState = {
+        paymentMasterId: number;
+        originPaymentDetailId: number;
+        rePaymentDetailId?: number;
+        originAmount: number;
+        originPaymentType: string;
+        terminalInfo?: { authNo?: string; authDate?: string; vanKey?: string };
+    };
 
     const { showAlert, showConfirm } = useAlert();
     const [refundFilterTab, setRefundFilterTab] = useState<'all' | 'ticket' | 'membership'>('all');
@@ -6940,14 +7017,7 @@ function RefundHistoryList({
         receiptUserName?: string;
         focusedDetailId?: number;
     } | null>(null);
-    const [retryRefundState, setRetryRefundState] = useState<{
-        paymentMasterId: number;
-        originPaymentDetailId: number;
-        rePaymentDetailId?: number;
-        originAmount: number;
-        originPaymentType: string;
-        terminalInfo?: { authNo?: string; authDate?: string; vanKey?: string };
-    } | null>(null);
+    const [retryRefundState, setRetryRefundState] = useState<RetryRefundState | null>(null);
     const [retryRefundSubmitting, setRetryRefundSubmitting] = useState(false);
 
     // ISSUE-174: bulk refund + membership settlement
@@ -7048,6 +7118,16 @@ function RefundHistoryList({
 
         return mapped.sort((a, b) => toTimeMs(b.latestPaidAt) - toTimeMs(a.latestPaidAt));
     }, [paymentRecords]);
+
+    const workCenterItemByMasterId = useMemo(() => {
+        const map = new Map<number, PaymentWorkCenterSummary["items"][number]>();
+        for (const item of workCenter?.items || []) {
+            if (!map.has(item.paymentMasterId)) {
+                map.set(item.paymentMasterId, item);
+            }
+        }
+        return map;
+    }, [workCenter]);
 
     useEffect(() => {
         let cancelled = false;
@@ -7510,12 +7590,8 @@ function RefundHistoryList({
         });
     };
 
-    // ISSUE-176: 통합 환불 모달 열기
-    // 분할 결제 대응: selection 은 티켓 1개당 1건, legs 배열에 모든 detail 의 원거래 정보를 담음 (단말기 호출 시 legs 별로 반복)
-    const openUnifiedRefund = () => {
-        const selected = eligibleCardsForBulk.filter((c) => selectedCardKeys.has(c.id));
-        if (selected.length === 0) return;
-        const selections: UnifiedRefundSelection[] = selected.map((c) => {
+    const buildUnifiedSelections = useCallback((cards: ItemCard[]): UnifiedRefundSelection[] => {
+        return cards.map((c) => {
             const details = c.itemPaymentDetails || [];
             const head = details[0];
             return {
@@ -7539,15 +7615,181 @@ function RefundHistoryList({
                 })),
             };
         });
+    }, []);
+
+    const openUnifiedRefundForCards = useCallback((cards: ItemCard[]) => {
+        const selections = buildUnifiedSelections(cards);
+        if (selections.length === 0) {
+            showAlert({ message: "이어갈 환불 대상을 찾지 못했습니다.", type: "warning" });
+            return;
+        }
         setUnifiedModalState(selections);
+    }, [buildUnifiedSelections, showAlert]);
+
+    // ISSUE-176: 통합 환불 모달 열기
+    // 분할 결제 대응: selection 은 티켓 1개당 1건, legs 배열에 모든 detail 의 원거래 정보를 담음 (단말기 호출 시 legs 별로 반복)
+    const openUnifiedRefund = () => {
+        const selected = eligibleCardsForBulk.filter((c) => selectedCardKeys.has(c.id));
+        if (selected.length === 0) return;
+        openUnifiedRefundForCards(selected);
     };
 
-    if (groupedRecords.length === 0) {
+    const getAllDetailsForMaster = useCallback((paymentMasterId: number): PaymentDetailBreakdown[] => {
+        const seen = new Set<number>();
+        const details: PaymentDetailBreakdown[] = [];
+        for (const record of paymentRecords) {
+            if (Number(record.paymentMasterId || record.id) !== paymentMasterId) continue;
+            for (const item of (record.items || [])) {
+                for (const detail of (item.paymentDetails || [])) {
+                    if (seen.has(detail.id)) continue;
+                    seen.add(detail.id);
+                    details.push(detail);
+                }
+            }
+        }
+        return details;
+    }, [paymentRecords]);
+
+    const openPaymentInfoForWorkItem = useCallback((item: PaymentWorkCenterSummary["items"][number]) => {
+        const details = getAllDetailsForMaster(item.paymentMasterId);
+        if (details.length === 0) {
+            showAlert({ message: "단말 정보를 수정할 결제 상세를 찾지 못했습니다.", type: "warning" });
+            return;
+        }
+
+        const sourceRecord = paymentRecords.find((record) => Number(record.paymentMasterId || record.id) === item.paymentMasterId);
+        setPaymentInfoModal({
+            details,
+            paymentTime: sourceRecord?.paidAt,
+            receiptUserName: sourceRecord?.collectorName,
+            focusedDetailId: item.focusedPaymentDetailId,
+        });
+    }, [getAllDetailsForMaster, paymentRecords, showAlert]);
+
+    const buildRetryRefundStateFromWorkItem = useCallback((item: PaymentWorkCenterSummary["items"][number]): RetryRefundState | null => {
+        const details = getAllDetailsForMaster(item.paymentMasterId);
+        const originPaymentDetailId = Number(
+            item.originPaymentDetailId
+            || item.operation?.originPaymentDetailId
+            || item.operation?.legs?.find((leg) => typeof leg.originPaymentDetailId === "number")?.originPaymentDetailId
+            || item.focusedPaymentDetailId
+            || 0
+        );
+
+        if (!originPaymentDetailId) {
+            return null;
+        }
+
+        const originDetail = details.find((detail) => detail.id === originPaymentDetailId);
+        return {
+            paymentMasterId: item.paymentMasterId,
+            originPaymentDetailId,
+            rePaymentDetailId: item.rePaymentDetailId ?? item.operation?.rePaymentDetailId,
+            originAmount: Number(item.originAmount ?? originDetail?.amount ?? 0),
+            originPaymentType: String(item.originPaymentType || originDetail?.paymentType || "CARD"),
+            terminalInfo: originDetail && (originDetail.terminalAuthNo || originDetail.terminalAuthDate || originDetail.terminalVanKey)
+                ? {
+                    authNo: originDetail.terminalAuthNo,
+                    authDate: originDetail.terminalAuthDate,
+                    vanKey: originDetail.terminalVanKey,
+                }
+                : undefined,
+        };
+    }, [getAllDetailsForMaster]);
+
+    const openUnifiedRefundForPaymentMaster = useCallback((paymentMasterId: number) => {
+        const cards = itemCards.filter((card) => Number(card.record.paymentMasterId || card.record.id) === paymentMasterId && isCardEligible(card));
+        openUnifiedRefundForCards(cards);
+    }, [itemCards, openUnifiedRefundForCards]);
+
+    const handleManualCloseFromWorkItem = useCallback(async (item: PaymentWorkCenterSummary["items"][number]) => {
+        if (retryRefundSubmitting) return;
+        const retryState = buildRetryRefundStateFromWorkItem(item);
+        if (!retryState) {
+            showAlert({ message: "수기 마감에 필요한 원거래 정보를 찾지 못했습니다.", type: "warning" });
+            return;
+        }
+
+        const proceed = await showConfirm({
+            message: "직원이 단말기에서 직접 취소를 완료한 경우에만 수기 마감을 진행해 주세요.\n\n시스템 환불 이력만 마무리합니다.",
+            type: "warning",
+            confirmText: "수기 마감",
+            cancelText: "취소",
+        });
+        if (!proceed) return;
+
+        setRetryRefundSubmitting(true);
+        try {
+            await paymentService.finalizeRefund(retryState.paymentMasterId, {
+                originPaymentDetailId: retryState.originPaymentDetailId,
+                rePaymentDetailId: retryState.rePaymentDetailId,
+                refundType: "customer_change",
+                terminalRefundAuthNo: undefined,
+                terminalRefundDate: undefined,
+                terminalVanKey: undefined,
+                refundMethod: "MANUAL",
+            });
+            if (typeof onRefundCompleted === "function") {
+                await onRefundCompleted();
+            }
+            showAlert({ message: "수기 마감이 완료되었습니다.", type: "success" });
+        } catch (error: any) {
+            showAlert({ message: `수기 마감 실패: ${error?.response?.data?.message || error?.message || "오류"}`, type: "error" });
+        } finally {
+            setRetryRefundSubmitting(false);
+        }
+    }, [buildRetryRefundStateFromWorkItem, onRefundCompleted, retryRefundSubmitting, showAlert, showConfirm]);
+
+    const handleWorkCenterAction = useCallback((actionCode: string, item: PaymentWorkCenterSummary["items"][number]) => {
+        if (actionCode === "edit_terminal_info") {
+            openPaymentInfoForWorkItem(item);
+            return;
+        }
+
+        if (actionCode === "resume_checkout") {
+            onResumeCollection?.(item.paymentMasterId);
+            return;
+        }
+
+        if (actionCode === "resume_refund") {
+            openUnifiedRefundForPaymentMaster(item.paymentMasterId);
+            return;
+        }
+
+        if (actionCode === "finalize_refund") {
+            const retryState = buildRetryRefundStateFromWorkItem(item);
+            if (!retryState) {
+                showAlert({ message: "원거래 취소를 이어갈 정보가 부족합니다.", type: "warning" });
+                return;
+            }
+            setRetryRefundState(retryState);
+            return;
+        }
+
+        if (actionCode === "manual_close") {
+            void handleManualCloseFromWorkItem(item);
+        }
+    }, [
+        buildRetryRefundStateFromWorkItem,
+        handleManualCloseFromWorkItem,
+        onResumeCollection,
+        openPaymentInfoForWorkItem,
+        openUnifiedRefundForPaymentMaster,
+        showAlert,
+    ]);
+
+    if (groupedRecords.length === 0 && !(workCenter?.items?.length)) {
         return <div className="text-center text-[#616161] text-[14px] py-8">결제 내역이 없습니다.</div>;
     }
 
     return (
         <div className="space-y-3">
+            <RefundWorkCenterPanel
+                workCenter={workCenter}
+                disabled={isReadOnly}
+                onAction={handleWorkCenterAction}
+            />
+
             {/* ISSUE-176: 통합 환불 toolbar (sticky 느낌) */}
             {!isReadOnly && eligibleCardsForBulk.length > 0 && (
                 <div className="sticky top-0 z-10 flex items-center justify-between gap-2 rounded-[10px] border border-[#F8DCE2] bg-gradient-to-r from-[#FCEBEF]/60 to-[#FCF7F8] px-3 py-2 backdrop-blur shadow-sm">
@@ -7602,6 +7844,8 @@ function RefundHistoryList({
                         : groupEntry.groupStatus === "partial_refunded" ? "bg-amber-100 text-amber-700"
                         : "bg-emerald-50 text-emerald-700 border border-emerald-200";
                     const activeOperation = groupEntry.cards[0]?.record.activeOperation;
+                    const primaryMasterId = Number(groupEntry.cards[0]?.record.paymentMasterId || groupEntry.cards[0]?.record.id || 0);
+                    const workCenterItem = workCenterItemByMasterId.get(primaryMasterId);
 
                     return (
                         <div key={groupEntry.groupId} className="rounded-[16px] border border-slate-200 bg-white overflow-hidden shadow-sm">
@@ -7627,22 +7871,35 @@ function RefundHistoryList({
                                             </span>
                                             <span className="text-[10px] text-[#8B5A66]">{groupEntry.cards.length}건</span>
                                         </div>
-                                        {activeOperation && activeOperation.status !== "completed" && (
+                                        {workCenterItem ? (
                                             <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-[#8B3F50]">
                                                 <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 font-bold">
-                                                    {activeOperation.status}
+                                                    {workCenterItem.statusLabel}
                                                 </span>
-                                                <span className="inline-flex items-center rounded-full border border-amber-300 bg-white px-2 py-0.5 font-semibold">
-                                                    완료 {activeOperation.succeededLegCount}/{activeOperation.totalLegCount}
+                                                {workCenterItem.totalLegCount > 0 && (
+                                                    <span className="inline-flex items-center rounded-full border border-amber-300 bg-white px-2 py-0.5 font-semibold">
+                                                        완료 {workCenterItem.succeededLegCount}/{workCenterItem.totalLegCount}
+                                                    </span>
+                                                )}
+                                                {workCenterItem.nextActionLabel && (
+                                                    <span className="inline-flex items-center rounded-full border border-amber-300 bg-white px-2 py-0.5 font-semibold">
+                                                        다음 행동 {workCenterItem.nextActionLabel}
+                                                    </span>
+                                                )}
+                                                <span className="text-[10px] text-[#8B5A66]">{workCenterItem.headline}</span>
+                                            </div>
+                                        ) : activeOperation && activeOperation.status !== "completed" ? (
+                                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-[#8B3F50]">
+                                                <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 font-bold">
+                                                    작업 진행 중
                                                 </span>
-                                                <span className="inline-flex items-center rounded-full border border-amber-300 bg-white px-2 py-0.5 font-semibold">
-                                                    다음 행동 {activeOperation.nextAction}
-                                                </span>
-                                                {activeOperation.summaryMessage && (
-                                                    <span className="text-[10px] text-[#8B5A66]">{activeOperation.summaryMessage}</span>
+                                                {activeOperation.totalLegCount > 0 && (
+                                                    <span className="inline-flex items-center rounded-full border border-amber-300 bg-white px-2 py-0.5 font-semibold">
+                                                        완료 {activeOperation.succeededLegCount}/{activeOperation.totalLegCount}
+                                                    </span>
                                                 )}
                                             </div>
-                                        )}
+                                        ) : null}
                                         {(() => {
                                             const memDeduct = groupEntry.cards[0]?.group.totalMembershipDeduction ?? 0;
                                             // 그룹 내 모든 PaymentDetail (수납 수단 chip 렌더용) — id 중복 제거
@@ -7692,6 +7949,7 @@ function RefundHistoryList({
                                                         <div className="mt-1.5 flex flex-wrap items-center gap-1">
                                                             {realPaymentChips.map((g, idx) => {
                                                                 const first = g.details[0];
+                                                                if (!first) return null;
                                                                 const ptype = first.paymentType;
                                                                 const isCardLike = ptype === "CARD" || ptype === "PAY";
                                                                 const missingTerminal = isCardLike && !first.terminalAuthNo;
@@ -8016,7 +8274,12 @@ function RefundHistoryList({
                                     {!isRefunded && !clientBlockReason && !isReadOnly && isMembership && card.itemPaymentDetails[0]?.id && (
                                         <button
                                             type="button"
-                                            onClick={(e) => { e.stopPropagation(); setSettlementModalState({ paymentDetailId: card.itemPaymentDetails[0].id, membershipName: card.itemName }); }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const paymentDetailId = card.itemPaymentDetails[0]?.id;
+                                                if (!paymentDetailId) return;
+                                                setSettlementModalState({ paymentDetailId, membershipName: card.itemName });
+                                            }}
                                             className="rounded px-2 py-1 text-[10px] font-bold text-[#8B3F50] hover:bg-[#FCEBEF] transition-colors"
                                             title="회원권 정산 환불"
                                         >
@@ -8032,6 +8295,7 @@ function RefundHistoryList({
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         const pd = card.itemPaymentDetails[0];
+                                                        if (!pd) return;
                                                         setRefundModalState({
                                                             paymentMasterId: card.record.paymentMasterId || card.record.id,
                                                             paymentDetailId: pd.id,
@@ -8063,7 +8327,7 @@ function RefundHistoryList({
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     const detailId = card.itemPaymentDetails[0]?.id;
-                                                    if (!detailId) { void onRefund(card.record, card.itemName, 0); return; }
+                                                    if (!detailId) { void onRefund?.(card.record, card.itemName, 0); return; }
                                                     const detailBd = card.itemPaymentDetails.find(d => d.id === detailId) ?? card.itemPaymentDetails[0];
                                                     setRefundModalState({
                                                         paymentMasterId: card.record.paymentMasterId || card.record.id,
