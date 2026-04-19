@@ -1,5 +1,6 @@
 import { AlertTriangle, CheckCircle2, CreditCard, HelpCircle, RotateCcw, Wrench } from "lucide-react";
 import type { PaymentOperationLeg, PaymentOperationSummary } from "../../services/paymentService";
+import { StepBullet } from "../ui/StepBullet";
 
 function formatWon(amount: number): string {
     return `${Math.max(0, Math.round(amount)).toLocaleString("ko-KR")}원`;
@@ -88,7 +89,7 @@ export function RefundOperationLegTable({ operation }: RefundOperationLegTablePr
     if (legs.length === 0) {
         return (
             <div className="rounded-[12px] border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-[12px] text-slate-500">
-                현재 표시할 leg 상세가 없습니다.
+                현재 표시할 분할건 상세가 없습니다.
             </div>
         );
     }
@@ -106,9 +107,7 @@ export function RefundOperationLegTable({ operation }: RefundOperationLegTablePr
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#D27A8C] text-[10px] font-extrabold text-white">
-                                        {leg.sequence || index + 1}
-                                    </span>
+                                    <StepBullet n={leg.sequence || index + 1} size="md" />
                                     <span className="text-[11px] font-bold text-slate-500">{getRoleLabel(leg.role)}</span>
                                     <span className="inline-flex items-center gap-1 rounded-full border border-[#F8DCE2] bg-[#FCF7F8] px-2 py-0.5 text-[11px] font-bold text-[#5C2A35]">
                                         <CreditCard className="h-3 w-3" />

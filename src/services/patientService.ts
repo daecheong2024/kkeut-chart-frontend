@@ -13,6 +13,9 @@ export interface PatientSearchResult {
     marketing?: string;
     birthDate?: string;
     lastVisit?: string;
+    nextReservation?: string;
+    passportNumber?: string;
+    insuredType?: string;
 }
 
 export interface PatientDetail {

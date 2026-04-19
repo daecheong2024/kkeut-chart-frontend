@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BrandMark } from "../components/BrandMark";
 import { useAuthStore } from "../stores/useAuthStore";
@@ -15,12 +15,34 @@ export default function LoginPage() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [branchOpen, setBranchOpen] = useState(false);
+  const branchRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!branchId && settings.branches.length > 0) {
       setBranchId(settings.branches[0]?.id || "");
     }
   }, [settings.branches, branchId]);
+
+  useEffect(() => {
+    if (!branchOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (branchRef.current && !branchRef.current.contains(e.target as Node)) {
+        setBranchOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setBranchOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [branchOpen]);
+
+  const selectedBranch = settings.branches.find((b) => b.id === branchId);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -136,7 +158,7 @@ export default function LoginPage() {
 
           {/* Center: logo + uppercase title */}
           <div style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", gap: 28, marginTop: 16, alignItems: "flex-start" }}>
-            <BrandMark size={180} />
+            <BrandMark size={240} />
             <h1
               style={{
                 fontSize: 50,
@@ -179,26 +201,107 @@ export default function LoginPage() {
             {/* 지점 */}
             <div>
               <label style={labelStyle}>지점 선택</label>
-              <select
-                value={branchId}
-                onChange={(e) => setBranchId(e.target.value)}
-                onFocus={() => setFocusedField("branch")}
-                onBlur={() => setFocusedField(null)}
-                style={{
-                  ...inputStyle(focusedField === "branch"),
-                  appearance: "none",
-                  cursor: "pointer",
-                  backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%2399354E' d='M6 8L0 0h12z'/></svg>\")",
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "right 18px center",
-                  paddingRight: 44,
-                }}
-              >
-                {settings.branches.length === 0 && <option value="">지점을 불러오는 중...</option>}
-                {settings.branches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
+              <div ref={branchRef} style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => setBranchOpen((prev) => !prev)}
+                  onFocus={() => setFocusedField("branch")}
+                  onBlur={() => setFocusedField(null)}
+                  style={{
+                    ...inputStyle(focusedField === "branch" || branchOpen),
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    paddingRight: 18,
+                  }}
+                >
+                  <span style={{ fontWeight: 600, color: selectedBranch ? "#2A1F22" : "#B68C95" }}>
+                    {selectedBranch?.name || (settings.branches.length === 0 ? "지점을 불러오는 중..." : "지점을 선택해 주세요")}
+                  </span>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    style={{
+                      transition: "transform 0.2s ease",
+                      transform: branchOpen ? "rotate(180deg)" : "rotate(0deg)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <path d="M5 7.5L10 12.5L15 7.5" stroke="#99354E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {branchOpen && settings.branches.length > 0 && (
+                  <div
+                    role="listbox"
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 8px)",
+                      left: 0,
+                      right: 0,
+                      zIndex: 50,
+                      borderRadius: 14,
+                      background: "#FFFFFF",
+                      border: "1.5px solid #F4C7CE",
+                      boxShadow: "0 18px 40px rgba(153, 53, 78, 0.14)",
+                      padding: 6,
+                      maxHeight: 260,
+                      overflowY: "auto",
+                      animation: "branchDropIn 0.14s ease-out",
+                    }}
+                  >
+                    {settings.branches.map((b) => {
+                      const active = b.id === branchId;
+                      return (
+                        <button
+                          key={b.id}
+                          type="button"
+                          role="option"
+                          aria-selected={active}
+                          onClick={() => {
+                            setBranchId(b.id);
+                            setBranchOpen(false);
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!active) e.currentTarget.style.background = "#FCEBEF";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!active) e.currentTarget.style.background = "transparent";
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            width: "100%",
+                            border: "none",
+                            background: active ? "linear-gradient(135deg, #E5A0AC 0%, #D58594 100%)" : "transparent",
+                            color: active ? "#FFFFFF" : "#5C2A35",
+                            fontSize: 14,
+                            fontWeight: active ? 800 : 600,
+                            padding: "12px 14px",
+                            borderRadius: 10,
+                            cursor: "pointer",
+                            textAlign: "left",
+                            transition: "background 0.12s ease",
+                          }}
+                        >
+                          <span>{b.name}</span>
+                          {active && (
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                              <path d="M4 10.5L8.5 15L16 6" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <style>{`@keyframes branchDropIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
             </div>
 
             {/* 아이디 */}

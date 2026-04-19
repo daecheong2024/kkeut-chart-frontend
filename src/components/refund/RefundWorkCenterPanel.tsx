@@ -76,22 +76,32 @@ export function RefundWorkCenterPanel({ workCenter, disabled, onAction }: Refund
                     </span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                    <div className="rounded-[12px] border border-[#F8DCE2] bg-white px-3 py-2">
-                        <div className="text-[10px] font-bold text-[#8B5A66]">주의 필요</div>
-                        <div className="mt-1 text-[18px] font-extrabold text-[#5C2A35]">{workCenter?.needsAttentionCount || 0}</div>
-                    </div>
-                    <div className="rounded-[12px] border border-[#F8DCE2] bg-white px-3 py-2">
-                        <div className="text-[10px] font-bold text-[#8B5A66]">잔액 수납</div>
-                        <div className="mt-1 text-[18px] font-extrabold text-[#5C2A35]">{workCenter?.outstandingCollectionCount || 0}</div>
-                    </div>
-                    <div className="rounded-[12px] border border-[#F8DCE2] bg-white px-3 py-2">
-                        <div className="text-[10px] font-bold text-[#8B5A66]">환불 후속</div>
-                        <div className="mt-1 text-[18px] font-extrabold text-[#5C2A35]">{workCenter?.refundFollowUpCount || 0}</div>
-                    </div>
-                    <div className="rounded-[12px] border border-[#F8DCE2] bg-white px-3 py-2">
-                        <div className="text-[10px] font-bold text-[#8B5A66]">정보 입력</div>
-                        <div className="mt-1 text-[18px] font-extrabold text-[#5C2A35]">{workCenter?.terminalInfoRequiredCount || 0}</div>
-                    </div>
+                    {(() => {
+                        const tiles = [
+                            { label: "주의 필요", count: workCenter?.needsAttentionCount || 0, tone: "danger" as const },
+                            { label: "잔액 수납", count: workCenter?.outstandingCollectionCount || 0, tone: "success" as const },
+                            { label: "환불 후속", count: workCenter?.refundFollowUpCount || 0, tone: "warning" as const },
+                            { label: "정보 입력", count: workCenter?.terminalInfoRequiredCount || 0, tone: "info" as const },
+                        ];
+                        const toneStyle = (tone: "danger" | "warning" | "info" | "success", hasCount: boolean) => {
+                            if (!hasCount) return "border-slate-200 bg-slate-50 text-slate-400";
+                            switch (tone) {
+                                case "danger": return "border-rose-200 bg-rose-50 text-rose-700";
+                                case "warning": return "border-amber-200 bg-amber-50 text-amber-700";
+                                case "info": return "border-sky-200 bg-sky-50 text-sky-700";
+                                case "success": return "border-emerald-200 bg-emerald-50 text-emerald-700";
+                            }
+                        };
+                        return tiles.map((t) => {
+                            const hasCount = t.count > 0;
+                            return (
+                                <div key={t.label} className={`rounded-[12px] border px-3 py-2 transition-colors ${toneStyle(t.tone, hasCount)}`}>
+                                    <div className="text-[10px] font-bold opacity-80">{t.label}</div>
+                                    <div className={`mt-1 text-[18px] font-extrabold ${hasCount ? "" : "opacity-60"}`}>{t.count}</div>
+                                </div>
+                            );
+                        });
+                    })()}
                 </div>
             </div>
 
@@ -161,7 +171,7 @@ export function RefundWorkCenterPanel({ workCenter, disabled, onAction }: Refund
 
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="rounded-[12px] border border-white bg-white px-3 py-2">
-                                        <div className="text-[10px] font-bold text-slate-500">완료된 leg</div>
+                                        <div className="text-[10px] font-bold text-slate-500">완료된 분할건</div>
                                         <div className="mt-1 text-[16px] font-extrabold text-slate-900">
                                             {selectedItem.succeededLegCount}/{selectedItem.totalLegCount || selectedItem.succeededLegCount}
                                         </div>
@@ -230,16 +240,16 @@ export function RefundWorkCenterPanel({ workCenter, disabled, onAction }: Refund
                                             영수증 보고 보완할 정보
                                         </div>
                                         <div className="mt-2 space-y-2">
-                                            {selectedItem.missingTerminalDetails.map((detail) => (
+                                            {selectedItem.missingTerminalDetails.map((detail, idx) => (
                                                 <div key={detail.paymentDetailId} className="rounded-[10px] border border-slate-100 bg-slate-50 px-3 py-2">
                                                     <div className="flex items-center justify-between gap-2">
                                                         <div className="text-[11px] font-bold text-slate-700">
-                                                            detail #{detail.paymentDetailId} {detail.paymentSubMethodLabel ? `· ${detail.paymentSubMethodLabel}` : ""}
+                                                            {idx + 1}. {detail.paymentSubMethodLabel || detail.cardCompany || "결제수단 미지정"}
                                                         </div>
                                                         <div className="text-[11px] font-extrabold text-slate-900">{formatWon(detail.amount)}</div>
                                                     </div>
                                                     <div className="mt-1 text-[10px] text-slate-500">
-                                                        {detail.cardCompany ? `${detail.cardCompany} · ` : ""}{detail.missingFieldSummary}
+                                                        {detail.cardCompany && detail.paymentSubMethodLabel ? `${detail.cardCompany} · ` : ""}{detail.missingFieldSummary}
                                                     </div>
                                                 </div>
                                             ))}
@@ -248,7 +258,7 @@ export function RefundWorkCenterPanel({ workCenter, disabled, onAction }: Refund
                                 )}
 
                                 <div className="space-y-2">
-                                    <div className="text-[11px] font-bold text-slate-600">leg 상태</div>
+                                    <div className="text-[11px] font-bold text-slate-600">분할건 상태</div>
                                     <RefundOperationLegTable operation={selectedItem.operation} />
                                 </div>
                             </div>

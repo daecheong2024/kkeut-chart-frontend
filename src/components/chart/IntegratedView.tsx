@@ -17,7 +17,6 @@ import { NewPatientModal } from "../common/NewPatientModal";
 import { visitService } from "../../services/visitService";
 import { ticketService } from "../../services/ticketService";
 import { consentService } from "../../services/consentService";
-import { patientRecordService } from "../../services/patientRecordService";
 import { todoService, TodoItem } from "../../services/todoService";
 import { procedureService } from "../../services/procedureService";
 import { procedureTodoStatsService } from "../../services/procedureTodoStatsService";
@@ -37,59 +36,14 @@ import {
 import type { CartItem } from "../../services/cartService";
 import { categoryTicketDefService } from "../../services/categoryTicketDefService";
 import { normalizeQueueProcedureKey } from "../../utils/todoQueue";
-
-function toStringArray(value: any): string[] {
-    if (!value) return [];
-    if (Array.isArray(value)) return value.map((v) => String(v)).filter(Boolean);
-    if (typeof value === "string") {
-        try {
-            const parsed = JSON.parse(value);
-            if (Array.isArray(parsed)) return parsed.map((v) => String(v)).filter(Boolean);
-        } catch {
-            return value.split(",").map((v) => v.trim()).filter(Boolean);
-        }
-    }
-    return [];
-}
+import { useCardHoverOverlay } from "./hoverOverlay/useCardHoverOverlay";
+import { PatientHoverOverlay } from "./hoverOverlay/PatientHoverOverlay";
+import { toStringArray, normalizeTicketKey, toPositiveInt } from "./hoverOverlay/helpers";
 
 function getPlannedSummary(patient: Patient): string[] {
     const treatments = toStringArray((patient as any).plannedTreatments);
     if (treatments.length > 0) return treatments;
     return toStringArray((patient as any).plannedTicketNames);
-}
-
-function getPlannedTicketIds(patient: Patient): string[] {
-    return toStringArray((patient as any).plannedTicketIds);
-}
-
-function getPlannedTicketNames(patient: Patient): string[] {
-    return toStringArray((patient as any).plannedTicketNames);
-}
-
-function getHoverPlannedProcedures(
-    patient: Patient,
-    tickets: HoverTicketSummary[],
-    hasTicketSnapshot: boolean
-): string[] {
-    const explicitTreatments = toStringArray((patient as any).plannedTreatments)
-        .map((value) => String(value).trim())
-        .filter(Boolean);
-
-    const matchedReservedKeys = new Set(
-        tickets
-            .filter((ticket) => ticket.isReserved)
-            .flatMap((ticket) => [normalizeTicketKey(ticket.ticketId), normalizeTicketKey(ticket.ticketName)])
-            .filter(Boolean)
-    );
-
-    const unmatchedTicketNames = hasTicketSnapshot
-        ? getPlannedTicketNames(patient)
-            .map((value) => String(value).trim())
-            .filter(Boolean)
-            .filter((name) => !matchedReservedKeys.has(normalizeTicketKey(name)))
-        : [];
-
-    return Array.from(new Set([...explicitTreatments, ...unmatchedTicketNames]));
 }
 
 type QuickActionPhase = "checking" | "queued" | "running";
@@ -153,24 +107,6 @@ interface QuickTicketOption {
     queueProcedureName?: string;
 }
 
-interface HoverTicketSummary {
-    ticketId: string;
-    ticketName: string;
-    remaining: number;
-    isPeriod: boolean;
-    isReserved: boolean;
-    cycleBlocked: boolean;
-    cycleBlockReason?: string;
-    nextAvailableAt?: string;
-}
-
-interface HoverKeyRecordSummary {
-    id: number;
-    content: string;
-    createdAt?: string;
-    createdByName?: string;
-}
-
 interface QuickTicketPickerState {
     patient: Patient;
     patientCustomerId: number;
@@ -199,16 +135,6 @@ const CONSENT_REQUIRED_KEYWORDS = ["제모", "레이저", "시술", "필러", "�
 const SIDE_EFFECT_KEYWORDS = ["부작용", "알레르기", "주의"];
 const COMPLAINT_KEYWORDS = ["민원", "클레임", "불만"];
 const UNPAID_KEYWORDS = ["미수", "체납", "수납필요"];
-
-function normalizeTicketKey(value: unknown): string {
-    return String(value ?? "").replace(/\s+/g, "").trim().toLowerCase();
-}
-
-function toPositiveInt(value: unknown): number {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return 0;
-    return Math.max(0, Math.trunc(n));
-}
 
 function canOverrideCycleBlock(option: Pick<QuickTicketOption, "cycleBlocked" | "nextAvailableAt">): boolean {
     return Boolean(option.cycleBlocked && option.nextAvailableAt);
@@ -612,13 +538,11 @@ export function IntegratedView() {
         return () => clearInterval(timer);
     }, []);
 
-    const [hoveredCard, setHoveredCard] = useState<{ id: number, data: Patient, rect: DOMRect, anchorEl: HTMLDivElement } | null>(null);
-    const [hoverTicketsByPatient, setHoverTicketsByPatient] = useState<Record<number, HoverTicketSummary[]>>({});
-    const [hoverTicketLoadingPatientId, setHoverTicketLoadingPatientId] = useState<number | null>(null);
-    const [hoverKeyRecordsByPatient, setHoverKeyRecordsByPatient] = useState<Record<number, HoverKeyRecordSummary[]>>({});
-    const [hoverKeyRecordLoadingPatientId, setHoverKeyRecordLoadingPatientId] = useState<number | null>(null);
-    const hoverOverlayRef = useRef<HTMLDivElement | null>(null);
-    const [hoverOverlayStyle, setHoverOverlayStyle] = useState<{ top: number; left: number; width: number; minHeight: number } | null>(null);
+    const hoverOverlay = useCardHoverOverlay({
+        ticketDefs: settings.tickets?.items,
+        disabled: isDropdownOpen,
+    });
+    const { handleCardHover, handleCardLeave } = hoverOverlay;
     const [quickPhaseByPatient, setQuickPhaseByPatient] = useState<Record<number, QuickActionPhase>>({});
     const [quickPendingAction, setQuickPendingAction] = useState<QuickReceptionAction | null>(null);
     const [quickTicketPicker, setQuickTicketPicker] = useState<QuickTicketPickerState | null>(null);
@@ -626,137 +550,6 @@ export function IntegratedView() {
     const [quickException, setQuickException] = useState<{ patient: Patient; reasons: string[] } | null>(null);
     const [quickNow, setQuickNow] = useState(Date.now());
     const quickPendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    const loadHoverTickets = async (patient: Patient) => {
-        const customerId = Number(patient.patientId || patient.id);
-        if (!Number.isFinite(customerId) || customerId <= 0) return;
-        if (Object.prototype.hasOwnProperty.call(hoverTicketsByPatient, customerId)) return;
-        if (hoverTicketLoadingPatientId === customerId) return;
-
-        setHoverTicketLoadingPatientId(customerId);
-        try {
-            const tickets = await ticketService.getTickets(customerId);
-            const plannedTicketIdKeys = new Set(
-                getPlannedTicketIds(patient).map(normalizeTicketKey).filter(Boolean)
-            );
-            const plannedTicketNameKeys = new Set(
-                getPlannedTicketNames(patient).map(normalizeTicketKey).filter(Boolean)
-            );
-            const mapped: HoverTicketSummary[] = (tickets || [])
-                .filter((ticket) => (ticket as any)?.isActive !== false)
-                .map((ticket) => {
-                    const ticketDef = (settings.tickets?.items || []).find((def: any) =>
-                        normalizeTicketKey(def?.id) === normalizeTicketKey((ticket as any)?.itemId) ||
-                        normalizeTicketKey(def?.code) === normalizeTicketKey((ticket as any)?.itemId) ||
-                        normalizeTicketKey(def?.name) === normalizeTicketKey((ticket as any)?.itemName)
-                    );
-                    const usageUnit = normalizeTicketKey(
-                        (ticket as any)?.itemType || ticketDef?.usageUnit || ""
-                    );
-                    const isPeriod = usageUnit === "period";
-                    const requiresIntervalCheck = usageUnit === "period" || usageUnit === "package";
-                    const minIntervalDays = toPositiveInt(
-                        (ticket as any)?.minIntervalDays ?? ticketDef?.minIntervalDays ?? 0
-                    );
-                    const lastUsedRaw = (ticket as any)?.lastUsedAt || (ticket as any)?.lastUsedDate;
-
-                    let cycleBlocked = false;
-                    let cycleBlockReason: string | undefined;
-                    let nextAvailableAt: string | undefined;
-
-                    const weekTicketName = (ticket as any).weekTicketName || (ticket as any).snapshotWeekTicketName || ticketDef?.weekTicketName;
-                    const availableDayValue = Number((ticket as any).availableDayValue ?? (ticket as any).snapshotAvailableDayValue ?? ticketDef?.availableDayValue ?? 0);
-                    if (weekTicketName && availableDayValue > 0) {
-                        const todayDow = new Date().getDay();
-                        const dayBit = 1 << todayDow;
-                        if ((availableDayValue & dayBit) === 0) {
-                            const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
-                            const allowedDays = dayNames.filter((_, i) => (availableDayValue & (1 << i)) !== 0).join(", ");
-                            cycleBlocked = true;
-                            cycleBlockReason = `요일권 제한: 오늘(${dayNames[todayDow]})은 사용 불가 (사용 가능: ${allowedDays})`;
-                        }
-                    }
-
-                    if (!cycleBlocked && minIntervalDays > 0 && lastUsedRaw) {
-                        const lastUsedDate = new Date(lastUsedRaw);
-                        if (!Number.isNaN(lastUsedDate.getTime())) {
-                            const nextDate = new Date(lastUsedDate);
-                            nextDate.setDate(nextDate.getDate() + minIntervalDays);
-                            if (Date.now() < nextDate.getTime()) {
-                                cycleBlocked = true;
-                                nextAvailableAt = format(nextDate, "yyyy-MM-dd HH:mm");
-                                cycleBlockReason = `주기 제한 · ${nextAvailableAt} 이후 가능`;
-                            }
-                        }
-                    }
-
-                    const ticketId = String((ticket as any)?.id ?? (ticket as any)?.itemId ?? "");
-                    const ticketName = String((ticket as any)?.itemName || "시술권");
-                    const ticketIdKey = normalizeTicketKey(ticketId);
-                    const ticketNameKey = normalizeTicketKey(ticketName);
-                    const isReserved =
-                        plannedTicketIdKeys.has(ticketIdKey) ||
-                        plannedTicketNameKeys.has(ticketNameKey);
-
-                    return {
-                        ticketId,
-                        ticketName,
-                        remaining: toPositiveInt((ticket as any)?.remainingCount ?? (ticket as any)?.quantity),
-                        isPeriod,
-                        isReserved,
-                        cycleBlocked,
-                        cycleBlockReason,
-                        nextAvailableAt,
-                    };
-                })
-                .filter((ticket) => ticket.remaining > 0)
-                .sort((a, b) => {
-                    if (Number(a.isReserved) !== Number(b.isReserved)) return Number(b.isReserved) - Number(a.isReserved);
-                    if (a.cycleBlocked !== b.cycleBlocked) return a.cycleBlocked ? 1 : -1;
-                    if (a.remaining !== b.remaining) return b.remaining - a.remaining;
-                    return a.ticketName.localeCompare(b.ticketName, "ko-KR");
-                });
-
-            setHoverTicketsByPatient((prev) => ({ ...prev, [customerId]: mapped }));
-        } catch (error) {
-            console.error("failed to load hover ticket summary", error);
-            setHoverTicketsByPatient((prev) => ({ ...prev, [customerId]: [] }));
-        } finally {
-            setHoverTicketLoadingPatientId((current) => (current === customerId ? null : current));
-        }
-    };
-
-    const loadHoverKeyRecords = async (patient: Patient) => {
-        const customerId = Number(patient.patientId || patient.id);
-        if (!Number.isFinite(customerId) || customerId <= 0) return;
-        if (Object.prototype.hasOwnProperty.call(hoverKeyRecordsByPatient, customerId)) return;
-        if (hoverKeyRecordLoadingPatientId === customerId) return;
-
-        setHoverKeyRecordLoadingPatientId(customerId);
-        try {
-            const records = await patientRecordService.getByPatientId(customerId);
-            const mapped: HoverKeyRecordSummary[] = (records || [])
-                .filter((record: any) => Boolean(record?.isPinned) && String(record?.content || "").trim().length > 0)
-                .sort((a: any, b: any) => {
-                    const timeA = new Date(String(a?.createdAt || 0)).getTime();
-                    const timeB = new Date(String(b?.createdAt || 0)).getTime();
-                    return timeB - timeA;
-                })
-                .slice(0, 3)
-                .map((record: any) => ({
-                    id: Number(record?.id || 0),
-                    content: String(record?.content || "").trim(),
-                    createdAt: record?.createdAt ? String(record.createdAt) : undefined,
-                    createdByName: record?.createdByName ? String(record.createdByName) : undefined,
-                }));
-            setHoverKeyRecordsByPatient((prev) => ({ ...prev, [customerId]: mapped }));
-        } catch (error) {
-            console.error("failed to load hover key records", error);
-            setHoverKeyRecordsByPatient((prev) => ({ ...prev, [customerId]: [] }));
-        } finally {
-            setHoverKeyRecordLoadingPatientId((current) => (current === customerId ? null : current));
-        }
-    };
 
     const resolvePrintMemoSections = useCallback(() => {
         const raw = settings.chartConfig?.memoSections;
@@ -841,19 +634,6 @@ export function IntegratedView() {
         } catch {
             setPrintPreviewByPatient((prev) => ({ ...prev, [customerId]: "미리보기 로드 실패" }));
         }
-    };
-
-    const handleCardHover = (event: React.MouseEvent<HTMLDivElement>, data: Patient) => {
-        const rect = event.currentTarget.getBoundingClientRect();
-        setHoveredCard({ id: data.id, data, rect, anchorEl: event.currentTarget });
-        void loadHoverTickets(data);
-        void loadHoverKeyRecords(data);
-        void loadPrintPreview(data);
-    };
-
-    const handleCardLeave = () => {
-        setHoveredCard(null);
-        setHoverOverlayStyle(null);
     };
 
     const handlePrintPatientChart = useCallback(async (patient: Patient) => {
@@ -2083,112 +1863,6 @@ export function IntegratedView() {
             selectedReceptionPatient &&
             quickPendingAction.patientVisitId !== selectedReceptionPatient.id
         );
-    const hoveredCustomerId = hoveredCard
-        ? Number(hoveredCard.data.patientId || hoveredCard.data.id)
-        : 0;
-    const hoveredTickets =
-        hoveredCustomerId > 0 ? (hoverTicketsByPatient[hoveredCustomerId] || []) : [];
-    const hasHoverTicketSnapshot =
-        hoveredCustomerId > 0 &&
-        Object.prototype.hasOwnProperty.call(hoverTicketsByPatient, hoveredCustomerId);
-    const isHoverTicketLoading =
-        hoveredCustomerId > 0 && hoverTicketLoadingPatientId === hoveredCustomerId;
-    const hoveredKeyRecords =
-        hoveredCustomerId > 0 ? (hoverKeyRecordsByPatient[hoveredCustomerId] || []) : [];
-    const hasHoverKeyRecordSnapshot =
-        hoveredCustomerId > 0 &&
-        Object.prototype.hasOwnProperty.call(hoverKeyRecordsByPatient, hoveredCustomerId);
-    const isHoverKeyRecordLoading =
-        hoveredCustomerId > 0 && hoverKeyRecordLoadingPatientId === hoveredCustomerId;
-    const hoveredPlannedSummary = hoveredCard
-        ? getHoverPlannedProcedures(hoveredCard.data, hoveredTickets, hasHoverTicketSnapshot)
-        : [];
-    const hoverHistoryText = hoveredCard?.data?.history
-        ? String(hoveredCard.data.history)
-            .split("\n")
-            .filter((line) => {
-                const trimmed = line.trim();
-                if (!trimmed) return true;
-                return !trimmed.includes("선택 시술권") && !trimmed.includes("예약 시술");
-            })
-            .join("\n")
-            .trim()
-        : "";
-
-    const shouldShowHoverOverlay = Boolean(
-        hoveredCard &&
-        !isDropdownOpen &&
-        (
-            hoveredPlannedSummary.length > 0 ||
-            hoverHistoryText ||
-            hoveredTickets.length > 0 ||
-            isHoverTicketLoading ||
-            hasHoverTicketSnapshot ||
-            hoveredKeyRecords.length > 0 ||
-            isHoverKeyRecordLoading ||
-            hasHoverKeyRecordSnapshot
-        )
-    );
-
-    const updateHoverPosition = useCallback(() => {
-        if (!hoveredCard) return;
-        const margin = 8;
-        const gap = 12;
-        const overlayEl = hoverOverlayRef.current;
-        const liveAnchorRect = hoveredCard.anchorEl?.getBoundingClientRect();
-        const anchorRect = liveAnchorRect && liveAnchorRect.width > 0
-            ? liveAnchorRect
-            : hoveredCard.rect;
-
-        const overlayHeight = overlayEl?.getBoundingClientRect().height ?? anchorRect.height;
-        const overlayWidth = anchorRect.width;
-        const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-
-        let left = anchorRect.left;
-        const maxLeft = Math.max(margin, viewportWidth - overlayWidth - margin);
-        left = Math.min(Math.max(margin, left), maxLeft);
-
-        let top = anchorRect.bottom + gap;
-        if (top + overlayHeight > viewportHeight - margin) {
-            const topAbove = anchorRect.top - overlayHeight - gap;
-            top = topAbove >= margin
-                ? topAbove
-                : Math.max(margin, viewportHeight - overlayHeight - margin);
-        }
-
-        setHoverOverlayStyle({
-            top,
-            left,
-            width: overlayWidth,
-            minHeight: anchorRect.height,
-        });
-    }, [hoveredCard]);
-
-    useEffect(() => {
-        if (!shouldShowHoverOverlay || !hoveredCard) {
-            setHoverOverlayStyle(null);
-            return;
-        }
-
-        updateHoverPosition();
-        const frameId = window.requestAnimationFrame(updateHoverPosition);
-        window.addEventListener("resize", updateHoverPosition);
-        window.addEventListener("scroll", updateHoverPosition, true);
-
-        return () => {
-            window.cancelAnimationFrame(frameId);
-            window.removeEventListener("resize", updateHoverPosition);
-            window.removeEventListener("scroll", updateHoverPosition, true);
-        };
-    }, [shouldShowHoverOverlay, hoveredCard, updateHoverPosition]);
-
-    useEffect(() => {
-        if (!shouldShowHoverOverlay || !hoveredCard) return;
-        requestAnimationFrame(updateHoverPosition);
-    }, [shouldShowHoverOverlay, hoveredCard, hoveredTickets.length, hoveredKeyRecords.length, isHoverTicketLoading, isHoverKeyRecordLoading, updateHoverPosition]);
-
-
     return (
         <div className="flex flex-1 h-full overflow-hidden border-t border-slate-200/70 relative rounded-2xl">
             {/* In-Page Sidebar (Calendar & Tasks) */}
@@ -2421,7 +2095,7 @@ export function IntegratedView() {
                                     key={res.id}
                                     data={res}
                                     onDragStart={(e) => handleDragStart(e, res.id)}
-                                    onMouseEnter={(e) => handleCardHover(e, res)}
+                                    onMouseEnter={(e) => { handleCardHover(e, res); void loadPrintPreview(res); }}
                                     onMouseLeave={handleCardLeave}
                                     onClick={() => {
                                         if (!isSameAsToday(res.visitDate || dateISO)) {
@@ -2531,7 +2205,7 @@ export function IntegratedView() {
                                         onTodoAssigneeChange={handleTodoAssigneeChange}
                                         onStatusDropdownChange={setIsDropdownOpen}
                                         onDragStart={(e) => handleDragStart(e, res.id)}
-                                        onMouseEnter={(e) => handleCardHover(e, res)}
+                                        onMouseEnter={(e) => { handleCardHover(e, res); void loadPrintPreview(res); }}
                                         onMouseLeave={handleCardLeave}
                                         onPrint={() => handlePrintPatientChart(res)}
                                         printPreview={printPreviewByPatient[Number(res.patientId || res.id)] || "인쇄 미리보기 로드 중..."}
@@ -2645,7 +2319,7 @@ export function IntegratedView() {
                                         onTodoAssigneeChange={handleTodoAssigneeChange}
                                         onStatusDropdownChange={setIsDropdownOpen}
                                         onDragStart={(e) => handleDragStart(e, res.id)}
-                                        onMouseEnter={(e) => handleCardHover(e, res)}
+                                        onMouseEnter={(e) => { handleCardHover(e, res); void loadPrintPreview(res); }}
                                         onMouseLeave={handleCardLeave}
                                         onPrint={() => handlePrintPatientChart(res)}
                                         printPreview={printPreviewByPatient[Number(res.patientId || res.id)] || "인쇄 미리보기 로드 중..."}
@@ -2659,131 +2333,7 @@ export function IntegratedView() {
             </main>
 
             {/* Hover Overlay */}
-            {shouldShowHoverOverlay && hoveredCard && (
-                <div
-                    ref={hoverOverlayRef}
-                    className="fixed z-[9999] kkeut-card-luxe p-3 animate-in fade-in duration-200 pointer-events-none"
-                    style={hoverOverlayStyle ?? {
-                        top: hoveredCard.rect.bottom + 12,
-                        left: hoveredCard.rect.left,
-                        width: hoveredCard.rect.width,
-                        minHeight: hoveredCard.rect.height,
-                    }}
-                >
-                    <div className="space-y-3">
-                        {hoveredPlannedSummary.length > 0 && (
-                            <div>
-                                <div className="text-xs font-bold text-blue-800 mb-1">예약 시술</div>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {hoveredPlannedSummary.map((name, idx) => (
-                                        <span
-                                            key={`hover-planned-${hoveredCustomerId}-${idx}-${name}`}
-                                            className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50/70 px-2 py-1 text-[11px] font-medium text-blue-700"
-                                        >
-                                            {name}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        {(hoveredCustomerId > 0 || isHoverTicketLoading || hoveredTickets.length > 0) && (
-                            <div>
-                                <div className="text-xs font-bold text-cyan-800 mb-1">남은 시술권</div>
-                                {isHoverTicketLoading ? (
-                                    <div className="text-xs text-slate-500">불러오는 중...</div>
-                                ) : hoveredTickets.length === 0 ? (
-                                    <div className="text-xs text-slate-500">남은 시술권이 없습니다.</div>
-                                ) : (
-                                    <div className="space-y-1.5">
-                                        {hoveredTickets.slice(0, 6).map((ticket) => (
-                                            <div
-                                                key={`hover-ticket-${hoveredCustomerId}-${ticket.ticketId}`}
-                                                className={`rounded-lg border px-2.5 py-1.5 ${
-                                                    ticket.cycleBlocked
-                                                        ? "border-red-200 bg-red-50/50 opacity-70"
-                                                        : ticket.isReserved
-                                                            ? "border-cyan-200 bg-cyan-50/60"
-                                                            : "border-slate-200 bg-white/70"
-                                                }`}
-                                            >
-                                                <div className="flex items-center justify-between gap-2 text-xs">
-                                                    <div className="min-w-0 flex items-center gap-1.5">
-                                                        <Ticket className="h-3 w-3 shrink-0 text-slate-500" />
-                                                        <span className="truncate font-semibold text-slate-700">{ticket.ticketName}</span>
-                                                        {ticket.isReserved && (
-                                                            <span className="shrink-0 rounded-full bg-cyan-100 px-1.5 py-0.5 text-[9px] font-bold text-cyan-700">
-                                                                예약 매칭
-                                                            </span>
-                                                        )}
-                                                        {ticket.isPeriod && (
-                                                            <span className="shrink-0 rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">
-                                                                주기권
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <span className="shrink-0 font-bold text-[#D27A8C]">
-                                                        잔여 {ticket.remaining}회
-                                                    </span>
-                                                </div>
-                                                <div className={`mt-0.5 text-[10px] font-medium ${
-                                                    ticket.cycleBlocked ? "text-red-500" : "text-emerald-600"
-                                                }`}>
-                                                    {ticket.cycleBlocked
-                                                        ? `⛔ ${ticket.cycleBlockReason || "사용 불가"}`
-                                                        : "즉시 차감 가능"}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        {(hoveredCustomerId > 0 || isHoverKeyRecordLoading || hoveredKeyRecords.length > 0) && (
-                            <div>
-                                <div className="text-xs font-bold text-amber-800 mb-1">중요기록</div>
-                                {isHoverKeyRecordLoading ? (
-                                    <div className="text-xs text-slate-500">불러오는 중...</div>
-                                ) : hoveredKeyRecords.length === 0 ? (
-                                    <div className="text-xs text-slate-500">중요기록이 없습니다.</div>
-                                ) : (
-                                    <div className="space-y-1">
-                                        {hoveredKeyRecords.map((record) => {
-                                            const createdAtLabel = (() => {
-                                                if (!record.createdAt) return "";
-                                                const parsed = new Date(record.createdAt);
-                                                if (Number.isNaN(parsed.getTime())) return "";
-                                                return format(parsed, "yyyy.MM.dd HH:mm");
-                                            })();
-                                            return (
-                                                <div
-                                                    key={`hover-key-record-${hoveredCustomerId}-${record.id}`}
-                                                    className="rounded border border-amber-200/70 bg-amber-50/40 px-2 py-1.5"
-                                                >
-                                                    <div className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
-                                                        {record.content}
-                                                    </div>
-                                                    {(createdAtLabel || record.createdByName) && (
-                                                        <div className="mt-1 text-[10px] text-slate-500">
-                                                            {createdAtLabel}
-                                                            {createdAtLabel && record.createdByName ? " · " : ""}
-                                                            {record.createdByName || ""}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        {hoverHistoryText && (
-                            <div className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">
-                                {hoverHistoryText}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+            <PatientHoverOverlay overlay={hoverOverlay} />
 
             {quickTicketPicker && (
                 <div className="fixed inset-0 z-[10030] flex items-center justify-center bg-black/35 backdrop-blur-[1px] p-4">

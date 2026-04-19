@@ -70,6 +70,7 @@ export const chartConfigService = {
                 line: { enabled: false },
             }),
             printConfig: parseConfigJson(data, 'printConfigJson', 'PrintConfigJson', []),
+            staffRoleDept: parseConfigJson(data, 'staffRoleDeptJson', 'StaffRoleDeptJson', { counselor: [], doctor: [] }),
         };
     },
 
@@ -88,6 +89,7 @@ export const chartConfigService = {
         if (config.forms !== undefined) request.formsJson = JSON.stringify(config.forms);
         if (config.integrations !== undefined) request.integrationsJson = JSON.stringify(config.integrations);
         if ((config as any).printConfig !== undefined) request.printConfigJson = JSON.stringify((config as any).printConfig);
+        if ((config as any).staffRoleDept !== undefined) request.staffRoleDeptJson = JSON.stringify((config as any).staffRoleDept);
 
         const response = await apiClient.post<ChartConfigResponse>(buildChartConfigUrl(branchId), request);
 
@@ -122,6 +124,7 @@ export const chartConfigService = {
                 line: { enabled: false },
             }),
             printConfig: parse('printConfigJson', 'PrintConfigJson', []),
+            staffRoleDept: parse('staffRoleDeptJson', 'StaffRoleDeptJson', { counselor: [], doctor: [] }),
         };
     }
 };

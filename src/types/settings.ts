@@ -183,6 +183,12 @@ export interface ChartConfigSettings {
   forms?: FormsSettings;
   integrations?: IntegrationsConfig;
   printConfig?: PrintConfigItem[];
+  staffRoleDept?: StaffRoleDeptConfig;
+}
+
+export interface StaffRoleDeptConfig {
+  counselor: string[];
+  doctor: string[];
 }
 
 export interface PrintConfigItem {

@@ -16,6 +16,8 @@ import { resolveTransitionStatus } from "../../utils/statusTransitionResolver";
 import { useChartSignalR } from "../../hooks/useChartSignalR";
 import { VIEW_EVENT_MAP } from "../../config/signalrEvents";
 import { printService, PrintSection } from "../../services/printService";
+import { useCardHoverOverlay } from "./hoverOverlay/useCardHoverOverlay";
+import { PatientHoverOverlay } from "./hoverOverlay/PatientHoverOverlay";
 
 // Locations based on user request (Fallback)
 const DEFAULT_LOCATIONS = [
@@ -238,17 +240,12 @@ export function WaitView() {
     const [, setTick] = useState(0);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-    // Hover State
-    const [hoveredCard, setHoveredCard] = useState<{ id: number, data: Patient, rect: DOMRect } | null>(null);
-
-    const handleCardHover = (event: React.MouseEvent<HTMLDivElement>, data: Patient) => {
-        const rect = event.currentTarget.getBoundingClientRect();
-        setHoveredCard({ id: data.id, data, rect });
-    };
-
-    const handleCardLeave = () => {
-        setHoveredCard(null);
-    };
+    // Hover State (shared with IntegratedView)
+    const hoverOverlay = useCardHoverOverlay({
+        ticketDefs: settings.tickets?.items,
+        disabled: isDropdownOpen,
+    });
+    const { handleCardHover, handleCardLeave } = hoverOverlay;
 
     useEffect(() => {
         const timer = setInterval(() => setTick(t => t + 1), 60000);
@@ -500,12 +497,6 @@ export function WaitView() {
         await movePatientToLocation(patientId, locationId);
     };
 
-    const shouldShowHoverOverlay = Boolean(
-        hoveredCard &&
-        !isDropdownOpen &&
-        hoveredCard.data.history
-    );
-
     return (
         <>
         <div className="flex-1 h-full flex flex-col overflow-hidden">
@@ -635,26 +626,8 @@ export function WaitView() {
                 </div>
             </div>
 
-            {/* Hover Overlay */}
-            {
-                shouldShowHoverOverlay && hoveredCard && (
-                    <div
-                        className="fixed z-[9999] kkeut-card-luxe p-5 w-[420px] animate-in fade-in duration-200 pointer-events-none"
-                        style={{
-                            top: hoveredCard.rect.bottom + 12,
-                            left: hoveredCard.rect.left,
-                        }}
-                    >
-                        <div className="space-y-3">
-                            {hoveredCard.data.history && (
-                                <div className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">
-                                    {hoveredCard.data.history}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )
-            }
+            {/* Hover Overlay (shared with IntegratedView) */}
+            <PatientHoverOverlay overlay={hoverOverlay} />
         </div>
         {alertMessage && (
             <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30">
