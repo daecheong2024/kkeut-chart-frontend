@@ -56,7 +56,7 @@ export const usePermissionStore = create<PermissionState>((set, get) => ({
 
   hasPermission: (key: string) => {
     const { permissions, loaded } = get();
-    if (!loaded) return true;
+    if (!loaded) return false;
     return !!permissions[key];
   },
 

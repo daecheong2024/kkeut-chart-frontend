@@ -89,6 +89,7 @@ export function BulkRefundModal({ open, items, onClose, onRefunded }: BulkRefund
                         singleSessionPrice: null,
                         estimatedRefund: 0,
                         formula: "",
+                        ticketDefId: null,
                     };
                 }
             }
