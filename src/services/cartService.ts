@@ -1,5 +1,5 @@
 import apiClient from "./apiClient";
-import type { PaymentOperationSummary } from "./paymentService";
+import type { CheckoutCashReceiptRequest, CashReceiptTaskResponse, PaymentOperationSummary } from "./paymentService";
 
 export type MembershipPriorityMode = "existing_first" | "new_first";
 
@@ -30,6 +30,7 @@ export interface CheckoutResult {
     amount: number;
     paidAt: string;
     operation?: PaymentOperationSummary | null;
+    cashReceiptTasks?: CashReceiptTaskResponse[];
 }
 
 export const cartService = {
@@ -127,6 +128,7 @@ export const cartService = {
                 terminalVanKey?: string;
                 terminalCatId?: string;
                 terminalMerchantRegNo?: string;
+                cashReceipt?: CheckoutCashReceiptRequest;
             }>;
             taxFreeAmount?: number;
             paidAmount?: number;

@@ -47,6 +47,7 @@ export interface PaymentOperationLeg {
     originPaymentDetailId?: number;
     resultPaymentDetailId?: number;
     resultRefundHistId?: number;
+    resultCashReceiptId?: number;
     terminalRequestKey?: string;
     terminalTradeKey?: string;
     terminalAuthNo?: string;
@@ -147,7 +148,7 @@ export interface PaymentWorkCenterSummary {
 export interface SyncPaymentOperationLegRequest {
     legKey: string;
     sequence: number;
-    role: "payment" | "refund" | "repayment";
+    role: "payment" | "refund" | "repayment" | "cash_receipt_issue" | "cash_receipt_cancel";
     status: "pending" | "in_progress" | "succeeded" | "failed" | "unknown" | "needs_manual_action" | "skipped";
     requestedAmount: number;
     completedAmount?: number;
@@ -159,6 +160,7 @@ export interface SyncPaymentOperationLegRequest {
     originPaymentDetailId?: number;
     resultPaymentDetailId?: number;
     resultRefundHistId?: number;
+    resultCashReceiptId?: number;
     terminalRequestKey?: string;
     terminalTradeKey?: string;
     terminalAuthNo?: string;
@@ -208,6 +210,15 @@ export interface PaymentDetailBreakdown {
     rePaymentAmount?: number;
     rePaymentMethod?: string;
     refundReason?: string;
+    cashReceiptId?: number;
+    cashReceiptTransactionType?: string;
+    cashReceiptStatus?: string;
+    cashReceiptStatusLabel?: string;
+    cashReceiptNeedsAction?: boolean;
+    cashReceiptPurpose?: string;
+    cashReceiptIdentifierMasked?: string;
+    cashReceiptApprovalNo?: string;
+    cashReceiptApprovalDate?: string;
 }
 
 export interface PaymentItemDetail {
@@ -272,6 +283,7 @@ export interface AddPaymentDetailLine {
     terminalVanKey?: string;
     terminalCatId?: string;
     terminalMerchantRegNo?: string;
+    cashReceipt?: CheckoutCashReceiptRequest;
 }
 
 export interface AddPaymentDetailResult {
@@ -281,6 +293,7 @@ export interface AddPaymentDetailResult {
     outstandingAmount: number;
     status: string;
     operation?: PaymentOperationSummary | null;
+    cashReceiptTasks?: CashReceiptTaskResponse[];
 }
 
 export interface PaymentUsageSummaryItem {
@@ -411,6 +424,7 @@ export interface RefundCalculateResult {
     singleSessionPrice: number | null;
     estimatedRefund: number;
     formula: string;
+    ticketDefId: number | null;
 }
 
 // 위약금 재결제 + 원거래 전체취소 2단계 패턴
@@ -468,6 +482,68 @@ export interface RefundExecuteResult {
         rePaymentDetailId?: number;
     }>;
     operation?: PaymentOperationSummary | null;
+    cashReceiptTasks?: CashReceiptTaskResponse[];
+}
+
+export type CashReceiptPurpose = "consumer" | "business" | "voluntary";
+export type CashReceiptIdentifierType = "phone" | "business_no" | "self_issued";
+
+export interface CheckoutCashReceiptRequest {
+    enabled: boolean;
+    purpose?: CashReceiptPurpose;
+    type?: CashReceiptPurpose;
+    identifierType?: CashReceiptIdentifierType;
+    identifierValue?: string;
+    identity?: string;
+}
+
+export interface CashReceiptTaskResponse {
+    cashReceiptId: number;
+    paymentMasterId: number;
+    paymentDetailId: number;
+    refundHistId?: number;
+    transactionType: string;
+    status: string;
+    purpose: string;
+    identifierType: string;
+    identifierMasked?: string;
+    amount: number;
+    supplyAmount: number;
+    vatAmount: number;
+    nonTaxAmount: number;
+    approvalNo?: string;
+    approvalDate?: string;
+    providerTradeType?: string;
+    providerAddInfo?: string;
+    providerTradeKey?: string;
+    providerCatId?: string;
+    operationKey?: string;
+    idempotencyKey?: string;
+    cancelReasonCode?: string;
+    lastErrorMessage?: string;
+    originalApprovalNo?: string;
+    originalApprovalDate?: string;
+    requestedAt: string;
+    completedAt?: string;
+}
+
+export interface UpdateCashReceiptResultRequest {
+    status: "issued" | "cancelled" | "unknown" | "needs_manual_action" | "failed" | "cancel_failed" | "manual_confirmed";
+    operationKey?: string;
+    idempotencyKey?: string;
+    approvalNo?: string;
+    approvalDate?: string;
+    providerTradeType?: string;
+    providerAddInfo?: string;
+    providerTradeKey?: string;
+    providerCatId?: string;
+    providerRawResponse?: string;
+    errorMessage?: string;
+}
+
+export interface CashReceiptResultResponse {
+    cashReceipt: CashReceiptTaskResponse;
+    operation?: PaymentOperationSummary | null;
 }
 
 // ============================================================
@@ -500,6 +576,7 @@ export interface BulkRefundItemResult {
     penaltyAmount: number;
     usageDeduction: number;
     formula: string;
+    cashReceiptTasks?: CashReceiptTaskResponse[];
 }
 
 export interface BulkRefundResponse {
@@ -509,6 +586,7 @@ export interface BulkRefundResponse {
     totalRefundAmount: number;
     results: BulkRefundItemResult[];
     operations?: PaymentOperationSummary[];
+    cashReceiptTasks?: CashReceiptTaskResponse[];
 }
 
 export interface MembershipSettlementLinkedTicket {
@@ -574,6 +652,7 @@ export interface MembershipSettlementExecuteResponse {
     ticketResults: BulkRefundItemResult[];
     formula: string;
     operation?: PaymentOperationSummary | null;
+    cashReceiptTasks?: CashReceiptTaskResponse[];
 }
 
 export const paymentService = {
@@ -733,7 +812,7 @@ export const paymentService = {
         terminalMerchantRegNo?: string;
         operationKey?: string;
         idempotencyKey?: string;
-    }): Promise<{ success: boolean; rePaymentDetailId: number; paymentMasterId: number; status: string; message: string; operation?: PaymentOperationSummary | null }> {
+    }): Promise<{ success: boolean; rePaymentDetailId: number; paymentMasterId: number; status: string; message: string; operation?: PaymentOperationSummary | null; cashReceiptTasks?: CashReceiptTaskResponse[] }> {
         const response = await apiClient.post('/payments/refunds/deduction-pay', req);
         return response.data;
     },
@@ -783,6 +862,7 @@ export const paymentService = {
             singleSessionPrice: d.singleSessionPrice == null ? null : Number(d.singleSessionPrice),
             estimatedRefund: Number(d.estimatedRefund || 0),
             formula: String(d.formula || ""),
+            ticketDefId: d.ticketDefId == null ? null : Number(d.ticketDefId),
         };
     },
 
@@ -800,6 +880,7 @@ export const paymentService = {
             formula: String(d.formula || ""),
             details: Array.isArray(d.details) ? d.details : [],
             operation: d.operation ?? null,
+            cashReceiptTasks: Array.isArray(d.cashReceiptTasks) ? d.cashReceiptTasks : [],
         };
     },
 
@@ -825,6 +906,7 @@ export const paymentService = {
             outstandingAmount: Number(d.outstandingAmount || 0),
             status: String(d.status || ""),
             operation: d.operation ?? null,
+            cashReceiptTasks: Array.isArray(d.cashReceiptTasks) ? d.cashReceiptTasks : [],
         };
     },
 
@@ -836,8 +918,12 @@ export const paymentService = {
             successCount: Number(d.successCount || 0),
             failureCount: Number(d.failureCount || 0),
             totalRefundAmount: Number(d.totalRefundAmount || 0),
-            results: Array.isArray(d.results) ? d.results : [],
+            results: Array.isArray(d.results) ? d.results.map((item: any) => ({
+                ...item,
+                cashReceiptTasks: Array.isArray(item?.cashReceiptTasks) ? item.cashReceiptTasks : [],
+            })) : [],
             operations: Array.isArray(d.operations) ? d.operations : [],
+            cashReceiptTasks: Array.isArray(d.cashReceiptTasks) ? d.cashReceiptTasks : [],
         };
     },
 
@@ -927,9 +1013,13 @@ export const paymentService = {
             linkedTicketsRefundTotal: Number(d.linkedTicketsRefundTotal || 0),
             membershipPenaltyAmount: Number(d.membershipPenaltyAmount || 0),
             totalRefundAmount: Number(d.totalRefundAmount || 0),
-            ticketResults: Array.isArray(d.ticketResults) ? d.ticketResults : [],
+            ticketResults: Array.isArray(d.ticketResults) ? d.ticketResults.map((item: any) => ({
+                ...item,
+                cashReceiptTasks: Array.isArray(item?.cashReceiptTasks) ? item.cashReceiptTasks : [],
+            })) : [],
             formula: String(d.formula || ""),
             operation: d.operation ?? null,
+            cashReceiptTasks: Array.isArray(d.cashReceiptTasks) ? d.cashReceiptTasks : [],
         };
     },
 
@@ -999,6 +1089,32 @@ export const paymentService = {
                 })) : [],
                 operation: item.operation ?? null,
             })) : [],
+        };
+    },
+
+    async updateCashReceiptResult(
+        cashReceiptId: number,
+        request: UpdateCashReceiptResultRequest
+    ): Promise<CashReceiptResultResponse> {
+        const response = await apiClient.patch(`/payments/cash-receipts/${cashReceiptId}/result`, request);
+        const d = response?.data ?? {};
+        return {
+            cashReceipt: d.cashReceipt,
+            operation: d.operation ?? null,
+        };
+    },
+
+    async manualConfirmCashReceipt(
+        cashReceiptId: number,
+        note?: string
+    ): Promise<CashReceiptResultResponse> {
+        const response = await apiClient.patch(`/payments/cash-receipts/${cashReceiptId}/manual-confirm`, {
+            note: note?.trim() || undefined,
+        });
+        const d = response?.data ?? {};
+        return {
+            cashReceipt: d.cashReceipt,
+            operation: d.operation ?? null,
         };
     }
 };

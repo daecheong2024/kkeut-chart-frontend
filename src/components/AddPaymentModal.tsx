@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, CreditCard, Monitor, MoreHorizontal, Plus, Smartphone, Wallet, X } from "lucide-react";
 import { memberConfigService } from "../services/memberConfigService";
-import { paymentService, type PaymentOperationSummary, type SyncPaymentOperationLegRequest } from "../services/paymentService";
+import {
+  paymentService,
+  type CashReceiptIdentifierType,
+  type CashReceiptPurpose,
+  type PaymentOperationSummary,
+  type SyncPaymentOperationLegRequest,
+} from "../services/paymentService";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useSettingsStore } from "../stores/useSettingsStore";
 import { resolveActiveBranchId } from "../utils/branch";
@@ -29,7 +35,7 @@ interface AddPaymentModalProps {
 type PaymentMode = "terminal" | "manual";
 
 type PaymentCategory = "card" | "cash" | "pay" | "platform" | "other";
-type CashReceiptType = "consumer" | "business" | "voluntary";
+type CashReceiptType = CashReceiptPurpose;
 
 type PaymentOption = {
   value: string;
@@ -50,7 +56,10 @@ type SplitPaymentLine = {
   approvalNumber?: string;
   cashReceipt?: {
     enabled: boolean;
-    type: CashReceiptType;
+    purpose?: CashReceiptPurpose;
+    type?: CashReceiptPurpose;
+    identifierType?: CashReceiptIdentifierType;
+    identifierValue?: string;
     identity?: string;
   };
   terminalAuthNo?: string;
@@ -150,6 +159,19 @@ function createResumeLine(leg: PaymentOperationSummary["legs"][number]): SplitPa
     terminalVanKey: leg.terminalVanKey,
     terminalCatId: leg.terminalCatId,
   };
+}
+
+function nextActionLabel(code: string | undefined): string {
+  switch (code) {
+    case "verify_terminal": return "단말기에서 승인됐는지 확인";
+    case "manual_close": return "수기로 마감 처리";
+    case "retry_leg": return "실패한 결제 다시 시도";
+    case "resume_checkout": return "남은 금액 마저 결제하기";
+    case "resume_refund": return "남은 환불 마저 처리하기";
+    case "finalize_refund": return "환불 마무리 저장";
+    case "none": return "처리 완료";
+    default: return code || "-";
+  }
 }
 
 function resolveOperationSnapshot(
@@ -305,7 +327,7 @@ export default function AddPaymentModal({
   resumeOperation,
 }: AddPaymentModalProps) {
   const { settings } = useSettingsStore();
-  const { showAlert } = useAlert();
+  const { showAlert, showConfirm } = useAlert();
   const resolvedBranchId = resolveActiveBranchId("");
   const currentUserName = useAuthStore((s) => s.userName);
 
@@ -571,13 +593,21 @@ export default function AddPaymentModal({
 
   const requiresSubMethodSelection = paymentMode === "manual";
   const requiresCardCompanySelection = paymentMode === "manual" && category === "card";
+  const requiresCashReceiptIdentity =
+    category === "cash"
+    && cashReceiptOn
+    && cashReceiptType !== "voluntary";
+  const cashReceiptIdentityProvided =
+    !requiresCashReceiptIdentity
+    || normalizeDigits(identityValue).length > 0;
 
   const lineCanAdd =
     lineAmount > 0 &&
     lineAmount <= remainingAmount &&
     (!requiresSubMethodSelection || !!subMethod) &&
     (!requiresCardCompanySelection || !!cardCompany.trim()) &&
-    manualTerminalInputProvided;
+    manualTerminalInputProvided &&
+    cashReceiptIdentityProvided;
 
   if (!isOpen) return null;
 
@@ -605,6 +635,16 @@ export default function AddPaymentModal({
     setTaxFreeInput(String(Math.max(0, totalAmount - next)));
   };
 
+  function normalizeDigits(value: string): string {
+    return value.replace(/\D/g, "").trim();
+  }
+
+  function resolveCashReceiptIdentifierType(type: CashReceiptType): CashReceiptIdentifierType {
+    if (type === "business") return "business_no";
+    if (type === "voluntary") return "self_issued";
+    return "phone";
+  }
+
   const todayYYYYMMDD = (() => {
     const d = new Date();
     return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
@@ -631,8 +671,11 @@ export default function AddPaymentModal({
       category === "cash"
         ? {
             enabled: cashReceiptOn,
+            purpose: cashReceiptType,
             type: cashReceiptType,
-            identity: identityValue.trim() || undefined,
+            identifierType: resolveCashReceiptIdentifierType(cashReceiptType),
+            identifierValue: cashReceiptType === "voluntary" ? undefined : (normalizeDigits(identityValue) || undefined),
+            identity: cashReceiptType === "voluntary" ? undefined : (normalizeDigits(identityValue) || undefined),
           }
         : undefined,
   });
@@ -829,9 +872,13 @@ export default function AddPaymentModal({
               || DETAIL_OPTIONS[line.paymentCategory].find((o) => o.value === line.paymentSubMethod)?.label
               || line.paymentSubMethod
               || "";
-            const ok = window.confirm(
-              `이전 결제가 완료되었습니다.\n\n다음 결제: ${line.amount.toLocaleString()}원 · ${nextCategoryLabel}${nextSubLabel ? ` (${nextSubLabel})` : ""}\n\n이전 카드/폰을 단말기에서 빼고, 다음 결제수단 준비를 완료하신 후 [확인] 을 눌러주세요.\n→ 단말기로 결제 요청을 보냅니다.`
-            );
+            const ok = await showConfirm({
+              title: "다음 결제로 진행",
+              message: `이전 결제가 완료되었습니다.\n\n다음 결제: ${line.amount.toLocaleString()}원 · ${nextCategoryLabel}${nextSubLabel ? ` (${nextSubLabel})` : ""}\n\n이전 카드/폰을 단말기에서 빼고, 다음 결제수단 준비를 완료하신 후 [확인] 을 눌러주세요.\n→ 단말기로 결제 요청을 보냅니다.`,
+              type: "info",
+              confirmText: "확인 · 단말기 요청",
+              cancelText: "중단",
+            });
             if (!ok) { setSubmitting(false); return; }
           }
 
@@ -1013,20 +1060,29 @@ export default function AddPaymentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 p-4">
-      <div className="flex h-[760px] w-full max-w-[1120px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">수납 추가</h2>
+    <div className="fixed inset-0 z-[10010] flex items-center justify-center bg-[#2A1F22]/55 backdrop-blur-[3px] p-4 animate-in fade-in duration-150">
+      <div className="flex w-full max-w-[1120px] max-h-[92vh] flex-col overflow-hidden rounded-2xl border border-[#F8DCE2] bg-white shadow-[0_30px_80px_rgba(92,42,53,0.4)] animate-in zoom-in-95 duration-150">
+        <div className="relative flex items-center justify-between border-b border-[#F8DCE2] px-6 py-3 bg-gradient-to-r from-[#FCEBEF] via-[#FCF7F8] to-white shrink-0">
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-[#D27A8C] to-[#8B3F50]" />
+          <div className="pl-2 min-w-0">
+            <div className="text-[15px] font-extrabold text-[#5C2A35]">수납 추가</div>
+            <div className="text-[11px] text-[#8B5A66]">
+              {isManualPaymentMode() ? "수기 결제 모드" : "단말기 결제 모드"} · 받을 금액 {formatWon(totalAmount)}
+            </div>
+          </div>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            disabled={submitting}
+            className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-[#F8DCE2] bg-white text-[#8B3F50] hover:text-[#5C2A35] hover:bg-[#FCEBEF] disabled:opacity-50 transition-all shadow-sm"
+            title="닫기"
           >
-            <X className="h-6 w-6" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="grid flex-1 grid-cols-[320px_1fr] overflow-hidden">
-          <aside className="border-r border-slate-200 bg-slate-50/80 p-5">
+        <div className="grid flex-1 grid-cols-[320px_1fr] overflow-hidden min-h-0">
+          <aside className="border-r border-[#F8DCE2] bg-[#FCF7F8]/60 p-5 overflow-y-auto">
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="flex items-center justify-between text-sm text-slate-500">
@@ -1050,19 +1106,19 @@ export default function AddPaymentModal({
 
               {operationSummary && operationSummary.status !== "completed" && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-[12px] text-amber-900">
-                  <div className="font-extrabold">이전 결제 작업을 이어서 처리합니다.</div>
+                  <div className="font-extrabold">⏸ 중단됐던 결제가 있어요. 이어서 진행해 주세요.</div>
                   <div className="mt-1 leading-relaxed">
-                    {operationSummary.summaryMessage || "완료된 결제선은 다시 처리하지 않고 남은 결제선만 이어집니다."}
+                    {operationSummary.summaryMessage || "이미 성공한 결제는 그대로 두고, 남은 것만 마저 처리하면 됩니다."}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
                     <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5">
-                      완료 {operationSummary.succeededLegCount}/{operationSummary.totalLegCount}
+                      완료 {operationSummary.succeededLegCount}/{operationSummary.totalLegCount}건
                     </span>
                     <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5">
-                      남은 결제선 {operationSummary.pendingLegCount + operationSummary.unknownLegCount + operationSummary.manualActionLegCount}건
+                      남은 결제 {operationSummary.pendingLegCount + operationSummary.unknownLegCount + operationSummary.manualActionLegCount}건
                     </span>
-                    <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5">
-                      다음 행동 {operationSummary.nextAction}
+                    <span className="rounded-full border border-[#D27A8C] bg-[#FCEBEF] px-2 py-0.5 text-[#8B3F50]">
+                      👉 지금 할 일: {nextActionLabel(operationSummary.nextAction)}
                     </span>
                   </div>
                 </div>
@@ -1479,13 +1535,15 @@ export default function AddPaymentModal({
           </section>
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
-          <div className="text-sm text-slate-500">총 결제액과 분할합이 같아야 수납됩니다.</div>
+        <div className="flex items-center justify-between border-t border-[#F8DCE2] bg-[#FCF7F8]/40 px-6 py-4 shrink-0">
+          <div className="text-[12px] text-[#8B5A66]">총 결제액과 분할합이 같아야 수납됩니다.</div>
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className={`rounded-xl px-6 py-2.5 text-sm font-bold transition-colors ${
-              canSubmit ? "bg-blue-600 text-white hover:bg-blue-700" : "cursor-not-allowed bg-slate-200 text-slate-400"
+            className={`rounded-xl px-6 py-2.5 text-[13px] font-extrabold transition-colors shadow-sm ${
+              canSubmit
+                ? "bg-gradient-to-b from-[#D27A8C] to-[#8B3F50] text-white hover:from-[#8B3F50] hover:to-[#5C2A35]"
+                : "cursor-not-allowed bg-[#F4C7CE]/60 text-[#C9A0A8]"
             }`}
           >
             {submitting ? "수납 처리중..." : `${formatWon(totalAmount)} 수납`}
@@ -1493,7 +1551,7 @@ export default function AddPaymentModal({
         </div>
       </div>
       {terminalErrorDialog && (
-        <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4">
+        <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-[#2A1F22]/60 backdrop-blur-[3px] p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-[480px] rounded-2xl border border-[#F4C7CE] bg-white shadow-2xl overflow-hidden">
             <div className="border-b border-[#F8DCE2] bg-gradient-to-b from-amber-50 to-white px-5 py-4">
               <div className="text-[14px] font-extrabold text-amber-900">단말기 결제 오류</div>

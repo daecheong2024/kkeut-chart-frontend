@@ -30,6 +30,9 @@ import {
     Lock,
     Unlock,
     ClipboardList,
+    Smartphone,
+    Wallet,
+    Monitor,
 } from "lucide-react";
 import { format, formatDistanceToNow, differenceInYears } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -38,6 +41,7 @@ import { patientService, PatientDetail } from '../services/patientService';
 import { visitService, ReservationChangeHistoryItem } from '../services/visitService';
 import { chartConfigService } from '../services/chartConfigService';
 import { paymentService, PaymentItem, PaymentRecord, PaymentUsageSummaryItem, PaymentDetailBreakdown, PaymentOperationSummary, PaymentWorkCenterSummary } from '../services/paymentService';
+import { processCashReceiptTasks, type CashReceiptIssueInput, type ProcessCashReceiptTasksSummary } from '../services/cashReceiptService';
 import { memberConfigService } from '../services/memberConfigService';
 import { categoryTicketDefService } from '../services/categoryTicketDefService';
 import { membershipService, PatientMembership, MembershipBalance, MembershipHistory } from '../services/membershipService';
@@ -157,7 +161,7 @@ const RIGHT_SIDEBAR_TAB_COLORS: Record<string, { bg: string; color: string; acti
     membership: { bg: "#EDE7F6", color: "#6A1B9A", activeBg: "#6A1B9A", border: "#CE93D8" },
     ticket: { bg: "#E0F2F1", color: "#00695C", activeBg: "#00695C", border: "#80CBC4" },
     consent: { bg: "#FCEBEF", color: "#7A2E3D", activeBg: "#7A2E3D", border: "#E5B5C0" },
-    refund: { bg: "#FCE4EC", color: "#C62828", activeBg: "#C62828", border: "#EF9A9A" },
+    refund: { bg: "#FCEBEF", color: "#8B3F50", activeBg: "#8B3F50", border: "#F4C7CE" },
 };
 
 function formatUsageSummaryTime(value?: string): string {
@@ -165,6 +169,78 @@ function formatUsageSummaryTime(value?: string): string {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return "-";
     return format(parsed, "MM.dd a hh:mm", { locale: ko });
+}
+
+function buildCashReceiptIssueInputMap(
+    paymentLines: Array<{
+        clientLegKey?: string;
+        cashReceipt?: {
+            enabled?: boolean;
+            purpose?: string;
+            type?: string;
+            identifierType?: string;
+            identifierValue?: string;
+            identity?: string;
+        };
+    }> | undefined,
+    operation?: PaymentOperationSummary | null
+): Record<number, CashReceiptIssueInput> {
+    if (!operation || !Array.isArray(operation.legs) || !Array.isArray(paymentLines)) {
+        return {};
+    }
+
+    const draftByLegKey = new Map<string, CashReceiptIssueInput>();
+    paymentLines.forEach((line) => {
+        const legKey = String(line?.clientLegKey || "").trim();
+        const cashReceipt = line?.cashReceipt;
+        if (!legKey || !cashReceipt?.enabled) return;
+
+        draftByLegKey.set(legKey, {
+            purpose: (cashReceipt.purpose || cashReceipt.type || "consumer") as CashReceiptIssueInput["purpose"],
+            identifierType: (cashReceipt.identifierType
+                || ((cashReceipt.purpose || cashReceipt.type) === "business"
+                    ? "business_no"
+                    : (cashReceipt.purpose || cashReceipt.type) === "voluntary"
+                        ? "self_issued"
+                        : "phone")) as CashReceiptIssueInput["identifierType"],
+            identifierValue: String(cashReceipt.identifierValue || cashReceipt.identity || "").trim() || undefined,
+        });
+    });
+
+    const mapped: Record<number, CashReceiptIssueInput> = {};
+    operation.legs.forEach((leg) => {
+        const resultPaymentDetailId = Number(leg.resultPaymentDetailId || 0);
+        if (leg.role !== "payment" || resultPaymentDetailId <= 0) return;
+
+        const draft = draftByLegKey.get(String(leg.legKey || "").trim());
+        if (!draft) return;
+        mapped[resultPaymentDetailId] = draft;
+    });
+
+    return mapped;
+}
+
+function appendCashReceiptSummaryLines(
+    lines: string[],
+    summary: ProcessCashReceiptTasksSummary | null | undefined
+) {
+    if (!summary) return;
+
+    if (summary.issuedCount > 0) {
+        lines.push(`현금영수증 발급 ${summary.issuedCount}건 완료`);
+    }
+    if (summary.cancelledCount > 0) {
+        lines.push(`현금영수증 취소 ${summary.cancelledCount}건 완료`);
+    }
+    if (summary.failedCount > 0) {
+        lines.push(`현금영수증 실패 ${summary.failedCount}건`);
+    }
+    if (summary.unknownCount > 0) {
+        lines.push(`현금영수증 확인 필요 ${summary.unknownCount}건`);
+    }
+    if (summary.manualActionCount > 0) {
+        lines.push(`현금영수증 수기 확인 ${summary.manualActionCount}건`);
+    }
 }
 
 function getRefundClientBlockReason(record: Partial<PaymentRecord> | null | undefined): string | null {
@@ -176,6 +252,165 @@ function getRefundClientBlockReason(record: Partial<PaymentRecord> | null | unde
     }
 
     return null;
+}
+
+type MembershipTicketLifecycleCard = {
+    groupKey: string;
+    ticketId?: number;
+    ticketRootHistId?: number;
+    ticketName: string;
+    issuedAt?: string;
+    lastActivityAt?: string;
+    totalCount?: number | null;
+    usedCount: number;
+    remainingCount?: number | null;
+    deductionCash: number;
+    deductionPoint: number;
+    refundCash: number;
+    refundPoint: number;
+    latestRemainingCashBalance: number;
+    latestRemainingPointBalance: number;
+    latestRefundHistoryId?: number;
+    events: MembershipHistory[];
+};
+
+function formatCashPointAmount(cashAmount: number, pointAmount: number): string {
+    const cash = Math.max(0, Math.round(Number(cashAmount || 0)));
+    const point = Math.max(0, Math.round(Number(pointAmount || 0)));
+
+    if (cash > 0 && point > 0) {
+        return `${cash.toLocaleString("ko-KR")}원 / ${point.toLocaleString("ko-KR")}P`;
+    }
+    if (cash > 0) {
+        return `${cash.toLocaleString("ko-KR")}원`;
+    }
+    if (point > 0) {
+        return `${point.toLocaleString("ko-KR")}P`;
+    }
+    return "0원";
+}
+
+function getMembershipHistoryType(history: MembershipHistory): "charge" | "use" | "refund" | "other" {
+    const raw = String(history.historyType || "").trim().toLowerCase();
+    if (raw === "new" || raw === "신규") return "charge";
+    if (raw === "use") return "use";
+    if (raw === "refund" || raw === "환불") return "refund";
+    return "other";
+}
+
+function isMembershipTicketLinkedHistory(history: MembershipHistory): boolean {
+    const type = getMembershipHistoryType(history);
+    if (type !== "use" && type !== "refund") return false;
+    return Boolean(history.ticketRootHistId || history.ticketId || String(history.ticketName || "").trim());
+}
+
+function getMembershipTicketLifecycleKey(history: MembershipHistory): string {
+    if (Number(history.ticketRootHistId || 0) > 0) {
+        return `root-${history.ticketRootHistId}`;
+    }
+    if (Number(history.ticketId || 0) > 0) {
+        return `ticket-${history.ticketId}`;
+    }
+    const normalizedName = String(history.ticketName || "티켓")
+        .replace(/\s+/g, "")
+        .trim()
+        .toLowerCase();
+    const maxUseCount = history.ticketMaxUseCount != null ? String(history.ticketMaxUseCount) : "free";
+    return `name-${normalizedName}-${maxUseCount}`;
+}
+
+function buildMembershipTicketLifecycleCards(historyList: MembershipHistory[]): MembershipTicketLifecycleCard[] {
+    const sorted = [...historyList].sort(
+        (a, b) => new Date(a.usedAt || 0).getTime() - new Date(b.usedAt || 0).getTime()
+    );
+    const grouped = new Map<string, MembershipTicketLifecycleCard>();
+
+    for (const history of sorted) {
+        if (!isMembershipTicketLinkedHistory(history)) continue;
+
+        const key = getMembershipTicketLifecycleKey(history);
+        const existing = grouped.get(key) || {
+            groupKey: key,
+            ticketId: history.ticketId,
+            ticketRootHistId: history.ticketRootHistId,
+            ticketName: String(history.ticketName || history.description || "연결 티켓"),
+            issuedAt: history.usedAt,
+            lastActivityAt: history.usedAt,
+            totalCount: history.ticketMaxUseCount,
+            usedCount: Math.max(0, Number(history.ticketUsedCount || 0)),
+            remainingCount: history.ticketRemainingCount,
+            deductionCash: 0,
+            deductionPoint: 0,
+            refundCash: 0,
+            refundPoint: 0,
+            latestRemainingCashBalance: Math.max(0, Number(history.remainingCashBalance ?? history.remainingBalance ?? 0)),
+            latestRemainingPointBalance: Math.max(0, Number(history.remainingPointBalance ?? 0)),
+            events: [],
+        };
+
+        existing.ticketId = existing.ticketId ?? history.ticketId;
+        existing.ticketRootHistId = existing.ticketRootHistId ?? history.ticketRootHistId;
+        existing.ticketName = existing.ticketName || String(history.ticketName || history.description || "연결 티켓");
+        existing.lastActivityAt = history.usedAt || existing.lastActivityAt;
+        existing.totalCount = history.ticketMaxUseCount ?? existing.totalCount;
+        existing.usedCount = Math.max(existing.usedCount, Number(history.ticketUsedCount || 0));
+        existing.remainingCount = history.ticketRemainingCount ?? existing.remainingCount;
+        existing.latestRemainingCashBalance = Math.max(0, Number(history.remainingCashBalance ?? history.remainingBalance ?? existing.latestRemainingCashBalance));
+        existing.latestRemainingPointBalance = Math.max(0, Number(history.remainingPointBalance ?? existing.latestRemainingPointBalance));
+        existing.events.push(history);
+
+        const cashAmount = Math.max(0, Number(history.usedCashAmount ?? history.usedAmount ?? 0));
+        const pointAmount = Math.max(0, Number(history.usedPointAmount ?? 0));
+        const type = getMembershipHistoryType(history);
+
+        if (type === "use") {
+            existing.deductionCash += cashAmount;
+            existing.deductionPoint += pointAmount;
+        } else if (type === "refund") {
+            existing.refundCash += cashAmount;
+            existing.refundPoint += pointAmount;
+            if (!history.isCancelled) {
+                existing.latestRefundHistoryId = history.id;
+            }
+        }
+
+        grouped.set(key, existing);
+    }
+
+    return Array.from(grouped.values()).sort(
+        (a, b) => new Date(b.lastActivityAt || b.issuedAt || 0).getTime() - new Date(a.lastActivityAt || a.issuedAt || 0).getTime()
+    );
+}
+
+function getMembershipLifecycleStatus(card: MembershipTicketLifecycleCard): {
+    label: string;
+    className: string;
+} {
+    const deductionTotal = Math.max(0, card.deductionCash + card.deductionPoint);
+    const refundTotal = Math.max(0, card.refundCash + card.refundPoint);
+
+    if (refundTotal > 0 && deductionTotal > 0 && refundTotal >= deductionTotal) {
+        return {
+            label: "전액 환불",
+            className: "bg-amber-50 text-amber-700 border border-amber-200",
+        };
+    }
+    if (refundTotal > 0) {
+        return {
+            label: "부분 환불",
+            className: "bg-rose-50 text-rose-600 border border-rose-200",
+        };
+    }
+    if (typeof card.remainingCount === "number" && card.totalCount != null && card.remainingCount <= 0) {
+        return {
+            label: "사용완료",
+            className: "bg-slate-100 text-slate-600 border border-slate-200",
+        };
+    }
+    return {
+        label: "사용중",
+        className: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    };
 }
 
 type RefundResponsibilityType = "customer" | "hospital";
@@ -217,6 +452,78 @@ const HISTORY_DATE_LIKE_REGEX = /^\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2})
 const HISTORY_UUID_LIKE_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const pad2 = (value: number): string => String(value).padStart(2, "0");
+
+function MembershipBalanceSelect({
+    value,
+    options,
+    disabled,
+    onChange,
+}: {
+    value: string;
+    options: Array<{ id: string; label: string }>;
+    disabled?: boolean;
+    onChange: (nextId: string) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const rootRef = useRef<HTMLDivElement | null>(null);
+    useEffect(() => {
+        if (!open) return;
+        const onDown = (e: MouseEvent) => {
+            if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+        };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setOpen(false);
+        };
+        document.addEventListener("mousedown", onDown);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("mousedown", onDown);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [open]);
+    const selected = options.find((o) => o.id === value);
+    return (
+        <div ref={rootRef} className="relative">
+            <button
+                type="button"
+                disabled={disabled}
+                onClick={() => !disabled && setOpen((p) => !p)}
+                className={`flex h-[38px] w-full items-center justify-between rounded-lg border border-violet-200 bg-white px-3 text-left text-[13px] transition ${disabled ? "cursor-not-allowed opacity-50" : "hover:border-violet-400"}`}
+            >
+                <span className={`truncate ${selected ? "font-semibold text-violet-900" : "text-violet-500"}`}>
+                    {selected?.label || "회원권 미사용"}
+                </span>
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" className={`transition-transform shrink-0 ${open ? "rotate-180" : ""}`}>
+                    <path d="M5 7.5L10 12.5L15 7.5" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+            </button>
+            {open && (
+                <div className="absolute left-0 right-0 top-full z-[60] mt-1 max-h-56 overflow-y-auto rounded-lg border border-violet-200 bg-white py-1 shadow-xl">
+                    <button
+                        type="button"
+                        onClick={() => { onChange(""); setOpen(false); }}
+                        className={`flex w-full items-center justify-between px-3 py-2 text-left text-[13px] transition ${!value ? "bg-violet-100 font-bold text-violet-900" : "text-violet-600 hover:bg-violet-50"}`}
+                    >
+                        <span className="truncate">회원권 미사용</span>
+                    </button>
+                    {options.map((opt) => {
+                        const isSelected = opt.id === value;
+                        return (
+                            <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => { onChange(opt.id); setOpen(false); }}
+                                className={`flex w-full items-center justify-between px-3 py-2 text-left text-[13px] transition ${isSelected ? "bg-violet-100 font-bold text-violet-900" : "text-violet-700 hover:bg-violet-50"}`}
+                            >
+                                <span className="truncate">{opt.label}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
 
 const normalizeHistoryFieldKey = (field?: string | null): string =>
     String(field || "").trim().toLowerCase();
@@ -354,7 +661,6 @@ import { PaymentInfoModal } from "../components/refund/PaymentInfoModal";
 import { BulkRefundModal, type BulkRefundModalItem } from "../components/refund/BulkRefundModal";
 import { MembershipSettlementModal } from "../components/refund/MembershipSettlementModal";
 import { RefundDetailModal } from "../components/refund/RefundDetailModal";
-import { RefundWorkCenterPanel } from "../components/refund/RefundWorkCenterPanel";
 import { UnifiedRefundModal, type UnifiedRefundSelection } from "../components/refund/UnifiedRefundModal";
 import SmartTextarea from "../components/SmartTextarea";
 import { printService, PrintSection } from "../services/printService";
@@ -472,6 +778,7 @@ export default function PatientChartPage() {
 
     const [showReceptionModal, setShowReceptionModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
     const [selectedOutstandingPaymentMaster, setSelectedOutstandingPaymentMaster] = useState<{
         masterId: number;
         outstandingAmount: number;
@@ -574,6 +881,27 @@ export default function PatientChartPage() {
     const [expandedTicketId, setExpandedTicketId] = useState<number | null>(null);
     const [ticketHistoryByTicketId, setTicketHistoryByTicketId] = useState<Record<number, TicketHistory[]>>({});
     const [ticketHistoryLoadingId, setTicketHistoryLoadingId] = useState<number | null>(null);
+    const [expandedMembershipTicketKeys, setExpandedMembershipTicketKeys] = useState<Set<string>>(new Set());
+
+    const ensureTicketHistoriesLoaded = useCallback(async (ticketIds: number[]) => {
+        const normalizedIds = Array.from(
+            new Set(ticketIds.map((ticketId) => Number(ticketId || 0)).filter((ticketId) => ticketId > 0))
+        ).filter((ticketId) => !(ticketId in ticketHistoryByTicketId));
+
+        if (normalizedIds.length === 0) return;
+
+        await Promise.all(
+            normalizedIds.map(async (ticketId) => {
+                try {
+                    const history = await ticketService.getHistory(ticketId, Number(patientIdStr));
+                    setTicketHistoryByTicketId((prev) => ({ ...prev, [ticketId]: history || [] }));
+                } catch (error) {
+                    console.error("Failed to load ticket history:", error);
+                    setTicketHistoryByTicketId((prev) => ({ ...prev, [ticketId]: [] }));
+                }
+            })
+        );
+    }, [patientIdStr, ticketHistoryByTicketId]);
 
     const handleToggleMembershipHistory = async (membershipId: number) => {
         if (expandedMembershipId === membershipId) {
@@ -581,20 +909,39 @@ export default function PatientChartPage() {
             setMembershipHistory([]);
         } else {
             setExpandedMembershipId(membershipId);
+            setExpandedMembershipTicketKeys(new Set());
             const cached = membershipHistoryCache[membershipId];
             if (cached) {
                 setMembershipHistory(cached);
+                void ensureTicketHistoriesLoaded(
+                    cached.map((history) => Number(history.ticketId || 0)).filter((ticketId) => ticketId > 0)
+                );
             } else {
                 try {
                     const history = await membershipService.getHistory(membershipId, Number(patientIdStr));
                     setMembershipHistory(history);
                     setMembershipHistoryCache((prev) => ({ ...prev, [membershipId]: history }));
+                    void ensureTicketHistoriesLoaded(
+                        history.map((entry) => Number(entry.ticketId || 0)).filter((ticketId) => ticketId > 0)
+                    );
                 } catch (e) {
                     console.error("Failed to load history", e);
                 }
             }
         }
     };
+
+    const toggleMembershipTicketCard = useCallback((cardKey: string) => {
+        setExpandedMembershipTicketKeys((prev) => {
+            const next = new Set(prev);
+            if (next.has(cardKey)) {
+                next.delete(cardKey);
+            } else {
+                next.add(cardKey);
+            }
+            return next;
+        });
+    }, []);
 
     const handleToggleTicketHistory = async (ticketId: number) => {
         if (expandedTicketId === ticketId) {
@@ -607,11 +954,7 @@ export default function PatientChartPage() {
 
         setTicketHistoryLoadingId(ticketId);
         try {
-            const history = await ticketService.getHistory(ticketId, Number(patientIdStr));
-            setTicketHistoryByTicketId((prev) => ({ ...prev, [ticketId]: history || [] }));
-        } catch (error) {
-            console.error("Failed to load ticket history:", error);
-            setTicketHistoryByTicketId((prev) => ({ ...prev, [ticketId]: [] }));
+            await ensureTicketHistoriesLoaded([ticketId]);
         } finally {
             setTicketHistoryLoadingId((prev) => (prev === ticketId ? null : prev));
         }
@@ -2392,7 +2735,7 @@ export default function PatientChartPage() {
         }
     };
 
-    const handleCheckoutClick = () => {
+    const proceedCheckout = () => {
         const cashRequired = cartPreview?.totalCashRequired ?? remaining;
         if (cashRequired <= 0 && prioritizedMembershipIds.length > 0) {
             handleMembershipAutoCheckout();
@@ -2400,6 +2743,14 @@ export default function PatientChartPage() {
             setSelectedOutstandingPaymentMaster(null);
             setShowPaymentModal(true);
         }
+    };
+
+    const handleCheckoutClick = () => {
+        if (cartItems.length > 0) {
+            setShowCheckoutConfirm(true);
+            return;
+        }
+        proceedCheckout();
     };
 
     const handleResumeOutstandingCollection = useCallback((paymentMasterId: number) => {
@@ -2423,7 +2774,43 @@ export default function PatientChartPage() {
         setShowPaymentModal(true);
     }, [paymentRecords, showAlert]);
 
-    const handleAddPayment = async (paymentData: any) => {
+    const processReturnedCashReceiptTasks = useCallback(async (
+        tasks: any[] | undefined,
+        paymentLines?: Array<{
+            clientLegKey?: string;
+            cashReceipt?: {
+                enabled?: boolean;
+                purpose?: string;
+                type?: string;
+                identifierType?: string;
+                identifierValue?: string;
+                identity?: string;
+            };
+        }>,
+        operation?: PaymentOperationSummary | null
+    ) => {
+        const hospitalName = String(settings?.hospital?.hospitalNameKo || "").trim();
+        const hospitalPhone = String(settings?.hospital?.phone || "").trim();
+        const merchantTel = hospitalName && hospitalPhone
+            ? `${hospitalName}(${hospitalPhone})`
+            : hospitalName || hospitalPhone || undefined;
+
+        let summary: ProcessCashReceiptTasksSummary | null = null;
+        let errorMessage: string | null = null;
+
+        try {
+            summary = await processCashReceiptTasks(tasks, {
+                merchantTel,
+                issueInputsByPaymentDetailId: paymentLines ? buildCashReceiptIssueInputMap(paymentLines, operation) : undefined,
+            });
+        } catch (error: any) {
+            errorMessage = error?.message || "현금영수증 후처리 중 오류";
+        }
+
+        return { summary, errorMessage };
+    }, [settings]);
+
+    const handleAddPayment = useCallback(async (paymentData: any) => {
         if (!patientIdStr) return;
         try {
             const pid = Number(patientIdStr);
@@ -2457,13 +2844,34 @@ export default function PatientChartPage() {
                         summaryMessage: result.operation.summaryMessage,
                     });
                 }
+
+                const { summary: cashReceiptSummary, errorMessage: cashReceiptError } = await processReturnedCashReceiptTasks(
+                    result.cashReceiptTasks,
+                    paymentData?.paymentLines ?? [],
+                    result.operation,
+                );
+
                 await loadPersistenceData(pid);
                 setSelectedOutstandingPaymentMaster(null);
-                showAlert({
-                    message: result.outstandingAmount > 0
+                const messageLines = [
+                    result.outstandingAmount > 0
                         ? `잔액 수납 완료 (잔액 ${result.outstandingAmount.toLocaleString()}원 남음)`
                         : "잔액 수납이 완료되었습니다.",
-                    type: result.outstandingAmount > 0 ? "warning" : "success",
+                ];
+                appendCashReceiptSummaryLines(messageLines, cashReceiptSummary);
+                if (cashReceiptError) {
+                    messageLines.push(`현금영수증 후처리 오류: ${cashReceiptError}`);
+                }
+                showAlert({
+                    message: messageLines.join("\n"),
+                    type:
+                        result.outstandingAmount > 0
+                        || !!cashReceiptError
+                        || (cashReceiptSummary?.failedCount || 0) > 0
+                        || (cashReceiptSummary?.unknownCount || 0) > 0
+                        || (cashReceiptSummary?.manualActionCount || 0) > 0
+                            ? "warning"
+                            : "success",
                 });
                 setShowPaymentModal(false);
                 return result;
@@ -2502,13 +2910,33 @@ export default function PatientChartPage() {
                 });
             }
 
+            const { summary: cashReceiptSummary, errorMessage: cashReceiptError } = await processReturnedCashReceiptTasks(
+                result.cashReceiptTasks,
+                paymentData?.paymentLines ?? [],
+                result.operation,
+            );
+
             await loadPersistenceData(pid);
             setSelectedOutstandingPaymentMaster(null);
-            showAlert({
-                message: isPartial
+            const messageLines = [
+                isPartial
                     ? `부분 수납 완료 (${actualPaid.toLocaleString()}원 / ${amount.toLocaleString()}원). 나머지는 추가 수납해 주세요.`
                     : "수납 및 티켓 발급이 완료되었습니다.",
-                type: isPartial ? "warning" : "success",
+            ];
+            appendCashReceiptSummaryLines(messageLines, cashReceiptSummary);
+            if (cashReceiptError) {
+                messageLines.push(`현금영수증 후처리 오류: ${cashReceiptError}`);
+            }
+            showAlert({
+                message: messageLines.join("\n"),
+                type:
+                    isPartial
+                    || !!cashReceiptError
+                    || (cashReceiptSummary?.failedCount || 0) > 0
+                    || (cashReceiptSummary?.unknownCount || 0) > 0
+                    || (cashReceiptSummary?.manualActionCount || 0) > 0
+                        ? "warning"
+                        : "success",
             });
             setShowPaymentModal(false);
             return result;
@@ -2516,7 +2944,7 @@ export default function PatientChartPage() {
             console.error(e);
             showAlert({ message: "수납 처리 실패: " + (e?.message || "Unknown error"), type: "error" });
         }
-    };
+    }, [patientIdStr, paymentModalTarget, cartItems.length, selectedVisit?.id, prioritizedMembershipIds, selectedMembershipId, usePoints, selectedCouponId, loadPersistenceData, processReturnedCashReceiptTasks, showAlert]);
 
     const buildRefundModalCheck = useCallback(async (record: PaymentRecord): Promise<RefundModalCheck> => {
         const masterId = record.paymentMasterId ?? record.id;
@@ -4413,12 +4841,14 @@ export default function PatientChartPage() {
                                             {totalMembershipBalance.toLocaleString()}원
                                         </span>
                                     </div>
-                                    <select
-                                        className="w-full text-[13px] border border-violet-200 rounded-lg px-2.5 py-2 bg-white focus:ring-2 focus:ring-[#D27A8C]/30 focus:border-[#D27A8C] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    <MembershipBalanceSelect
                                         disabled={isReadOnly}
-                                        value={selectedMembershipId ?? ""}
-                                        onChange={(e) => {
-                                            const nextValue = String(e.target.value || "").trim();
+                                        value={selectedMembershipId != null ? String(selectedMembershipId) : ""}
+                                        options={membershipBalances.map((m) => ({
+                                            id: String(m.id),
+                                            label: `${m.name} (현금:${(m.cashBalance ?? m.balance).toLocaleString()}원${(m.pointBalance ?? 0) > 0 ? ` / P:${(m.pointBalance ?? 0).toLocaleString()}` : ""}, ${m.discountPercent}% 할인)`,
+                                        }))}
+                                        onChange={(nextValue) => {
                                             if (!nextValue) {
                                                 setIsMembershipUsageDisabled(true);
                                                 setSelectedMembershipId(undefined);
@@ -4427,14 +4857,7 @@ export default function PatientChartPage() {
                                             setIsMembershipUsageDisabled(false);
                                             setSelectedMembershipId(Number(nextValue));
                                         }}
-                                    >
-                                        <option value="">회원권 미사용</option>
-                                        {membershipBalances.map((m) => (
-                                            <option key={m.id} value={m.id}>
-                                                {m.name} (현금:{(m.cashBalance ?? m.balance).toLocaleString()}원{(m.pointBalance ?? 0) > 0 ? ` / P:${(m.pointBalance ?? 0).toLocaleString()}` : ""}, {m.discountPercent}% 할인)
-                                            </option>
-                                        ))}
-                                    </select>
+                                    />
                                     {!isMembershipUsageDisabled && selectedMembershipId && membershipBalances.length > 1 && (
                                         <div className="mt-1 text-[12px] text-purple-500">
                                             선택 회원권부터 차감 후 다음 회원권으로 자동 차감
@@ -4750,7 +5173,7 @@ export default function PatientChartPage() {
                                                                                             {((item as any).refundDetails as Array<{ paymentType: string; amount: number }>).map((detail, idx) => (
                                                                                                 <div key={idx} className="flex items-center justify-between text-[10px]">
                                                                                                     <span className="text-[#616161]">{detail.paymentType}</span>
-                                                                                                    <span className="font-bold tabular-nums text-[#E53935]">{detail.amount.toLocaleString()}원</span>
+                                                                                                    <span className="font-bold tabular-nums text-[#C53030]">{detail.amount.toLocaleString()}원</span>
                                                                                                 </div>
                                                                                             ))}
                                                                                         </div>
@@ -4852,7 +5275,7 @@ export default function PatientChartPage() {
                                                                             {((item as any).refundDetails as Array<{ paymentType: string; amount: number }>).map((detail, idx) => (
                                                                                 <div key={idx} className="flex items-center justify-between text-[10px]">
                                                                                     <span style={{ color: "#616161" }}>{detail.paymentType}</span>
-                                                                                    <span className="font-bold tabular-nums" style={{ color: "#E53935" }}>{detail.amount.toLocaleString()}원</span>
+                                                                                    <span className="font-bold tabular-nums" style={{ color: "#C53030" }}>{detail.amount.toLocaleString()}원</span>
                                                                                 </div>
                                                                             ))}
                                                                         </div>
@@ -4913,9 +5336,9 @@ export default function PatientChartPage() {
                                 { id: "record", label: "환자기록", count: patientRecords.length },
                                 { id: "reservation", label: "예약기록", count: customerReservations.length },
                                 { id: "membership", label: "회원권", count: memberships.length },
-                                { id: "ticket", label: "티켓 이력", count: tickets.filter((t) => !t.isRefunded && ((getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null)).length },
+                                { id: "ticket", label: "티켓", count: tickets.filter((t) => !t.isRefunded && ((getTicketRemaining(t) ?? 1) > 0 || getTicketRemaining(t) === null)).length },
                                 { id: "consent", label: "동의서", count: undefined },
-                                { id: "refund", label: "결제/환불", count: paymentWorkCenter?.totalWorkItemCount ?? paymentRecords.reduce((sum, r) => sum + (r.items || []).filter(it => {
+                                { id: "refund", label: "수납/환불", count: paymentWorkCenter?.totalWorkItemCount ?? paymentRecords.reduce((sum, r) => sum + (r.items || []).filter(it => {
                                     const s = String((it as any).status || r.status || "paid").trim().toLowerCase();
                                     if (s === "refunded" || s === "cancelled") return false;
                                     const isRePayment = ((it as any).paymentDetails ?? []).some(
@@ -5164,7 +5587,7 @@ export default function PatientChartPage() {
                                         type="text"
                                         value={ticketSearch}
                                         onChange={(e) => setTicketSearch(e.target.value)}
-                                        placeholder="티켓명 검색 (예: 첫 시술, 윤곽, 토닝 ...)"
+                                        placeholder="보유 티켓명 검색..."
                                         className="w-full h-9 rounded-xl border border-[#F8DCE2] bg-white pl-8 pr-8 text-[12px] outline-none focus:border-[#D27A8C] focus:ring-2 focus:ring-[#F49EAF]/20"
                                     />
                                     <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C9A0A8]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -5208,7 +5631,7 @@ export default function PatientChartPage() {
                                                 className={`flex-1 py-1.5 text-[13px] font-semibold transition-colors ${ticketTab === "refunded" ? "bg-rose-50 text-rose-600" : "text-[#616161] hover:bg-[#FCF7F8]"}`}
                                                 onClick={() => setTicketTab("refunded")}
                                             >
-                                                환불 ({refundedCount})
+                                                환불됨 ({refundedCount})
                                             </button>
                                         </div>
                                     );
@@ -5473,116 +5896,294 @@ export default function PatientChartPage() {
 
                                             {expandedMembershipId === m.id && (
                                                 <div className="border-t border-[#F8DCE2] bg-[#FAF3F5] px-4 py-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                    <div className="text-[15px] font-semibold text-[#5C2A35] tracking-[0.1px] mb-2">사용/충전 이력</div>
-                                                    {membershipHistory.length === 0 ? (
-                                                        <div className="py-2 text-[14px] text-[#616161]">이력이 없습니다.</div>
-                                                    ) : (
-                                                        <div className="space-y-1.5">
-                                                            {membershipHistory.map((h) => {
-                                                                const isCharge = h.historyType === '신규' || h.historyType === 'NEW';
-                                                                const isUse = h.historyType === 'USE';
-                                                                const isRefund = h.historyType === 'REFUND' || h.historyType === '환불';
-                                                                const borderColor = h.isCancelled ? 'opacity-50 border-[#E0E0E0]'
-                                                                    : isCharge ? 'border-l-[3px] border-l-[#43A047] border-t-[#F8DCE2] border-r-[#F8DCE2] border-b-[#F8DCE2]'
-                                                                    : isRefund ? 'border-l-[3px] border-l-amber-400 border-t-[#F8DCE2] border-r-[#F8DCE2] border-b-[#F8DCE2]'
-                                                                    : 'border-l-[3px] border-l-rose-400 border-t-[#F8DCE2] border-r-[#F8DCE2] border-b-[#F8DCE2]';
-                                                                const badgeStyle = h.isCancelled ? 'bg-[#F0F0F0] text-[#616161]'
-                                                                    : isCharge ? 'bg-emerald-50 text-emerald-700'
-                                                                    : isRefund ? 'bg-amber-50 text-amber-700'
-                                                                    : 'bg-rose-50 text-rose-600';
-                                                                return (
-                                                                    <div
-                                                                        key={h.id}
-                                                                        className={`rounded-[8px] border bg-white p-2.5 transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] ${borderColor}`}
-                                                                    >
-                                                                        {isRefund && !h.isCancelled && (
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => setRefundDetailModalHistId(h.id)}
-                                                                                className="float-right ml-2 inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-300 px-2 py-0.5 text-[11px] font-bold text-amber-700 hover:bg-amber-100 transition-colors"
-                                                                                title="환불 상세 내역 보기"
-                                                                            >
-                                                                                상세
-                                                                            </button>
-                                                                        )}
-                                                                        <div className="flex items-start justify-between gap-2">
-                                                                            <div className="min-w-0 flex-1">
-                                                                                <div className="flex items-center gap-1.5">
-                                                                                    <span className={`inline-flex items-center rounded-[4px] px-1.5 py-px text-[12px] font-bold tracking-[0.1px] ${badgeStyle}`}>
-                                                                                        {isCharge ? '충전' : isUse ? '차감' : isRefund ? '환불' : h.description}
-                                                                                    </span>
-                                                                                    {h.isCancelled && (
-                                                                                        <span className="inline-flex rounded-[4px] bg-red-50 border border-red-200 px-1.5 py-px text-[12px] font-medium text-red-600">
-                                                                                            취소됨
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                                {(isUse || isRefund) && (
-                                                                                    h.ticketName ? (
-                                                                                        <>
-                                                                                            <div className="text-[14px] text-[#242424] font-semibold mt-1 break-words" title={h.ticketName}>
-                                                                                                {isRefund && <span className="text-[11px] text-amber-700 font-bold mr-1">[티켓 환불]</span>}
-                                                                                                {h.ticketName}
-                                                                                            </div>
-                                                                                            {isUse && h.ticketMaxUseCount != null && (
-                                                                                                <div className="mt-0.5 text-[11px]">
-                                                                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-px text-emerald-700 font-bold">
-                                                                                                        시술 진행 {h.ticketUsedCount ?? 0}/{h.ticketMaxUseCount}회
+                                                    {(() => {
+                                                        const ticketLifecycleCards = buildMembershipTicketLifecycleCards(membershipHistory);
+                                                        const rawLedgerEntries = [...membershipHistory]
+                                                            .filter((history) => !isMembershipTicketLinkedHistory(history))
+                                                            .sort((a, b) => new Date(b.usedAt || 0).getTime() - new Date(a.usedAt || 0).getTime());
+
+                                                        if (ticketLifecycleCards.length === 0 && rawLedgerEntries.length === 0) {
+                                                            return <div className="py-2 text-[14px] text-[#616161]">이력이 없습니다.</div>;
+                                                        }
+
+                                                        return (
+                                                            <div className="space-y-3">
+                                                                <div>
+                                                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                                                        <div className="text-[15px] font-semibold text-[#5C2A35] tracking-[0.1px]">연결 티켓</div>
+                                                                        <span className="inline-flex items-center rounded-full bg-white border border-[#F8DCE2] px-2 py-0.5 text-[11px] font-bold text-[#8B3F50]">
+                                                                            {ticketLifecycleCards.length}건
+                                                                        </span>
+                                                                    </div>
+                                                                    {ticketLifecycleCards.length === 0 ? (
+                                                                        <div className="rounded-[10px] border border-dashed border-[#F8DCE2] bg-white px-3 py-3 text-[12px] text-[#8B5A66]">
+                                                                            회원권 차감으로 발급된 연결 티켓이 아직 없습니다.
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="space-y-2">
+                                                                            {ticketLifecycleCards.map((card) => {
+                                                                                const status = getMembershipLifecycleStatus(card);
+                                                                                const netCash = Math.max(0, card.deductionCash - card.refundCash);
+                                                                                const netPoint = Math.max(0, card.deductionPoint - card.refundPoint);
+                                                                                const lastActivity = card.lastActivityAt || card.issuedAt;
+                                                                                const membershipTicketCardKey = `${m.id}:${card.groupKey}`;
+                                                                                const isTicketCardExpanded = expandedMembershipTicketKeys.has(membershipTicketCardKey);
+                                                                                const ticketUsageHistory = card.ticketId
+                                                                                    ? (ticketHistoryByTicketId[card.ticketId] || [])
+                                                                                        .filter((historyItem) => {
+                                                                                            const historyType = String(historyItem.historyType || "").trim().toUpperCase();
+                                                                                            return !historyItem.isCancelled && historyType !== "NEW" && historyType !== "REFUND";
+                                                                                        })
+                                                                                        .sort((a, b) => new Date(b.usedAt || 0).getTime() - new Date(a.usedAt || 0).getTime())
+                                                                                    : [];
+                                                                                const usageHistoryLoaded = card.ticketId
+                                                                                    ? Object.prototype.hasOwnProperty.call(ticketHistoryByTicketId, card.ticketId)
+                                                                                    : true;
+                                                                                return (
+                                                                                    <div
+                                                                                        key={card.groupKey}
+                                                                                        className="rounded-[10px] border border-[#F8DCE2] bg-white transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)]"
+                                                                                    >
+                                                                                        <div
+                                                                                            role="button"
+                                                                                            tabIndex={0}
+                                                                                            onClick={() => toggleMembershipTicketCard(membershipTicketCardKey)}
+                                                                                            onKeyDown={(event) => {
+                                                                                                if (event.key === "Enter" || event.key === " ") {
+                                                                                                    event.preventDefault();
+                                                                                                    toggleMembershipTicketCard(membershipTicketCardKey);
+                                                                                                }
+                                                                                            }}
+                                                                                            className="flex w-full cursor-pointer items-start justify-between gap-2 px-3 py-3 text-left"
+                                                                                        >
+                                                                                            <div className="min-w-0 flex-1">
+                                                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${status.className}`}>
+                                                                                                        {status.label}
                                                                                                     </span>
-                                                                                                    {(h.ticketRemainingCount ?? 0) === 0 && (
-                                                                                                        <span className="ml-1 inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-1.5 py-px text-slate-600 font-bold">
-                                                                                                            사용완료
+                                                                                                    <span className="text-[11px] text-[#8B5A66]">
+                                                                                                        발급 {card.issuedAt ? format(new Date(card.issuedAt), "MM.dd HH:mm", { locale: ko }) : "-"}
+                                                                                                    </span>
+                                                                                                </div>
+                                                                                                <div className="mt-1 text-[14px] font-semibold text-[#242424] break-words" title={card.ticketName}>
+                                                                                                    {card.ticketName}
+                                                                                                </div>
+                                                                                                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-[#616161]">
+                                                                                                    {card.totalCount != null ? (
+                                                                                                        <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-px font-bold text-emerald-700">
+                                                                                                            시술 {card.usedCount}/{card.totalCount}회
+                                                                                                        </span>
+                                                                                                    ) : (
+                                                                                                        <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-px font-bold text-emerald-700">
+                                                                                                            시술 {card.usedCount}회 진행
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                    {typeof card.remainingCount === "number" && (
+                                                                                                        <span className="inline-flex items-center rounded-full bg-[#FCF7F8] border border-[#F8DCE2] px-1.5 py-px font-semibold text-[#8B3F50]">
+                                                                                                            남은 {Math.max(0, card.remainingCount)}회
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                    {lastActivity && (
+                                                                                                        <span className="text-[#8B5A66]">
+                                                                                                            최근 처리 {format(new Date(lastActivity), "MM.dd HH:mm", { locale: ko })}
                                                                                                         </span>
                                                                                                     )}
                                                                                                 </div>
-                                                                                            )}
-                                                                                            {isUse && h.ticketMaxUseCount == null && h.ticketUsedCount != null && (
-                                                                                                <div className="mt-0.5 text-[11px]">
-                                                                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-px text-emerald-700 font-bold">
-                                                                                                        시술 {h.ticketUsedCount}회 진행 (기간권)
+                                                                                                <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px]">
+                                                                                                    <span className="font-semibold text-[#8B5A66]">
+                                                                                                        차감액 <span className="ml-1 font-extrabold text-[#5C2A35]">{formatCashPointAmount(netCash, netPoint)}</span>
                                                                                                     </span>
+                                                                                                    {(card.refundCash > 0 || card.refundPoint > 0) && (
+                                                                                                        <span className="font-semibold text-[#8B5A66]">
+                                                                                                            환불액 <span className="ml-1 font-extrabold text-amber-700">+{formatCashPointAmount(card.refundCash, card.refundPoint)}</span>
+                                                                                                        </span>
+                                                                                                    )}
                                                                                                 </div>
-                                                                                            )}
-                                                                                        </>
-                                                                                    ) : isRefund ? (
-                                                                                        <div className="text-[14px] text-[#242424] font-semibold mt-1">
-                                                                                            <span className="text-[11px] text-amber-700 font-bold mr-1">[회원권 잔액 환불]</span>
+                                                                                            </div>
+                                                                                            <div className="shrink-0 flex items-center gap-1">
+                                                                                                {card.latestRefundHistoryId && (
+                                                                                                    <button
+                                                                                                        type="button"
+                                                                                                        onClick={(event) => {
+                                                                                                            event.stopPropagation();
+                                                                                                            setRefundDetailModalHistId(card.latestRefundHistoryId!);
+                                                                                                        }}
+                                                                                                        className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-300 px-2 py-0.5 text-[11px] font-bold text-amber-700 hover:bg-amber-100 transition-colors"
+                                                                                                        title="환불 상세 내역 보기"
+                                                                                                    >
+                                                                                                        상세
+                                                                                                    </button>
+                                                                                                )}
+                                                                                                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#F8DCE2] bg-[#FCF7F8] text-[#8B5A66]">
+                                                                                                    {isTicketCardExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                                                                                </span>
+                                                                                            </div>
                                                                                         </div>
-                                                                                    ) : null
-                                                                                )}
-                                                                                <div className="text-[13px] text-[#616161] mt-1">
-                                                                                    {format(new Date(h.usedAt), "MM.dd HH:mm", { locale: ko })}
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="shrink-0 text-right space-y-0.5">
-                                                                                {(h.usedCashAmount ?? h.usedAmount) > 0 && (
-                                                                                    <div className={`text-[14px] font-bold tabular-nums ${h.isCancelled ? 'text-[#616161] line-through' : isCharge ? 'text-emerald-700' : 'text-rose-600'}`}>
-                                                                                        {isCharge ? '+' : '-'}{(h.usedCashAmount ?? h.usedAmount).toLocaleString()}<span className="text-[12px] font-medium ml-0.5">원</span>
+
+                                                                                        {isTicketCardExpanded && (
+                                                                                            <div className="border-t border-[#F8DCE2] px-3 pb-3 pt-2">
+                                                                                                <div className="mt-1 grid grid-cols-3 gap-2">
+                                                                                                    <div className="rounded-[8px] bg-[#FCF7F8] px-2.5 py-2">
+                                                                                                        <div className="text-[10px] font-bold text-[#8B5A66]">회원권 차감</div>
+                                                                                                        <div className="mt-1 text-[12px] font-extrabold text-[#8B3F50]">
+                                                                                                            -{formatCashPointAmount(card.deductionCash, card.deductionPoint)}
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                    <div className="rounded-[8px] bg-[#FCF7F8] px-2.5 py-2">
+                                                                                                        <div className="text-[10px] font-bold text-[#8B5A66]">환불액</div>
+                                                                                                        <div className="mt-1 text-[12px] font-extrabold text-amber-700">
+                                                                                                            +{formatCashPointAmount(card.refundCash, card.refundPoint)}
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                    <div className="rounded-[8px] bg-[#FCF7F8] px-2.5 py-2">
+                                                                                                        <div className="text-[10px] font-bold text-[#8B5A66]">차감액</div>
+                                                                                                        <div className="mt-1 text-[12px] font-extrabold text-[#5C2A35]">
+                                                                                                            {formatCashPointAmount(netCash, netPoint)}
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </div>
+
+                                                                                                <div className="mt-2 text-[11px] text-[#616161]">
+                                                                                                    처리 후 잔액 {formatCashPointAmount(card.latestRemainingCashBalance, card.latestRemainingPointBalance)}
+                                                                                                </div>
+
+                                                                                                <div className="mt-2 rounded-[8px] border border-[#F8DCE2] bg-[#FCF7F8] px-2.5 py-2">
+                                                                                                    <div className="text-[10px] font-bold text-[#8B5A66]">사용 이력</div>
+                                                                                                    {card.usedCount <= 0 ? (
+                                                                                                        <div className="mt-1 text-[11px] text-[#8B5A66]">
+                                                                                                            아직 사용 이력이 없습니다.
+                                                                                                        </div>
+                                                                                                    ) : !usageHistoryLoaded ? (
+                                                                                                        <div className="mt-1 text-[11px] text-[#8B5A66]">
+                                                                                                            사용 이력을 불러오는 중입니다...
+                                                                                                        </div>
+                                                                                                    ) : ticketUsageHistory.length === 0 ? (
+                                                                                                        <div className="mt-1 text-[11px] text-[#8B5A66]">
+                                                                                                            사용 날짜 정보가 아직 연결되지 않았습니다.
+                                                                                                        </div>
+                                                                                                    ) : (
+                                                                                                        <div className="mt-2 space-y-1.5">
+                                                                                                            {ticketUsageHistory.map((historyItem, historyIndex) => {
+                                                                                                                const usedTreatments = parseUsedTreatments(historyItem.usedTreatmentsJson);
+                                                                                                                const roundLabel = typeof historyItem.usedRound === "number" && historyItem.usedRound > 0
+                                                                                                                    ? `${historyItem.usedRound}회차`
+                                                                                                                    : `${historyIndex + 1}회차`;
+                                                                                                                const treatmentLabel = usedTreatments.length > 0
+                                                                                                                    ? usedTreatments.join(", ")
+                                                                                                                    : "";
+
+                                                                                                                return (
+                                                                                                                    <div
+                                                                                                                        key={`membership-ticket-usage-${card.groupKey}-${historyItem.id}`}
+                                                                                                                        className="flex items-center justify-between gap-2 rounded-[6px] bg-white px-2 py-1.5 text-[11px]"
+                                                                                                                    >
+                                                                                                                        <div className="min-w-0">
+                                                                                                                            <div className="font-semibold text-[#5C2A35]">
+                                                                                                                                {roundLabel}
+                                                                                                                                {treatmentLabel ? ` · ${treatmentLabel}` : ""}
+                                                                                                                            </div>
+                                                                                                                        </div>
+                                                                                                                        <div className="shrink-0 text-[#616161] tabular-nums">
+                                                                                                                            {format(new Date(historyItem.usedAt), "MM.dd HH:mm", { locale: ko })}
+                                                                                                                        </div>
+                                                                                                                    </div>
+                                                                                                                );
+                                                                                                            })}
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        )}
                                                                                     </div>
-                                                                                )}
-                                                                                {(h.usedPointAmount ?? 0) > 0 && (
-                                                                                    <div className={`text-[14px] font-bold tabular-nums ${h.isCancelled ? 'text-[#616161] line-through' : isCharge ? 'text-emerald-700' : 'text-[#D27A8C]'}`}>
-                                                                                        {isCharge ? '+' : '-'}{(h.usedPointAmount ?? 0).toLocaleString()}<span className="text-[12px] font-medium ml-0.5">P</span>
-                                                                                    </div>
-                                                                                )}
-                                                                                <div className="flex items-center justify-end gap-1.5 text-[12px] tabular-nums mt-0.5">
-                                                                                    {(h.usedCashAmount ?? h.usedAmount) > 0 && (
-                                                                                        <span className="text-[#5C2A35]">{(h.remainingCashBalance ?? h.remainingBalance).toLocaleString()}원</span>
-                                                                                    )}
-                                                                                    {(h.usedCashAmount ?? h.usedAmount) > 0 && (h.usedPointAmount ?? 0) > 0 && (
-                                                                                        <span className="text-[#F8DCE2]">/</span>
-                                                                                    )}
-                                                                                    {(h.usedPointAmount ?? 0) > 0 && (
-                                                                                        <span className="text-[#F49EAF]">{(h.remainingPointBalance ?? 0).toLocaleString()}P</span>
-                                                                                    )}
-                                                                                </div>
-                                                                            </div>
+                                                                                );
+                                                                            })}
                                                                         </div>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
+                                                                    )}
+                                                                </div>
+
+                                                                <div>
+                                                                    <div className="text-[14px] font-semibold text-[#5C2A35] tracking-[0.1px] mb-2">회원권 잔액 변동 내역</div>
+                                                                    {rawLedgerEntries.length === 0 ? (
+                                                                        <div className="rounded-[10px] border border-dashed border-[#F8DCE2] bg-white px-3 py-3 text-[12px] text-[#8B5A66]">
+                                                                            확인할 회원권 잔액 변동 내역이 없습니다.
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="space-y-1.5">
+                                                                            {rawLedgerEntries.map((history) => {
+                                                                                const type = getMembershipHistoryType(history);
+                                                                                const isCharge = type === "charge";
+                                                                                const isRefund = type === "refund";
+                                                                                const amountText = formatCashPointAmount(
+                                                                                    Number(history.usedCashAmount ?? history.usedAmount ?? 0),
+                                                                                    Number(history.usedPointAmount ?? 0)
+                                                                                );
+                                                                                return (
+                                                                                    <div
+                                                                                        key={history.id}
+                                                                                        className={`rounded-[8px] border bg-white p-2.5 transition-shadow duration-200 hover:shadow-[0_4px_12px_rgba(226,107,124,0.08)] ${
+                                                                                            history.isCancelled
+                                                                                                ? "opacity-60 border-[#E0E0E0]"
+                                                                                                : isCharge
+                                                                                                ? "border-l-[3px] border-l-[#43A047] border-t-[#F8DCE2] border-r-[#F8DCE2] border-b-[#F8DCE2]"
+                                                                                                : isRefund
+                                                                                                ? "border-l-[3px] border-l-amber-400 border-t-[#F8DCE2] border-r-[#F8DCE2] border-b-[#F8DCE2]"
+                                                                                                : "border-l-[3px] border-l-rose-400 border-t-[#F8DCE2] border-r-[#F8DCE2] border-b-[#F8DCE2]"
+                                                                                        }`}
+                                                                                    >
+                                                                                        <div className="flex items-start justify-between gap-2">
+                                                                                            <div className="min-w-0 flex-1">
+                                                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                                    <span className={`inline-flex items-center rounded-[4px] px-1.5 py-px text-[12px] font-bold tracking-[0.1px] ${
+                                                                                                        history.isCancelled
+                                                                                                            ? "bg-[#F0F0F0] text-[#616161]"
+                                                                                                            : isCharge
+                                                                                                            ? "bg-emerald-50 text-emerald-700"
+                                                                                                            : isRefund
+                                                                                                            ? "bg-amber-50 text-amber-700"
+                                                                                                            : "bg-rose-50 text-rose-600"
+                                                                                                    }`}>
+                                                                                                        {isCharge ? "충전" : isRefund ? "잔액 환불" : history.description || "이력"}
+                                                                                                    </span>
+                                                                                                    {history.isCancelled && (
+                                                                                                        <span className="inline-flex rounded-[4px] bg-red-50 border border-red-200 px-1.5 py-px text-[12px] font-medium text-red-600">
+                                                                                                            취소됨
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                                <div className="mt-1 text-[13px] text-[#242424] font-semibold break-words">
+                                                                                                    {history.description || m.membershipName}
+                                                                                                </div>
+                                                                                                <div className="text-[12px] text-[#616161] mt-1">
+                                                                                                    {format(new Date(history.usedAt), "MM.dd HH:mm", { locale: ko })}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            <div className="shrink-0 text-right space-y-0.5">
+                                                                                                <div className={`text-[14px] font-bold tabular-nums ${
+                                                                                                    history.isCancelled
+                                                                                                        ? "text-[#616161] line-through"
+                                                                                                        : isCharge
+                                                                                                        ? "text-emerald-700"
+                                                                                                        : "text-rose-600"
+                                                                                                }`}>
+                                                                                                    {isCharge ? "+" : "-"}{amountText}
+                                                                                                </div>
+                                                                                                <div className="text-[12px] text-[#5C2A35]">
+                                                                                                    {formatCashPointAmount(
+                                                                                                        Number(history.remainingCashBalance ?? history.remainingBalance ?? 0),
+                                                                                                        Number(history.remainingPointBalance ?? 0)
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                             )}
                                         </div>
@@ -6049,6 +6650,97 @@ export default function PatientChartPage() {
                 )
             }
 
+            {showCheckoutConfirm && (
+                <div
+                    className="fixed inset-0 z-[10040] flex items-center justify-center bg-[#2A1F22]/60 backdrop-blur-[3px] p-4 animate-in fade-in duration-150"
+                    onClick={() => setShowCheckoutConfirm(false)}
+                >
+                    <div
+                        className="w-full max-w-[440px] rounded-2xl border border-[#F4C7CE] bg-white shadow-2xl overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="border-b border-[#F8DCE2] bg-gradient-to-b from-[#FCF7F8] to-white px-5 py-4">
+                            <div className="text-[14px] font-extrabold text-[#5C2A35]">수납 내역 확인</div>
+                            <div className="mt-1 text-[11.5px] text-[#8B5A66] leading-relaxed">
+                                아래 티켓/회원권이 맞는지 확인 후 수납을 진행해 주세요.
+                            </div>
+                        </div>
+
+                        <div className="px-5 py-4 max-h-[360px] overflow-y-auto custom-scrollbar space-y-2">
+                            {cartItems.map((item) => {
+                                const isMembership = item.itemType === "membership";
+                                const lineTotal = (item.unitPrice || item.eventPrice || item.originalPrice || 0) * item.quantity;
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className="rounded-lg border border-[#F8DCE2] bg-[#FCF7F8]/60 px-3 py-2"
+                                    >
+                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                            <span
+                                                className={`inline-flex items-center font-bold px-1.5 py-0.5 rounded-md text-[10.5px] shrink-0 ${isMembership
+                                                    ? "bg-violet-100 text-violet-700"
+                                                    : "bg-[#D27A8C]/10 text-[#D27A8C]"
+                                                    }`}
+                                            >
+                                                {isMembership ? "회원권" : "티켓"}
+                                            </span>
+                                            <span className="text-[10.5px] text-[#8B5A66] tabular-nums">
+                                                수량 <span className="font-extrabold text-[#5C2A35]">{item.quantity}</span>
+                                            </span>
+                                        </div>
+                                        <div className="text-[12.5px] font-semibold text-[#242424] leading-snug break-keep mb-1">
+                                            {item.itemName}
+                                        </div>
+                                        <div className="flex items-center justify-end text-[11.5px] tabular-nums">
+                                            <span className="text-[#8B5A66]">
+                                                소계 <span className="font-extrabold text-[#5C2A35]">{lineTotal.toLocaleString()}원</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="border-t border-[#F8DCE2] bg-white px-5 py-3 space-y-1.5 text-[12px]">
+                            {(cartPreview?.totalDiscountAmount || 0) > 0 && (
+                                <div className="flex items-center justify-between text-[#8B5A66]">
+                                    <span>할인</span>
+                                    <span className="font-bold text-[#E74856] tabular-nums">
+                                        -{(cartPreview?.totalDiscountAmount || 0).toLocaleString()}원
+                                    </span>
+                                </div>
+                            )}
+                            <div className="flex items-center justify-between">
+                                <span className="text-[#5C2A35] font-bold">최종 결제금액</span>
+                                <span className="text-[14px] font-extrabold text-[#5C2A35] tabular-nums">
+                                    {(cartPreview?.totalCashRequired ?? remaining ?? 0).toLocaleString()}원
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="border-t border-[#F8DCE2] bg-[#FCF7F8]/40 px-5 py-3 flex gap-2 justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setShowCheckoutConfirm(false)}
+                                className="h-9 rounded-lg border border-slate-300 bg-white px-4 text-[12px] font-bold text-slate-600 hover:bg-slate-50"
+                            >
+                                다시 확인
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowCheckoutConfirm(false);
+                                    proceedCheckout();
+                                }}
+                                className="h-9 rounded-lg bg-[#D27A8C] px-4 text-[12px] font-extrabold text-white hover:bg-[#8B3F50]"
+                            >
+                                수납 진행
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <ReservationChangeHistoryModal
                 isOpen={changeHistoryReservId !== null}
                 reservationId={changeHistoryReservId ?? 0}
@@ -6278,8 +6970,8 @@ export default function PatientChartPage() {
                                                                 )}
                                                                 {discountAmt > 0 && (
                                                                     <div className="flex justify-between text-[11px]">
-                                                                        <span style={{ color: "#E53935" }}>할인금액{item.discountPercent ? ` (${item.discountPercent}%)` : ""}</span>
-                                                                        <span className="tabular-nums font-bold" style={{ color: "#E53935" }}>-{discountAmt.toLocaleString()}원</span>
+                                                                        <span style={{ color: "#C53030" }}>할인금액{item.discountPercent ? ` (${item.discountPercent}%)` : ""}</span>
+                                                                        <span className="tabular-nums font-bold" style={{ color: "#C53030" }}>-{discountAmt.toLocaleString()}원</span>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -6360,7 +7052,7 @@ export default function PatientChartPage() {
                                                         </span>
                                                     )}
                                                 </div>
-                                                <span className="text-[14px] font-bold tabular-nums" style={{ color: refundModalPenaltyAmount > 0 ? "#E53935" : "#242424" }}>
+                                                <span className="text-[14px] font-bold tabular-nums" style={{ color: refundModalPenaltyAmount > 0 ? "#C53030" : "#242424" }}>
                                                     {refundModalPenaltyAmount > 0 ? "-" : ""}{refundModalPenaltyAmount.toLocaleString()}원
                                                 </span>
                                             </div>
@@ -6383,7 +7075,7 @@ export default function PatientChartPage() {
 
                                     <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: "#FFF3F3", borderTop: "1px solid #FFCDD2" }}>
                                         <span className="text-[13px] font-bold" style={{ color: "#C62828" }}>환불 지급액</span>
-                                        <span className="text-[20px] font-extrabold tabular-nums" style={{ color: "#E53935" }}>
+                                        <span className="text-[20px] font-extrabold tabular-nums" style={{ color: "#C53030" }}>
                                             {refundModalPreviewAmount.toLocaleString()}원
                                         </span>
                                     </div>
@@ -6479,9 +7171,9 @@ export default function PatientChartPage() {
                                 onClick={handleConfirmRefundModal}
                                 disabled={refundModal.isSubmitting || refundModalPreviewAmount <= 0}
                                 className="h-[40px] rounded-[8px] px-6 text-[13px] font-bold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
-                                style={{ backgroundColor: "#E53935" }}
-                                onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#C62828"; }}
-                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#E53935"; }}
+                                style={{ backgroundColor: "#8B3F50" }}
+                                onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#5C2A35"; }}
+                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#8B3F50"; }}
                             >
                                 {refundModal.isSubmitting ? "환불 처리중..." : refundModal.mode === "group" ? "묶음 환불 실행" : "환불 실행"}
                             </button>
@@ -6997,7 +7689,8 @@ function RefundHistoryList({
     };
 
     const { showAlert, showConfirm } = useAlert();
-    const [refundFilterTab, setRefundFilterTab] = useState<'all' | 'ticket' | 'membership'>('all');
+    const { settings } = useSettingsStore();
+    const [refundFilterTab, setRefundFilterTab] = useState<'all' | 'attention' | 'collection' | 'refund' | 'completed'>('all');
     const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [loadingGroupId, setLoadingGroupId] = useState<string | null>(null);
     const [refundCheckByRecordId, setRefundCheckByRecordId] = useState<Record<number, RefundCheckRow>>({});
@@ -7027,6 +7720,25 @@ function RefundHistoryList({
     // ISSUE-176: unified refund modal (replaces bulk modal for mixed selections)
     const [unifiedModalState, setUnifiedModalState] = useState<UnifiedRefundSelection[] | null>(null);
     const [expandedCardIds, setExpandedCardIds] = useState<Set<string>>(new Set());
+    const processReturnedCashReceiptTasks = useCallback(async (tasks: any[] | undefined) => {
+        const hospitalName = String(settings?.hospital?.hospitalNameKo || "").trim();
+        const hospitalPhone = String(settings?.hospital?.phone || "").trim();
+        const merchantTel = hospitalName && hospitalPhone
+            ? `${hospitalName}(${hospitalPhone})`
+            : hospitalName || hospitalPhone || undefined;
+
+        let summary: ProcessCashReceiptTasksSummary | null = null;
+        let errorMessage: string | null = null;
+
+        try {
+            summary = await processCashReceiptTasks(tasks, { merchantTel });
+        } catch (error: any) {
+            errorMessage = error?.message || "현금영수증 후처리 중 오류";
+        }
+
+        return { summary, errorMessage };
+    }, [settings]);
+
     const toggleCardExpanded = (cardId: string) => {
         setExpandedCardIds((prev) => {
             const next = new Set(prev);
@@ -7518,8 +8230,6 @@ function RefundHistoryList({
             return name.includes(q) || dateStr.includes(q) || payType.includes(q);
         });
     }, [itemCards, searchQuery]);
-    void refundFilterTab;
-
     type GroupedCardEntry = {
         groupId: string;
         groupKey: string;
@@ -7549,6 +8259,81 @@ function RefundHistoryList({
         return Array.from(map.values()).sort((a, b) => new Date(b.latestPaidAt).getTime() - new Date(a.latestPaidAt).getTime());
     }, [filteredCards]);
 
+    const getWorkCenterItemForGroup = useCallback((groupEntry: GroupedCardEntry) => {
+        const primaryMasterId = Number(groupEntry.cards[0]?.record.paymentMasterId || groupEntry.cards[0]?.record.id || 0);
+        return workCenterItemByMasterId.get(primaryMasterId);
+    }, [workCenterItemByMasterId]);
+
+    const hasAttentionForGroup = useCallback((groupEntry: GroupedCardEntry) => {
+        const workItem = getWorkCenterItemForGroup(groupEntry);
+        const activeOperation = groupEntry.cards[0]?.record.activeOperation;
+        return Boolean(workItem)
+            || Boolean(activeOperation && activeOperation.status !== "completed")
+            || String(groupEntry.groupStatus || "").toLowerCase() === "deduction_paid";
+    }, [getWorkCenterItemForGroup]);
+
+    const isRefundGroup = useCallback((groupEntry: GroupedCardEntry) => {
+        const workItem = getWorkCenterItemForGroup(groupEntry);
+        const activeOperation = groupEntry.cards[0]?.record.activeOperation;
+        const normalizedStatus = String(groupEntry.groupStatus || "").toLowerCase();
+        const workType = String(workItem?.workType || "").toLowerCase();
+        const operationType = String(activeOperation?.operationType || "").toLowerCase();
+        return normalizedStatus === "deduction_paid"
+            || normalizedStatus === "partial_refunded"
+            || normalizedStatus === "refunded"
+            || workType === "refund_follow_up"
+            || workType === "manual_close"
+            || workType === "terminal_info"
+            || operationType === "refund_workflow"
+            || operationType === "membership_settlement";
+    }, [getWorkCenterItemForGroup]);
+
+    const isCollectionGroup = useCallback((groupEntry: GroupedCardEntry) => {
+        const workItem = getWorkCenterItemForGroup(groupEntry);
+        const activeOperation = groupEntry.cards[0]?.record.activeOperation;
+        const workType = String(workItem?.workType || "").toLowerCase();
+        const operationType = String(activeOperation?.operationType || "").toLowerCase();
+        const outstandingAmount = Math.max(
+            0,
+            Number(workItem?.outstandingAmount ?? groupEntry.cards[0]?.record.outstandingAmount ?? 0)
+        );
+        return workType === "collection"
+            || operationType === "checkout"
+            || operationType === "add_payment_detail"
+            || (!isRefundGroup(groupEntry) && groupEntry.groupStatus === "paid")
+            || outstandingAmount > 0;
+    }, [getWorkCenterItemForGroup, isRefundGroup]);
+
+    const filterCounts = useMemo(() => {
+        return cardsByGroup.reduce(
+            (acc, groupEntry) => {
+                acc.all += 1;
+                if (hasAttentionForGroup(groupEntry)) acc.attention += 1;
+                if (isCollectionGroup(groupEntry)) acc.collection += 1;
+                if (isRefundGroup(groupEntry)) acc.refund += 1;
+                if (!hasAttentionForGroup(groupEntry)) acc.completed += 1;
+                return acc;
+            },
+            { all: 0, attention: 0, collection: 0, refund: 0, completed: 0 }
+        );
+    }, [cardsByGroup, hasAttentionForGroup, isCollectionGroup, isRefundGroup]);
+
+    const filteredGroupEntries = useMemo(() => {
+        return cardsByGroup.filter((groupEntry) => {
+            if (refundFilterTab === "all") return true;
+            if (refundFilterTab === "attention") return hasAttentionForGroup(groupEntry);
+            if (refundFilterTab === "collection") return isCollectionGroup(groupEntry);
+            if (refundFilterTab === "refund") return isRefundGroup(groupEntry);
+            if (refundFilterTab === "completed") return !hasAttentionForGroup(groupEntry);
+            return true;
+        });
+    }, [cardsByGroup, hasAttentionForGroup, isCollectionGroup, isRefundGroup, refundFilterTab]);
+
+    const visibleCards = useMemo(
+        () => filteredGroupEntries.flatMap((groupEntry) => groupEntry.cards),
+        [filteredGroupEntries]
+    );
+
     // 환불 가능한 카드 (체크박스 활성 대상)
     const isCardEligible = (c: typeof filteredCards[number]) => {
         if (c.status === "refunded") return false;
@@ -7557,7 +8342,7 @@ function RefundHistoryList({
         return c.itemType === "ticket" || c.itemType === "membership";
     };
 
-    const eligibleCardsForBulk = useMemo(() => filteredCards.filter(isCardEligible), [filteredCards]);
+    const eligibleCardsForBulk = useMemo(() => visibleCards.filter(isCardEligible), [visibleCards]);
     const allEligibleSelected = eligibleCardsForBulk.length > 0 && eligibleCardsForBulk.every((c) => selectedCardKeys.has(c.id));
     const selectedCount = eligibleCardsForBulk.filter((c) => selectedCardKeys.has(c.id)).length;
 
@@ -7720,7 +8505,7 @@ function RefundHistoryList({
 
         setRetryRefundSubmitting(true);
         try {
-            await paymentService.finalizeRefund(retryState.paymentMasterId, {
+            const result = await paymentService.finalizeRefund(retryState.paymentMasterId, {
                 originPaymentDetailId: retryState.originPaymentDetailId,
                 rePaymentDetailId: retryState.rePaymentDetailId,
                 refundType: "customer_change",
@@ -7729,16 +8514,31 @@ function RefundHistoryList({
                 terminalVanKey: undefined,
                 refundMethod: "MANUAL",
             });
+            const { summary: cashReceiptSummary, errorMessage: cashReceiptError } = await processReturnedCashReceiptTasks(result.cashReceiptTasks);
             if (typeof onRefundCompleted === "function") {
                 await onRefundCompleted();
             }
-            showAlert({ message: "수기 마감이 완료되었습니다.", type: "success" });
+            const messageLines = ["수기 마감이 완료되었습니다."];
+            appendCashReceiptSummaryLines(messageLines, cashReceiptSummary);
+            if (cashReceiptError) {
+                messageLines.push(`현금영수증 후처리 오류: ${cashReceiptError}`);
+            }
+            showAlert({
+                message: messageLines.join("\n"),
+                type:
+                    !!cashReceiptError
+                    || (cashReceiptSummary?.failedCount || 0) > 0
+                    || (cashReceiptSummary?.unknownCount || 0) > 0
+                    || (cashReceiptSummary?.manualActionCount || 0) > 0
+                        ? "warning"
+                        : "success",
+            });
         } catch (error: any) {
             showAlert({ message: `수기 마감 실패: ${error?.response?.data?.message || error?.message || "오류"}`, type: "error" });
         } finally {
             setRetryRefundSubmitting(false);
         }
-    }, [buildRetryRefundStateFromWorkItem, onRefundCompleted, retryRefundSubmitting, showAlert, showConfirm]);
+    }, [buildRetryRefundStateFromWorkItem, onRefundCompleted, processReturnedCashReceiptTasks, retryRefundSubmitting, showAlert, showConfirm]);
 
     const handleWorkCenterAction = useCallback((actionCode: string, item: PaymentWorkCenterSummary["items"][number]) => {
         if (actionCode === "edit_terminal_info") {
@@ -7782,13 +8582,58 @@ function RefundHistoryList({
         return <div className="text-center text-[#616161] text-[14px] py-8">결제 내역이 없습니다.</div>;
     }
 
+    // "결제 내역과 매칭되지 않는 workCenter items" (고아 작업) 검출 — 있으면 별도 compact 알림
+    const knownMasterIds = new Set<number>();
+    for (const g of groupedRecords) {
+        for (const r of g.records) {
+            if (r.paymentMasterId != null) knownMasterIds.add(r.paymentMasterId);
+        }
+    }
+    const orphanWorkItems = (workCenter?.items || []).filter((wi) => {
+        const masterId = wi.paymentMasterId;
+        if (masterId == null) return true;
+        return !knownMasterIds.has(masterId);
+    });
+
     return (
         <div className="space-y-3">
-            <RefundWorkCenterPanel
-                workCenter={workCenter}
-                disabled={isReadOnly}
-                onAction={handleWorkCenterAction}
-            />
+            <div className="overflow-x-auto pb-1">
+                <div className="flex min-w-max items-center gap-1 rounded-[10px] border border-[#F8DCE2] bg-[#FCF7F8] p-1">
+                    {[
+                        { key: "all", label: "전체", count: filterCounts.all },
+                        { key: "attention", label: "처리 필요", count: filterCounts.attention },
+                        { key: "collection", label: "수납", count: filterCounts.collection },
+                        { key: "refund", label: "환불", count: filterCounts.refund },
+                        { key: "completed", label: "완료", count: filterCounts.completed },
+                    ].map((filter) => {
+                        const active = refundFilterTab === filter.key;
+                        return (
+                            <button
+                                key={filter.key}
+                                type="button"
+                                onClick={() => setRefundFilterTab(filter.key as typeof refundFilterTab)}
+                                className={`inline-flex items-center gap-1 rounded-[8px] px-2.5 py-1.5 text-[11px] font-bold transition-colors ${
+                                    active
+                                        ? "bg-white text-[#8B3F50] border border-[#F8DCE2] shadow-sm"
+                                        : "text-[#8B5A66] border border-transparent hover:bg-white/80"
+                                }`}
+                            >
+                                <span>{filter.label}</span>
+                                <span className={`rounded-full px-1.5 py-px text-[10px] ${active ? "bg-[#FCEBEF] text-[#8B3F50]" : "bg-white text-[#8B5A66]"}`}>
+                                    {filter.count}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {orphanWorkItems.length > 0 && (
+                <div className="rounded-[12px] border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 leading-snug">
+                    <div className="font-extrabold">⚠ 결제 목록에 매칭되지 않는 미완료 작업 {orphanWorkItems.length}건</div>
+                    <div className="mt-0.5 opacity-80">새로고침하거나 관리자에게 문의해 주세요.</div>
+                </div>
+            )}
 
             {/* ISSUE-176: 통합 환불 toolbar (sticky 느낌) */}
             {!isReadOnly && eligibleCardsForBulk.length > 0 && (
@@ -7822,11 +8667,13 @@ function RefundHistoryList({
 
             {/* ISSUE-176: 결제건 그룹별 카드 */}
             <div className="space-y-3">
-                {cardsByGroup.length === 0 ? (
+                {filteredGroupEntries.length === 0 ? (
                     <div className="text-center text-[#616161] text-[13px] py-6">
-                        결제 내역이 없습니다.
+                        {refundFilterTab === "attention"
+                            ? "처리할 수납/환불 건이 없습니다."
+                            : "조건에 맞는 수납/환불 내역이 없습니다."}
                     </div>
-                ) : cardsByGroup.map((groupEntry) => {
+                ) : filteredGroupEntries.map((groupEntry) => {
                     const eligibleInGroup = groupEntry.cards.filter(isCardEligible);
                     const groupAllSelected = eligibleInGroup.length > 0 && eligibleInGroup.every((c) => selectedCardKeys.has(c.id));
                     const groupSomeSelected = eligibleInGroup.some((c) => selectedCardKeys.has(c.id));
@@ -7881,11 +8728,24 @@ function RefundHistoryList({
                                                         완료 {workCenterItem.succeededLegCount}/{workCenterItem.totalLegCount}
                                                     </span>
                                                 )}
-                                                {workCenterItem.nextActionLabel && (
-                                                    <span className="inline-flex items-center rounded-full border border-amber-300 bg-white px-2 py-0.5 font-semibold">
-                                                        다음 행동 {workCenterItem.nextActionLabel}
+                                                {workCenterItem.nextActionLabel && workCenterItem.nextActionCode && !isReadOnly ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleWorkCenterAction(workCenterItem.nextActionCode!, workCenterItem);
+                                                        }}
+                                                        className="inline-flex items-center gap-1 rounded-full bg-gradient-to-b from-[#D27A8C] to-[#8B3F50] px-2.5 py-0.5 text-[10px] font-extrabold text-white hover:from-[#8B3F50] hover:to-[#5C2A35] shadow-sm transition-colors"
+                                                        title={`바로 실행: ${workCenterItem.nextActionLabel}`}
+                                                    >
+                                                        {workCenterItem.nextActionLabel}
+                                                        <ChevronRight className="h-3 w-3" />
+                                                    </button>
+                                                ) : workCenterItem.nextActionLabel ? (
+                                                    <span className="inline-flex items-center rounded-full border border-[#D27A8C] bg-[#FCEBEF] px-2 py-0.5 font-semibold text-[#8B3F50]">
+                                                        👉 지금 할 일: {workCenterItem.nextActionLabel}
                                                     </span>
-                                                )}
+                                                ) : null}
                                                 <span className="text-[10px] text-[#8B5A66]">{workCenterItem.headline}</span>
                                             </div>
                                         ) : activeOperation && activeOperation.status !== "completed" ? (
@@ -7926,7 +8786,9 @@ function RefundHistoryList({
                                             // 상세 분개는 chip 클릭 시 PaymentInfoModal 에서 확인
                                             const chipGroupsMap = new Map<string, { details: PaymentDetailBreakdown[]; total: number }>();
                                             for (const pd of realPaymentDetails) {
-                                                const key = pd.paymentType;
+                                                const key = pd.paymentType === "CASH"
+                                                    ? `${pd.paymentType}::${pd.cashReceiptStatusLabel || "default"}`
+                                                    : pd.paymentType;
                                                 const existing = chipGroupsMap.get(key);
                                                 if (existing) {
                                                     existing.details.push(pd);
@@ -7953,6 +8815,11 @@ function RefundHistoryList({
                                                                 const ptype = first.paymentType;
                                                                 const isCardLike = ptype === "CARD" || ptype === "PAY";
                                                                 const missingTerminal = isCardLike && !first.terminalAuthNo;
+                                                                const PaymentIcon = ptype === "CARD" ? CreditCard
+                                                                    : ptype === "PAY" ? Smartphone
+                                                                    : ptype === "CASH" ? Wallet
+                                                                    : ptype === "BANKING" ? Monitor
+                                                                    : null;
                                                                 return (
                                                                     <button
                                                                         key={`${ptype}-${idx}`}
@@ -7969,13 +8836,25 @@ function RefundHistoryList({
                                                                         className="inline-flex items-center gap-1 whitespace-nowrap shrink-0 rounded-full border border-[#F8DCE2] bg-white px-2 py-0.5 text-[10px] font-bold text-[#5C2A35] hover:bg-[#FCEBEF] hover:border-[#D27A8C] transition-colors"
                                                                         title={`수납 정보 보기 — ${labelMap[ptype] || ptype}${g.details.length > 1 ? ` (${g.details.length}건 분개, 클릭 시 상세)` : ""}`}
                                                                     >
+                                                                        {PaymentIcon && <PaymentIcon className="h-3 w-3 text-[#8B5A66]" />}
                                                                         <span>{labelMap[ptype] || ptype}</span>
                                                                         <span className="tabular-nums text-[#8B3F50]">{g.total.toLocaleString()}원</span>
                                                                         {g.details.length > 1 && (
                                                                             <span className="text-[#8B5A66] font-normal">· {g.details.length}건</span>
                                                                         )}
+                                                                        {ptype === "CASH" && first.cashReceiptStatusLabel && (
+                                                                            <span className={`ml-0.5 inline-flex items-center rounded-full border px-1.5 py-[1px] text-[9px] font-extrabold ${
+                                                                                first.cashReceiptNeedsAction
+                                                                                    ? "border-rose-200 bg-rose-50 text-rose-600"
+                                                                                    : first.cashReceiptStatus === "cancelled"
+                                                                                        ? "border-amber-200 bg-amber-50 text-amber-700"
+                                                                                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                                                            }`}>
+                                                                                {first.cashReceiptStatusLabel}
+                                                                            </span>
+                                                                        )}
                                                                         {missingTerminal && (
-                                                                            <span className="ml-0.5 text-amber-600 font-extrabold" title="보류 — 승인번호/VANKEY 미입력 (환불 시 단말기 자동 연동 불가)">보류</span>
+                                                                            <span className="ml-0.5 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-1.5 py-[1px] text-[9px] font-extrabold text-amber-700" title="보류 — 승인번호/VANKEY 미입력 (환불 시 단말기 자동 연동 불가)">보류</span>
                                                                         )}
                                                                     </button>
                                                                 );
@@ -8396,7 +9275,7 @@ function RefundHistoryList({
                                                     MEMBERSHIP_CASH: { bg: "#EDE7F6", color: "#6A1B9A", border: "#CE93D8", label: (pd) => { const s = pd.membershipId ? sessionMemberships.get(pd.membershipId) : undefined; return s ? `↑ ${s} 현금` : "회원권(현금)"; } },
                                                     MEMBERSHIP_POINT: { bg: "#F3E5F5", color: "#7B1FA2", border: "#CE93D8", label: (pd) => { const s = pd.membershipId ? sessionMemberships.get(pd.membershipId) : undefined; return s ? `↑ ${s} 포인트` : "회원권(포인트)"; } },
                                                     CARD: { bg: "#E3F2FD", color: "#1565C0", border: "#90CAF9", label: (pd) => `카드${pd.cardCompany ? `(${pd.cardCompany})` : ""}` },
-                                                    CASH: { bg: "#E8F5E9", color: "#2E7D32", border: "#A5D6A7", label: () => "현금" },
+                                                    CASH: { bg: "#E8F5E9", color: "#2E7D32", border: "#A5D6A7", label: (pd) => pd.cashReceiptStatusLabel ? `현금 · ${pd.cashReceiptStatusLabel}` : "현금" },
                                                     BANKING: { bg: "#FFF8E1", color: "#F57F17", border: "#FFE082", label: () => "이체" },
                                                     PAY: { bg: "#E0F7FA", color: "#00838F", border: "#80DEEA", label: (pd) => pd.paymentSubMethodLabel || "간편결제" },
                                                 };
@@ -8480,7 +9359,7 @@ function RefundHistoryList({
                     if (!proceed) return;
                     setRetryRefundSubmitting(true);
                     try {
-                        await paymentService.finalizeRefund(s.paymentMasterId, {
+                        const result = await paymentService.finalizeRefund(s.paymentMasterId, {
                             originPaymentDetailId: s.originPaymentDetailId,
                             rePaymentDetailId: s.rePaymentDetailId,
                             refundType: "customer_change",
@@ -8489,9 +9368,24 @@ function RefundHistoryList({
                             terminalVanKey: undefined,
                             refundMethod: "MANUAL",
                         });
+                        const { summary: cashReceiptSummary, errorMessage: cashReceiptError } = await processReturnedCashReceiptTasks(result.cashReceiptTasks);
                         closeRetry();
                         if (typeof onRefundCompleted === "function") void onRefundCompleted();
-                        showAlert({ message: "환불 처리가 완료되었습니다 (수동 마감).", type: "success" });
+                        const messageLines = ["환불 처리가 완료되었습니다 (수동 마감)."];
+                        appendCashReceiptSummaryLines(messageLines, cashReceiptSummary);
+                        if (cashReceiptError) {
+                            messageLines.push(`현금영수증 후처리 오류: ${cashReceiptError}`);
+                        }
+                        showAlert({
+                            message: messageLines.join("\n"),
+                            type:
+                                !!cashReceiptError
+                                || (cashReceiptSummary?.failedCount || 0) > 0
+                                || (cashReceiptSummary?.unknownCount || 0) > 0
+                                || (cashReceiptSummary?.manualActionCount || 0) > 0
+                                    ? "warning"
+                                    : "success",
+                        });
                     } catch (e: any) {
                         showAlert({ message: `수동 마감 실패: ${e?.response?.data?.message || e?.message || "오류"}`, type: "error" });
                     } finally {
@@ -8517,7 +9411,7 @@ function RefundHistoryList({
                             });
                             if (!proceed) { setRetryRefundSubmitting(false); return; }
                             // 수동 마감: terminal 호출 없이 finalize 만
-                            await paymentService.finalizeRefund(s.paymentMasterId, {
+                            const manualResult = await paymentService.finalizeRefund(s.paymentMasterId, {
                                 originPaymentDetailId: s.originPaymentDetailId,
                                 rePaymentDetailId: s.rePaymentDetailId,
                                 refundType: "customer_change",
@@ -8526,7 +9420,22 @@ function RefundHistoryList({
                                 terminalVanKey: undefined,
                                 refundMethod: "MANUAL",
                             });
-                            showAlert({ message: "환불 처리가 완료되었습니다 (수동 마감).", type: "success" });
+                            const { summary: cashReceiptSummary, errorMessage: cashReceiptError } = await processReturnedCashReceiptTasks(manualResult.cashReceiptTasks);
+                            const messageLines = ["환불 처리가 완료되었습니다 (수동 마감)."];
+                            appendCashReceiptSummaryLines(messageLines, cashReceiptSummary);
+                            if (cashReceiptError) {
+                                messageLines.push(`현금영수증 후처리 오류: ${cashReceiptError}`);
+                            }
+                            showAlert({
+                                message: messageLines.join("\n"),
+                                type:
+                                    !!cashReceiptError
+                                    || (cashReceiptSummary?.failedCount || 0) > 0
+                                    || (cashReceiptSummary?.unknownCount || 0) > 0
+                                    || (cashReceiptSummary?.manualActionCount || 0) > 0
+                                        ? "warning"
+                                        : "success",
+                            });
                             closeRetry();
                             if (typeof onRefundCompleted === "function") void onRefundCompleted();
                             return;
@@ -8543,7 +9452,7 @@ function RefundHistoryList({
                             showAlert({ message: `단말기 원거래 취소 실패: ${r.displayMsg || r.replyCode}\n\nDEDUCTION_PAID 상태 그대로 유지됩니다.`, type: "error" });
                             return;
                         }
-                        await paymentService.finalizeRefund(s.paymentMasterId, {
+                        const result = await paymentService.finalizeRefund(s.paymentMasterId, {
                             originPaymentDetailId: s.originPaymentDetailId,
                             rePaymentDetailId: s.rePaymentDetailId,
                             refundType: "customer_change",
@@ -8552,9 +9461,24 @@ function RefundHistoryList({
                             terminalVanKey: r.vanKey,
                             refundMethod: "AUTO",
                         });
+                        const { summary: cashReceiptSummary, errorMessage: cashReceiptError } = await processReturnedCashReceiptTasks(result.cashReceiptTasks);
                         closeRetry();
                         if (typeof onRefundCompleted === "function") void onRefundCompleted();
-                        showAlert({ message: "환불 처리가 완료되었습니다.", type: "success" });
+                        const messageLines = ["환불 처리가 완료되었습니다."];
+                        appendCashReceiptSummaryLines(messageLines, cashReceiptSummary);
+                        if (cashReceiptError) {
+                            messageLines.push(`현금영수증 후처리 오류: ${cashReceiptError}`);
+                        }
+                        showAlert({
+                            message: messageLines.join("\n"),
+                            type:
+                                !!cashReceiptError
+                                || (cashReceiptSummary?.failedCount || 0) > 0
+                                || (cashReceiptSummary?.unknownCount || 0) > 0
+                                || (cashReceiptSummary?.manualActionCount || 0) > 0
+                                    ? "warning"
+                                    : "success",
+                        });
                     } catch (e: any) {
                         showAlert({ message: `재시도 실패: ${e?.response?.data?.message || e?.message || "오류"}`, type: "error" });
                     } finally {

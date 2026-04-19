@@ -54,6 +54,23 @@ function formatPaymentTime(value?: string): string {
     return `${d.getFullYear()}. ${String(d.getMonth() + 1).padStart(2, "0")}. ${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+function cashReceiptPurposeLabel(value?: string): string {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (normalized === "business") return "사업자 지출증빙";
+    if (normalized === "voluntary") return "자진발급";
+    if (normalized === "consumer") return "소비자 소득공제";
+    return "-";
+}
+
+function cashReceiptStatusStyle(value?: string): string {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (normalized === "cancelled") return "border-amber-200 bg-amber-50 text-amber-700";
+    if (normalized === "issued" || normalized === "manual_confirmed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    if (normalized === "unknown" || normalized === "needs_manual_action") return "border-rose-200 bg-rose-50 text-rose-600";
+    if (normalized === "failed" || normalized === "cancel_failed") return "border-red-200 bg-red-50 text-red-600";
+    return "border-slate-200 bg-slate-50 text-slate-600";
+}
+
 interface DetailEditState {
     authNo: string;
     authDate: string;
@@ -67,6 +84,7 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
     const [editingId, setEditingId] = useState<number | null>(null);
     const [edits, setEdits] = useState<Record<number, DetailEditState>>({});
     const [savingId, setSavingId] = useState<number | null>(null);
+    const [manualConfirmingId, setManualConfirmingId] = useState<number | null>(null);
 
     useEffect(() => {
         if (!open) return;
@@ -96,7 +114,9 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
             const isCardLike = u === "CARD" || u === "PAY";
             const key = isCardLike
                 ? `${u}::${d.terminalAuthNo || d.id}::${d.terminalAuthDate || ""}::${d.terminalVanKey || ""}`
-                : u;
+                : u === "CASH" && d.cashReceiptId
+                    ? `${u}::${d.cashReceiptId}`
+                    : u;
             const arr = map.get(key) ?? [];
             arr.push(d);
             map.set(key, arr);
@@ -107,12 +127,38 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
     if (!open || details.length === 0) return null;
 
     const updateEdit = (id: number, patch: Partial<DetailEditState>) => {
-        setEdits(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+        setEdits((prev) => {
+            const current = prev[id] ?? {
+                authNo: "",
+                authDate: "",
+                vanKey: "",
+                cardCompany: "",
+                installment: "",
+            };
+            return {
+                ...prev,
+                [id]: { ...current, ...patch },
+            };
+        });
+    };
+
+    const handleManualConfirmCashReceipt = async (cashReceiptId: number) => {
+        setManualConfirmingId(cashReceiptId);
+        try {
+            await paymentService.manualConfirmCashReceipt(cashReceiptId);
+            showAlert({ message: "현금영수증 상태를 수기 확인 완료로 반영했습니다.", type: "success" });
+            onUpdated?.();
+        } catch (error: any) {
+            showAlert({ message: `수기 확인 반영 실패: ${error?.response?.data?.message || error?.message || "오류"}`, type: "error" });
+        } finally {
+            setManualConfirmingId(null);
+        }
     };
 
     // 묶음 저장: 같은 결제수단으로 묶인 모든 detail 에 동일 metadata 일괄 업데이트
     const handleSaveGroup = async (group: PaymentDetailBreakdown[]) => {
         const anchor = group[0];
+        if (!anchor) return;
         const e = edits[anchor.id];
         if (!e) return;
         if (e.authDate && !/^\d{8}$/.test(e.authDate.trim())) {
@@ -181,12 +227,14 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
 
                     {/* Grouped payment method cards (DB 는 티켓별 분개되지만 화면은 결제 묶음 단위) */}
                     {groupedDetails.map(group => {
-                        const d = group[0]; // anchor
+                        const d = group[0];
+                        if (!d) return null;
                         const groupTotal = group.reduce((s, x) => s + x.amount, 0);
                         const groupRefundedTotal = group.reduce((s, x) => s + (x.refundedAmount || 0), 0);
                         const groupRePayTotal = group.reduce((s, x) => s + (x.rePaymentAmount || 0), 0);
                         const groupCustomerNet = Math.max(0, groupRefundedTotal - groupRePayTotal);
                         const isAnyRefunded = group.some(x => x.isRefunded);
+                        const anchorCashReceipt = group.find((item) => item.cashReceiptId);
                         const refundedAt = group.map(x => x.refundedAt).filter(Boolean).sort().slice(-1)[0];
                         const editing = editingId === d.id;
                         const editable = isCardOrPay(d.paymentType);
@@ -207,6 +255,11 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                                             <span>{paymentTypeLabel(d.paymentType)}</span>
                                             {d.paymentSubMethodLabel && <span className="text-[#8B5A66] font-normal">· {d.paymentSubMethodLabel}</span>}
                                         </span>
+                                        {anchorCashReceipt?.cashReceiptStatusLabel && (
+                                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-bold ${cashReceiptStatusStyle(anchorCashReceipt.cashReceiptStatus)}`}>
+                                                {anchorCashReceipt.cashReceiptStatusLabel}
+                                            </span>
+                                        )}
                                         {isAnyRefunded && (
                                             <span className="inline-flex items-center rounded-full bg-rose-100 border border-rose-200 px-2 py-0.5 text-[11px] font-bold text-rose-600">환불 처리됨</span>
                                         )}
@@ -241,7 +294,7 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                                                     <div className="text-[11px] font-bold text-rose-700">공제액</div>
                                                     <div className="tabular-nums text-amber-700 font-bold">
                                                         {formatWon(groupRePayTotal)}
-                                                        {group[0].rePaymentMethod && <span className="ml-1 text-[10px] font-normal text-[#8B5A66]">({paymentTypeLabel(group[0].rePaymentMethod)})</span>}
+                                                        {d.rePaymentMethod && <span className="ml-1 text-[10px] font-normal text-[#8B5A66]">({paymentTypeLabel(d.rePaymentMethod)})</span>}
                                                     </div>
                                                 </div>
                                                 <div className="grid grid-cols-[80px_1fr] items-center gap-3 pt-1 border-t border-rose-100">
@@ -258,12 +311,12 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                                     {editable ? (
                                         editing ? (
                                             <>
-                                                <Field label="카드사">
+                                                <Field label={(d.paymentType || "").toUpperCase() === "PAY" ? "결제사" : "카드사"}>
                                                     <input
                                                         type="text"
                                                         value={e.cardCompany}
                                                         onChange={(ev) => updateEdit(d.id, { cardCompany: ev.target.value })}
-                                                        placeholder="예: 현대"
+                                                        placeholder={(d.paymentType || "").toUpperCase() === "PAY" ? "예: 카카오머니" : "예: 현대"}
                                                         className="h-8 w-full rounded-md border border-[#F4C7CE] bg-white px-2 text-[12px] outline-none focus:border-[#D27A8C]"
                                                     />
                                                 </Field>
@@ -326,7 +379,7 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                                             </>
                                         ) : (
                                             <>
-                                                <Field label="카드사">{d.cardCompany || <span className="text-[#C9A0A8]">미등록</span>}</Field>
+                                                <Field label={(d.paymentType || "").toUpperCase() === "PAY" ? "결제사" : "카드사"}>{d.cardCompany || <span className="text-[#C9A0A8]">미등록</span>}</Field>
                                                 <Field label="할부정보">{d.installment || "일시불"}</Field>
                                                 <Field label="승인번호">{d.terminalAuthNo || <span className="text-[#C9A0A8]">미등록</span>}</Field>
                                                 <Field label="거래일시">{d.terminalAuthDate || <span className="text-[#C9A0A8]">미등록</span>}</Field>
@@ -354,7 +407,33 @@ export function PaymentInfoModal({ open, details, paymentTime, receiptUserName, 
                                     ) : (
                                         <>
                                             {d.memo && <Field label="메모">{d.memo}</Field>}
-                                            <div className="text-[10.5px] text-[#8B5A66]">현금/계좌/회원권 차감 등 단말기 무관 수단입니다.</div>
+                                            {(d.paymentType || "").toUpperCase() === "CASH" && anchorCashReceipt ? (
+                                                <>
+                                                    <Field label="현금영수증">
+                                                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-bold ${cashReceiptStatusStyle(anchorCashReceipt.cashReceiptStatus)}`}>
+                                                            {anchorCashReceipt.cashReceiptStatusLabel || "상태 미확인"}
+                                                        </span>
+                                                    </Field>
+                                                    <Field label="발급구분">{cashReceiptPurposeLabel(anchorCashReceipt.cashReceiptPurpose)}</Field>
+                                                    <Field label="식별값">{anchorCashReceipt.cashReceiptIdentifierMasked || <span className="text-[#C9A0A8]">미등록</span>}</Field>
+                                                    <Field label="승인번호">{anchorCashReceipt.cashReceiptApprovalNo || <span className="text-[#C9A0A8]">미등록</span>}</Field>
+                                                    <Field label="승인일시">{anchorCashReceipt.cashReceiptApprovalDate || <span className="text-[#C9A0A8]">미등록</span>}</Field>
+                                                    {anchorCashReceipt.cashReceiptNeedsAction && anchorCashReceipt.cashReceiptId && (
+                                                        <div className="flex justify-end pt-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleManualConfirmCashReceipt(anchorCashReceipt.cashReceiptId!)}
+                                                                disabled={manualConfirmingId === anchorCashReceipt.cashReceiptId}
+                                                                className="inline-flex items-center gap-1 h-7 rounded-md border border-amber-300 bg-amber-50 px-2.5 text-[11px] font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                                                            >
+                                                                {manualConfirmingId === anchorCashReceipt.cashReceiptId ? "반영 중..." : "수기 확인 완료"}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <div className="text-[10.5px] text-[#8B5A66]">현금/계좌/회원권 차감 등 단말기 무관 수단입니다.</div>
+                                            )}
                                         </>
                                     )}
                                 </div>
