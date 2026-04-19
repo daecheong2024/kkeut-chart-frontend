@@ -44,6 +44,17 @@ function formatWon(value: number): string {
     return `${Math.max(0, Math.round(value)).toLocaleString()}원`;
 }
 
+function buildSettlementOperationKey(membershipRootId: number, paymentDetailId?: number): string {
+    return `membership-settlement-${membershipRootId}-${paymentDetailId || 0}`;
+}
+
+function createOperationIdempotencyKey(prefix: string): string {
+    const suffix = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    return `${prefix}-${suffix}`;
+}
+
 export function MembershipSettlementModal({
     open,
     membershipRootId,
@@ -175,6 +186,7 @@ export function MembershipSettlementModal({
 
     const handleSubmit = async () => {
         if (!info || !preview) return;
+        const operationKey = buildSettlementOperationKey(info.membershipRootId, paymentDetailId);
         if (preview.total <= 0) {
             showAlert({ message: "환불 가능 금액이 없습니다.", type: "warning" });
             return;
@@ -332,6 +344,8 @@ export function MembershipSettlementModal({
                 rePaymentTerminalAccepterName: rePaymentAuth?.accepterName,
                 rePaymentTerminalCatId: rePaymentAuth?.catId,
                 rePaymentTerminalMerchantRegNo: rePaymentAuth?.merchantRegNo,
+                operationKey,
+                idempotencyKey: createOperationIdempotencyKey(`membership-settlement-${info.membershipRootId}`),
             });
             if (result.success) {
                 showAlert({

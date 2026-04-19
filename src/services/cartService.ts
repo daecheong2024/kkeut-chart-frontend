@@ -1,4 +1,5 @@
 import apiClient from "./apiClient";
+import type { PaymentOperationSummary } from "./paymentService";
 
 export type MembershipPriorityMode = "existing_first" | "new_first";
 
@@ -28,6 +29,7 @@ export interface CheckoutResult {
     branchId: string;
     amount: number;
     paidAt: string;
+    operation?: PaymentOperationSummary | null;
 }
 
 export const cartService = {
@@ -109,6 +111,7 @@ export const cartService = {
                 paymentSubMethod?: string;
                 paymentSubMethodLabel?: string;
                 amount: number;
+                clientLegKey?: string;
                 taxFreeAmount?: number;
                 memo?: string;
                 assignee?: string;
@@ -130,6 +133,8 @@ export const cartService = {
             memo?: string;
             assignee?: string;
             visitId?: number;
+            operationKey?: string;
+            idempotencyKey?: string;
         }
     ): Promise<CheckoutResult> {
         const response = await apiClient.post("/cart/checkout", {
@@ -151,7 +156,9 @@ export const cartService = {
             taxFreeAmount: paymentDetails?.taxFreeAmount,
             paidAmount: paymentDetails?.paidAmount,
             memo: paymentDetails?.memo,
-            assignee: paymentDetails?.assignee
+            assignee: paymentDetails?.assignee,
+            operationKey: paymentDetails?.operationKey,
+            idempotencyKey: paymentDetails?.idempotencyKey,
         });
         return response.data;
     },

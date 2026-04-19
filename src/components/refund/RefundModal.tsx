@@ -61,6 +61,17 @@ function formatWon(value: number): string {
     return `${Math.max(0, Math.round(value)).toLocaleString()}원`;
 }
 
+function buildRefundOperationKey(paymentMasterId: number, paymentDetailId: number): string {
+    return `refund-${paymentMasterId}-${paymentDetailId}`;
+}
+
+function createOperationIdempotencyKey(prefix: string): string {
+    const suffix = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    return `${prefix}-${suffix}`;
+}
+
 export function RefundModal({
     open,
     paymentMasterId,
@@ -209,6 +220,7 @@ export function RefundModal({
     }, [open, runCalculate]);
 
     const handleSubmit = async () => {
+        const operationKey = buildRefundOperationKey(paymentMasterId, paymentDetailId);
         if (!calc?.canRefund || calc.estimatedRefund <= 0) {
             showAlert({ message: calc?.reason || "환불 가능 금액이 없습니다.", type: "warning" });
             return;
@@ -297,6 +309,8 @@ export function RefundModal({
                     terminalAccepterName: rePayResult?.accepterName,
                     terminalCatId: rePayResult?.catId,
                     terminalMerchantRegNo: rePayResult?.merchantRegNo,
+                    operationKey,
+                    idempotencyKey: createOperationIdempotencyKey(`deduction-pay-${paymentDetailId}`),
                 });
                 rePaymentDetailId = dp.rePaymentDetailId;
             } catch (e: any) {
@@ -361,6 +375,8 @@ export function RefundModal({
                     terminalRefundDate: voidResult.replyDate,
                     terminalVanKey: voidResult.vanKey,
                     refundMethod: "AUTO",
+                    operationKey,
+                    idempotencyKey: createOperationIdempotencyKey(`finalize-refund-${paymentDetailId}`),
                 });
                 showAlert({ message: `${formatWon(result.refundAmount)} 환불 처리되었습니다.`, type: "success" });
                 onRefunded({ refundAmount: result.refundAmount, refundType: result.refundType });
@@ -448,6 +464,8 @@ export function RefundModal({
                 refundMethod: voidAuth ? "AUTO" : "MANUAL",
                 rePaymentAmount: rePaymentAuth?.amount,
                 rePaymentMethod: rePaymentAuth ? rePaymentMethod.toUpperCase() : undefined,
+                operationKey,
+                idempotencyKey: createOperationIdempotencyKey(`execute-refund-${paymentDetailId}`),
             });
             showAlert({ message: `${formatWon(result.refundAmount)} 환불 처리되었습니다.`, type: "success" });
             onRefunded({ refundAmount: result.refundAmount, refundType: result.refundType });

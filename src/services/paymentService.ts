@@ -32,6 +32,98 @@ export interface RefundSummaryResult {
     items: RefundSummaryItem[];
 }
 
+export interface PaymentOperationLeg {
+    legKey: string;
+    sequence: number;
+    role: string;
+    status: string;
+    requestedAmount: number;
+    completedAmount: number;
+    paymentCategory?: string;
+    paymentSubMethod?: string;
+    paymentSubMethodLabel?: string;
+    isTerminalRequired: boolean;
+    allowManualClose: boolean;
+    originPaymentDetailId?: number;
+    resultPaymentDetailId?: number;
+    resultRefundHistId?: number;
+    terminalRequestKey?: string;
+    terminalTradeKey?: string;
+    terminalAuthNo?: string;
+    terminalAuthDate?: string;
+    terminalVanKey?: string;
+    terminalCatId?: string;
+    errorMessage?: string;
+    completedAt?: string;
+}
+
+export interface PaymentOperationSummary {
+    id: number;
+    operationKey: string;
+    operationType: string;
+    status: string;
+    nextAction: string;
+    customerId: number;
+    paymentMasterId?: number;
+    originPaymentDetailId?: number;
+    rePaymentDetailId?: number;
+    membershipRootId?: number;
+    requestedAmount: number;
+    completedAmount: number;
+    remainingAmount: number;
+    totalLegCount: number;
+    succeededLegCount: number;
+    pendingLegCount: number;
+    unknownLegCount: number;
+    manualActionLegCount: number;
+    summaryMessage?: string;
+    startedAt: string;
+    lastSyncedAt: string;
+    completedAt?: string;
+    legs: PaymentOperationLeg[];
+}
+
+export interface SyncPaymentOperationLegRequest {
+    legKey: string;
+    sequence: number;
+    role: "payment" | "refund" | "repayment";
+    status: "pending" | "in_progress" | "succeeded" | "failed" | "unknown" | "needs_manual_action" | "skipped";
+    requestedAmount: number;
+    completedAmount?: number;
+    paymentCategory?: string;
+    paymentSubMethod?: string;
+    paymentSubMethodLabel?: string;
+    isTerminalRequired?: boolean;
+    allowManualClose?: boolean;
+    originPaymentDetailId?: number;
+    resultPaymentDetailId?: number;
+    resultRefundHistId?: number;
+    terminalRequestKey?: string;
+    terminalTradeKey?: string;
+    terminalAuthNo?: string;
+    terminalAuthDate?: string;
+    terminalVanKey?: string;
+    terminalCatId?: string;
+    errorMessage?: string;
+}
+
+export interface SyncPaymentOperationRequest {
+    operationKey: string;
+    operationType: "checkout" | "add_payment_detail" | "refund_workflow" | "membership_settlement";
+    status: "pending" | "in_progress" | "succeeded" | "failed" | "unknown" | "needs_manual_action" | "completed";
+    nextAction?: "none" | "resume_checkout" | "resume_refund" | "finalize_refund" | "verify_terminal" | "retry_leg" | "manual_close";
+    customerId?: number;
+    paymentMasterId?: number;
+    originPaymentDetailId?: number;
+    rePaymentDetailId?: number;
+    membershipRootId?: number;
+    requestedAmount?: number;
+    completedAmount?: number;
+    remainingAmount?: number;
+    summaryMessage?: string;
+    legs: SyncPaymentOperationLegRequest[];
+}
+
 export interface PaymentDetailBreakdown {
     id: number;
     paymentType: string;
@@ -81,6 +173,8 @@ export interface PaymentRecord {
     paidAt: string;
     items: PaymentItemDetail[];
     totalAmount: number;
+    currentAmount?: number;
+    outstandingAmount?: number;
     membershipDeduction: number;
     cashPaid: number;
     cardPaid?: number;
@@ -93,7 +187,39 @@ export interface PaymentRecord {
     cardCompany?: string;
     collectorName?: string;
     memo?: string;
-    status?: "paid" | "refunded" | "cancelled" | "partial_refunded" | string;
+    status?: "paid" | "refunded" | "cancelled" | "partial_refunded" | "in_progress" | string;
+    activeOperation?: PaymentOperationSummary | null;
+}
+
+export interface AddPaymentDetailLine {
+    method?: string;
+    paymentCategory?: string;
+    paymentSubMethod?: string;
+    paymentSubMethodLabel?: string;
+    clientLegKey?: string;
+    amount: number;
+    taxFreeAmount?: number;
+    memo?: string;
+    assignee?: string;
+    cardCompany?: string;
+    installment?: string;
+    approvalNumber?: string;
+    terminalAuthDate?: string;
+    terminalCardNo?: string;
+    terminalAccepterName?: string;
+    terminalTranNo?: string;
+    terminalVanKey?: string;
+    terminalCatId?: string;
+    terminalMerchantRegNo?: string;
+}
+
+export interface AddPaymentDetailResult {
+    paymentMasterId: number;
+    totalAmount: number;
+    currentAmount: number;
+    outstandingAmount: number;
+    status: string;
+    operation?: PaymentOperationSummary | null;
 }
 
 export interface PaymentUsageSummaryItem {
@@ -259,6 +385,8 @@ export interface RefundExecuteRequest extends RePaymentFields, TerminalRefundFie
     penaltyRate?: number;
     manualAmount?: number;
     reason?: string;
+    operationKey?: string;
+    idempotencyKey?: string;
 }
 
 export interface RefundExecuteResult {
@@ -278,6 +406,7 @@ export interface RefundExecuteResult {
         membershipHistId?: number;
         rePaymentDetailId?: number;
     }>;
+    operation?: PaymentOperationSummary | null;
 }
 
 // ============================================================
@@ -291,6 +420,8 @@ export interface BulkRefundItem extends RePaymentFields, TerminalRefundFields {
     penaltyRate?: number;
     manualAmount?: number;
     reason?: string;
+    operationKey?: string;
+    idempotencyKey?: string;
 }
 
 export interface BulkRefundRequest {
@@ -316,6 +447,7 @@ export interface BulkRefundResponse {
     failureCount: number;
     totalRefundAmount: number;
     results: BulkRefundItemResult[];
+    operations?: PaymentOperationSummary[];
 }
 
 export interface MembershipSettlementLinkedTicket {
@@ -367,6 +499,8 @@ export interface MembershipSettlementExecuteRequest extends RePaymentFields {
     membershipCardRefundDate?: string;
     membershipCardRefundVanKey?: string;
     refundMethod?: string;
+    operationKey?: string;
+    idempotencyKey?: string;
 }
 
 export interface MembershipSettlementExecuteResponse {
@@ -378,6 +512,7 @@ export interface MembershipSettlementExecuteResponse {
     totalRefundAmount: number;
     ticketResults: BulkRefundItemResult[];
     formula: string;
+    operation?: PaymentOperationSummary | null;
 }
 
 export const paymentService = {
@@ -535,7 +670,9 @@ export const paymentService = {
         terminalAccepterName?: string;
         terminalCatId?: string;
         terminalMerchantRegNo?: string;
-    }): Promise<{ success: boolean; rePaymentDetailId: number; paymentMasterId: number; status: string; message: string }> {
+        operationKey?: string;
+        idempotencyKey?: string;
+    }): Promise<{ success: boolean; rePaymentDetailId: number; paymentMasterId: number; status: string; message: string; operation?: PaymentOperationSummary | null }> {
         const response = await apiClient.post('/payments/refunds/deduction-pay', req);
         return response.data;
     },
@@ -554,6 +691,8 @@ export const paymentService = {
         terminalRefundDate?: string;
         terminalVanKey?: string;
         refundMethod?: string;
+        operationKey?: string;
+        idempotencyKey?: string;
     }): Promise<RefundExecuteResult> {
         const response = await apiClient.post(`/payments/refunds/${paymentMasterId}/finalize`, req);
         return response.data;
@@ -599,11 +738,33 @@ export const paymentService = {
             refundAmount: Number(d.refundAmount || 0),
             formula: String(d.formula || ""),
             details: Array.isArray(d.details) ? d.details : [],
+            operation: d.operation ?? null,
         };
     },
 
     async create(patientId: number, amount: number): Promise<PaymentItem> {
         throw new Error("Manual payment creation endpoint is not implemented. Use cart checkout flow.");
+    },
+
+    async addPaymentDetail(
+        paymentMasterId: number,
+        lines: AddPaymentDetailLine[],
+        options?: { operationKey?: string; idempotencyKey?: string }
+    ): Promise<AddPaymentDetailResult> {
+        const response = await apiClient.post(`/payments/${paymentMasterId}/add-detail`, {
+            paymentLines: lines,
+            operationKey: options?.operationKey,
+            idempotencyKey: options?.idempotencyKey,
+        });
+        const d = response?.data ?? {};
+        return {
+            paymentMasterId: Number(d.paymentMasterId || paymentMasterId),
+            totalAmount: Number(d.totalAmount || 0),
+            currentAmount: Number(d.currentAmount || 0),
+            outstandingAmount: Number(d.outstandingAmount || 0),
+            status: String(d.status || ""),
+            operation: d.operation ?? null,
+        };
     },
 
     async executeBulkRefund(request: BulkRefundRequest): Promise<BulkRefundResponse> {
@@ -615,6 +776,7 @@ export const paymentService = {
             failureCount: Number(d.failureCount || 0),
             totalRefundAmount: Number(d.totalRefundAmount || 0),
             results: Array.isArray(d.results) ? d.results : [],
+            operations: Array.isArray(d.operations) ? d.operations : [],
         };
     },
 
@@ -706,6 +868,17 @@ export const paymentService = {
             totalRefundAmount: Number(d.totalRefundAmount || 0),
             ticketResults: Array.isArray(d.ticketResults) ? d.ticketResults : [],
             formula: String(d.formula || ""),
+            operation: d.operation ?? null,
         };
+    },
+
+    async syncOperation(request: SyncPaymentOperationRequest): Promise<PaymentOperationSummary> {
+        const response = await apiClient.post('/payments/operations/sync', request);
+        return response.data;
+    },
+
+    async getOperationByKey(operationKey: string): Promise<PaymentOperationSummary | null> {
+        const response = await apiClient.get(`/payments/operations/by-key?operationKey=${encodeURIComponent(operationKey)}`);
+        return response?.data ?? null;
     }
 };

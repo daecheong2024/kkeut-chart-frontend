@@ -1,35 +1,56 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, CreditCard } from "lucide-react";
+import { X, CreditCard, HelpCircle } from "lucide-react";
 import {
     paymentService,
     type RefundType,
     type RefundCalculateResult,
     type MembershipSettlementInfo,
     type MembershipSettlementLinkedTicket,
+    type SyncPaymentOperationLegRequest,
 } from "../../services/paymentService";
 import { kisTerminalService } from "../../services/kisTerminalService";
 import { isManualPaymentMode } from "../../utils/terminalMode";
 import { useAlert } from "../ui/AlertDialog";
+import { PayRefundGuideModal } from "./PayRefundGuideModal";
 
 // ============================================================
 // Public types
 // ============================================================
 
-export interface UnifiedRefundSelection {
-    paymentMasterId: number;
+export interface UnifiedRefundTerminalLeg {
+    /** 해당 leg 의 PaymentDetail ID */
     paymentDetailId: number;
-    itemType: "ticket" | "membership";
-    itemName: string;
-    /** 결제 수단 (CARD/PAY/CASH/...). 단말기 호출 여부 결정에 사용 */
+    /** 해당 leg 의 결제 금액 (분할이면 leg 별 금액) */
+    amount: number;
     paymentType?: string;
-    /** 단말기 환불용 원거래 정보 (있을 때만) */
+    paymentSubMethodLabel?: string;
     terminalInfo?: {
         authNo?: string;
         authDate?: string;
         vanKey?: string;
         catId?: string;
     };
+}
+
+export interface UnifiedRefundSelection {
+    customerId: number;
+    paymentMasterId: number;
+    /** 대표 PaymentDetail ID — 환불 계산(refundCalculate) 호출용 */
+    paymentDetailId: number;
+    itemType: "ticket" | "membership";
+    itemName: string;
+    /** 대표 결제 수단 (legs[0].paymentType 과 동일) */
+    paymentType?: string;
+    /** 단말기 환불용 원거래 정보 (단일) — legacy, legs[0].terminalInfo 와 동일 */
+    terminalInfo?: {
+        authNo?: string;
+        authDate?: string;
+        vanKey?: string;
+        catId?: string;
+    };
+    /** 분할 결제 leg 목록. 분할이 없으면 1개. 단말기 호출은 leg 별로 반복 */
+    legs?: UnifiedRefundTerminalLeg[];
 }
 
 export interface UnifiedRefundModalProps {
@@ -72,6 +93,19 @@ function paymentTypeLabel(paymentType?: string): string {
     }
 }
 
+function createOperationIdempotencyKey(prefix: string): string {
+    const suffix = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    return `${prefix}-${suffix}`;
+}
+
+function buildRefundOperationKey(selection: UnifiedRefundSelection): string {
+    return selection.itemType === "membership"
+        ? `membership-settlement-${selection.paymentMasterId}-${selection.paymentDetailId}`
+        : `refund-${selection.paymentMasterId}-${selection.paymentDetailId}`;
+}
+
 // ============================================================
 // Component
 // ============================================================
@@ -79,7 +113,7 @@ function paymentTypeLabel(paymentType?: string): string {
 type ProgressState =
     | { phase: "idle" }
     | { phase: "repayment"; current: number; total: number; itemName: string; amount: number }
-    | { phase: "void"; current: number; total: number; itemName: string; amount: number }
+    | { phase: "void"; current: number; total: number; itemName: string; amount: number; legCurrent?: number; legTotal?: number; legAmount?: number; legMethodLabel?: string }
     | { phase: "backend"; itemName: string }
     | { phase: "done" };
 
@@ -120,6 +154,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
     const [reason, setReason] = useState<string>("");
     const [manualSkipTerminal, setManualSkipTerminal] = useState(false);
     const [autoDetectedDifferentTerminal, setAutoDetectedDifferentTerminal] = useState(false);
+    const [isPayGuideOpen, setIsPayGuideOpen] = useState(false);
 
     useEffect(() => {
         if (!open) return;
@@ -433,6 +468,56 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
         return list;
     }, [effectiveTickets, memberships, ticketCalcs]);
 
+    const syncSelectionOperation = useCallback(async (
+        selection: UnifiedRefundSelection,
+        legs: SyncPaymentOperationLegRequest[],
+        summaryMessage: string,
+    ) => {
+        if (!selection.customerId) return;
+
+        const hasUnknown = legs.some((leg) => leg.status === "unknown");
+        const hasManualAction = legs.some((leg) => leg.status === "needs_manual_action");
+        const hasPending = legs.some((leg) => leg.status === "pending" || leg.status === "in_progress" || leg.status === "failed");
+        const hasRepaymentSucceeded = legs.some((leg) => leg.role === "repayment" && leg.status === "succeeded");
+        const requestedAmount = legs.reduce((sum, leg) => sum + Number(leg.requestedAmount || 0), 0);
+        const completedAmount = legs.reduce((sum, leg) => sum + Number(leg.completedAmount || 0), 0);
+        const remainingAmount = Math.max(0, requestedAmount - completedAmount);
+        const operationType = selection.itemType === "membership" ? "membership_settlement" : "refund_workflow";
+        const status = hasUnknown
+            ? "unknown"
+            : hasManualAction
+                ? "needs_manual_action"
+                : hasPending
+                    ? "in_progress"
+                    : "completed";
+        const nextAction = hasUnknown
+            ? "verify_terminal"
+            : hasManualAction
+                ? "manual_close"
+                : hasPending
+                    ? (hasRepaymentSucceeded ? "finalize_refund" : "resume_refund")
+                    : "none";
+
+        try {
+            await paymentService.syncOperation({
+                operationKey: buildRefundOperationKey(selection),
+                operationType,
+                status,
+                nextAction,
+                customerId: selection.customerId,
+                paymentMasterId: selection.paymentMasterId,
+                originPaymentDetailId: selection.paymentDetailId,
+                requestedAmount,
+                completedAmount,
+                remainingAmount,
+                summaryMessage,
+                legs,
+            });
+        } catch (error) {
+            console.error("Failed to sync refund operation", error);
+        }
+    }, []);
+
     // ========== Submit handler ==========
     const handleSubmit = async () => {
         if (submitting) return;
@@ -465,6 +550,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
 
         // === Phase 1: Terminal 2단계 패턴 (위약금 재결제 → 원거래 전체취소) ===
         const terminalResults: Record<number, TerminalPairResult | { error: string; repaymentDone?: boolean; repaymentAuthNo?: string; repaymentAmount?: number }> = {};
+        const operationLegsBySelection = new Map<number, SyncPaymentOperationLegRequest[]>();
         const skipTerminal = manualMode || !kisTerminalService.isConnected();
         const skipVoidOnly = manualSkipTerminal;
 
@@ -538,6 +624,50 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                 }
                 if (paidAmount <= 0) continue;
 
+                const existingLegs = operationLegsBySelection.get(sel.paymentDetailId);
+                const baseLegs = existingLegs || [
+                    ...(penaltyAmount > 0 ? [{
+                        legKey: "repayment-1",
+                        sequence: 1,
+                        role: "repayment" as const,
+                        status: "pending" as const,
+                        requestedAmount: penaltyAmount,
+                        completedAmount: 0,
+                        paymentCategory: rePaymentMethod,
+                        paymentSubMethod: rePaymentMethod,
+                        paymentSubMethodLabel: rePaymentMethod === "cash" ? "현금" : rePaymentMethod === "pay" ? "간편결제" : "카드",
+                        isTerminalRequired: rePaymentMethod !== "cash",
+                        allowManualClose: true,
+                        originPaymentDetailId: sel.paymentDetailId,
+                    }] : []),
+                    ...(((sel.legs && sel.legs.length > 0) ? sel.legs : [{
+                        paymentDetailId: sel.paymentDetailId,
+                        amount: paidAmount,
+                        paymentType: sel.paymentType,
+                        paymentSubMethodLabel: undefined,
+                        terminalInfo: sel.terminalInfo,
+                    }]).map((leg, index) => ({
+                        legKey: `refund-${leg.paymentDetailId}`,
+                        sequence: (penaltyAmount > 0 ? 2 : 1) + index,
+                        role: "refund" as const,
+                        status: "pending" as const,
+                        requestedAmount: leg.amount,
+                        completedAmount: 0,
+                        paymentCategory: leg.paymentType?.toLowerCase(),
+                        paymentSubMethod: leg.paymentType?.toLowerCase(),
+                        paymentSubMethodLabel: leg.paymentSubMethodLabel,
+                        isTerminalRequired: isTerminalPayment(leg.paymentType),
+                        allowManualClose: true,
+                        originPaymentDetailId: leg.paymentDetailId,
+                        terminalAuthNo: leg.terminalInfo?.authNo,
+                        terminalAuthDate: leg.terminalInfo?.authDate,
+                        terminalVanKey: leg.terminalInfo?.vanKey,
+                        terminalCatId: leg.terminalInfo?.catId,
+                    }))),
+                ];
+                operationLegsBySelection.set(sel.paymentDetailId, baseLegs);
+                await syncSelectionOperation(sel, baseLegs, "성공한 leg 는 유지하고 남은 leg 만 이어서 처리할 수 있습니다.");
+
                 const tradeType = (sel.paymentType?.toUpperCase() === "PAY") ? "v1" as const : "D1" as const;
                 const tradeRefundType = (sel.paymentType?.toUpperCase() === "PAY") ? "v2" as const : "D2" as const;
 
@@ -579,7 +709,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                 paymentMasterId: sel.paymentMasterId,
                                 originPaymentDetailId: sel.paymentDetailId,
                                 amount: penaltyAmount,
-                                method: (consolidatedPenaltySkipped || rePaymentMethod === "cash") ? "CASH" : rePaymentMethod.toUpperCase(),
+                                method: consolidatedPenaltySkipped ? "CASH" : rePaymentMethod.toUpperCase(),
                                 terminalAuthNo: rePaymentAuth.authNo,
                                 terminalAuthDate: rePaymentAuth.authDate,
                                 vanKey: rePaymentAuth.vanKey,
@@ -590,8 +720,27 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                 terminalAccepterName: rePaymentAuth.accepterName,
                                 terminalCatId: rePaymentAuth.catId,
                                 terminalMerchantRegNo: rePaymentAuth.merchantRegNo,
+                                operationKey: buildRefundOperationKey(sel),
+                                idempotencyKey: createOperationIdempotencyKey(`deduction-pay-${sel.paymentDetailId}`),
                             });
                             savedRePaymentDetailId = dp.rePaymentDetailId;
+                            const legs = operationLegsBySelection.get(sel.paymentDetailId) || [];
+                            const repaymentLegIndex = legs.findIndex((leg) => leg.legKey === "repayment-1");
+                            const repaymentLeg = repaymentLegIndex >= 0 ? legs[repaymentLegIndex] : null;
+                            if (repaymentLegIndex >= 0 && repaymentLeg) {
+                                legs[repaymentLegIndex] = {
+                                    ...repaymentLeg,
+                                    status: "succeeded",
+                                    completedAmount: penaltyAmount,
+                                    resultPaymentDetailId: dp.rePaymentDetailId,
+                                    terminalAuthNo: rePaymentAuth.authNo,
+                                    terminalAuthDate: rePaymentAuth.authDate,
+                                    terminalVanKey: rePaymentAuth.vanKey,
+                                    terminalCatId: rePaymentAuth.catId,
+                                };
+                                operationLegsBySelection.set(sel.paymentDetailId, legs);
+                            }
+                            await syncSelectionOperation(sel, operationLegsBySelection.get(sel.paymentDetailId) || legs, "위약금 결제가 완료되었습니다. 원거래 취소를 이어서 진행해 주세요.");
                         } catch (e: any) {
                             terminalResults[sel.paymentDetailId] = {
                                 error: consolidatedPenaltySkipped
@@ -605,6 +754,13 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
 
                 // Step B: 원거래 전체취소 (다른 단말기 옵션 시 스킵, 위약금 재결제만 마치고 DEDUCTION_PAID 유지)
                 if (skipVoidOnly) {
+                    const pendingLegs = (operationLegsBySelection.get(sel.paymentDetailId) || []).map((leg) =>
+                        leg.role === "refund"
+                            ? { ...leg, status: "needs_manual_action" as const, errorMessage: "다른 단말기에서 원거래 취소 후 수동 마감 필요" }
+                            : leg
+                    );
+                    operationLegsBySelection.set(sel.paymentDetailId, pendingLegs);
+                    await syncSelectionOperation(sel, pendingLegs, "원거래 취소를 다른 단말기에서 직접 완료한 뒤 수동 마감이 필요합니다.");
                     terminalResults[sel.paymentDetailId] = {
                         paidAmount,
                         rePayment: rePaymentAuth,
@@ -626,38 +782,139 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                 }
 
                 setProgress({ phase: "void", current: i + 1, total: terminalSelections.length, itemName: sel.itemName, amount: paidAmount });
-                try {
-                    const r = await kisTerminalService.requestRefund({
-                        tradeType: tradeRefundType,
+
+                // 분할 결제 대응: legs 가 있으면 각 leg 별로 requestRefund 호출 (authNo/amount 매칭)
+                const legs = (sel.legs && sel.legs.length > 0)
+                    ? sel.legs
+                    : [{
+                        paymentDetailId: sel.paymentDetailId,
                         amount: paidAmount,
-                        orgAuthDate: t.authDate,
-                        orgAuthNo: t.authNo,
-                        vanKey: t.vanKey,
+                        paymentType: sel.paymentType,
+                        terminalInfo: sel.terminalInfo,
+                    }];
+
+                let legError: string | null = null;
+                let activeLegKey: string | null = null;
+                let lastLegRefund: { authNo: string; authDate: string; vanKey: string } | undefined;
+                let totalRefundedByLegs = 0;
+                for (let li = 0; li < legs.length; li++) {
+                    const leg = legs[li]!;
+                    const legKey = `refund-${leg.paymentDetailId}`;
+                    activeLegKey = legKey;
+                    const legTerm = leg.terminalInfo;
+                    const legTypeLabel = paymentTypeLabel(leg.paymentType);
+                    const legSubLabel = leg.paymentSubMethodLabel;
+                    const legMethodDisplay = legSubLabel ? `${legTypeLabel}(${legSubLabel})` : legTypeLabel;
+                    setProgress({
+                        phase: "void",
+                        current: i + 1,
+                        total: terminalSelections.length,
+                        itemName: sel.itemName,
+                        amount: paidAmount,
+                        legCurrent: li + 1,
+                        legTotal: legs.length,
+                        legAmount: leg.amount,
+                        legMethodLabel: legMethodDisplay,
                     });
-                    if (!r.success) {
-                        terminalResults[sel.paymentDetailId] = {
-                            error: `원거래 전체취소 실패: ${r.displayMsg || r.replyCode}${savedRePaymentDetailId ? "\n→ DEDUCTION_PAID 상태로 저장됨. 결제/환불 탭의 [원거래 취소 재시도] 로 마무리하세요." : ""}`,
-                            repaymentDone: !!rePaymentAuth,
-                            repaymentAuthNo: rePaymentAuth?.authNo,
-                            repaymentAmount: rePaymentAuth?.amount,
+                    const syncedLegs = operationLegsBySelection.get(sel.paymentDetailId) || [];
+                    const syncedLegIndex = syncedLegs.findIndex((item) => item.legKey === legKey);
+                    const syncedLeg = syncedLegIndex >= 0 ? syncedLegs[syncedLegIndex] : null;
+                    if (syncedLegIndex >= 0 && syncedLeg) {
+                        syncedLegs[syncedLegIndex] = {
+                            ...syncedLeg,
+                            status: "in_progress",
+                            errorMessage: undefined,
                         };
-                        continue;
+                        operationLegsBySelection.set(sel.paymentDetailId, syncedLegs);
+                        await syncSelectionOperation(sel, syncedLegs, "원거래 취소를 순차적으로 진행하고 있습니다.");
+                    }
+                    if (!legTerm?.authNo || !legTerm?.authDate || !legTerm?.vanKey) {
+                        legError = legs.length > 1
+                            ? `분할 ${li + 1}/${legs.length} (${legMethodDisplay} ${leg.amount.toLocaleString()}원) 원거래 정보 부족 — [수납 정보] 에서 입력 필요`
+                            : "원거래 정보 부족 (승인번호/일시/VanKey)";
+                        break;
+                    }
+                    const legTradeRefund = (leg.paymentType?.toUpperCase() === "PAY") ? "v2" as const : "D2" as const;
+                    try {
+                        if (li > 0) {
+                            await showConfirm({
+                                message: `다음 분할 결제 취소를 진행합니다.\n\n분할 ${li + 1}/${legs.length} — ${legMethodDisplay} · ${leg.amount.toLocaleString()}원${legTerm?.authNo ? `\n원거래 승인번호: ${legTerm.authNo}` : ""}\n\n이전 카드/폰을 단말기에서 빼고, 다음 결제수단 준비 후 [확인] 을 눌러주세요.`,
+                                type: "info",
+                                confirmText: "확인",
+                                cancelText: "",
+                            });
+                        }
+                        const r = await kisTerminalService.requestRefund({
+                            tradeType: legTradeRefund,
+                            amount: leg.amount,
+                            orgAuthDate: legTerm.authDate,
+                            orgAuthNo: legTerm.authNo,
+                            vanKey: legTerm.vanKey,
+                        });
+                        if (!r.success) {
+                            legError = legs.length > 1
+                                ? `분할 ${li + 1}/${legs.length} 원거래 취소 실패: ${r.displayMsg || r.replyCode}`
+                                : `원거래 전체취소 실패: ${r.displayMsg || r.replyCode}`;
+                            break;
+                        }
+                        lastLegRefund = { authNo: r.authNo, authDate: r.replyDate, vanKey: r.vanKey };
+                        totalRefundedByLegs += leg.amount;
+                        if (syncedLegIndex >= 0 && syncedLegs[syncedLegIndex]) {
+                            syncedLegs[syncedLegIndex] = {
+                                ...syncedLegs[syncedLegIndex]!,
+                                status: "succeeded",
+                                completedAmount: leg.amount,
+                                terminalAuthNo: r.authNo,
+                                terminalAuthDate: r.replyDate,
+                                terminalVanKey: r.vanKey,
+                                errorMessage: undefined,
+                            };
+                            operationLegsBySelection.set(sel.paymentDetailId, syncedLegs);
+                            await syncSelectionOperation(sel, syncedLegs, "성공한 환불 leg 는 유지하고 남은 leg 만 이어서 처리할 수 있습니다.");
+                        }
+                    } catch (e: any) {
+                        legError = `원거래 취소 호출 실패: ${e?.message || "알 수 없는 오류"}`;
+                        break;
+                    }
+                }
+
+                if (legError) {
+                    const syncedLegs = operationLegsBySelection.get(sel.paymentDetailId) || [];
+                    const failedLegIndex = syncedLegs.findIndex((item) => item.legKey === activeLegKey);
+                    const failedLeg = failedLegIndex >= 0 ? syncedLegs[failedLegIndex] : null;
+                    if (failedLegIndex >= 0 && failedLeg) {
+                        syncedLegs[failedLegIndex] = {
+                            ...failedLeg,
+                            status: /통신|timeout|연결/i.test(legError) ? "unknown" : "needs_manual_action",
+                            errorMessage: legError,
+                        };
+                        operationLegsBySelection.set(sel.paymentDetailId, syncedLegs);
+                        await syncSelectionOperation(
+                            sel,
+                            syncedLegs,
+                            /통신|timeout|연결/i.test(legError)
+                                ? "단말기 승인 여부 확인 후 남은 환불 leg 를 이어서 처리해 주세요."
+                                : "수기 확인 또는 수동 마감이 필요한 환불 leg 가 있습니다."
+                        );
                     }
                     terminalResults[sel.paymentDetailId] = {
-                        paidAmount,
-                        rePayment: rePaymentAuth,
-                        refund: { amount: paidAmount, authNo: r.authNo, authDate: r.replyDate, vanKey: r.vanKey },
-                        rePaymentDetailId: savedRePaymentDetailId,
-                        useAtomic: !isDecoupled,
-                    };
-                } catch (e: any) {
-                    terminalResults[sel.paymentDetailId] = {
-                        error: `원거래 전체취소 호출 실패: ${e?.message || "알 수 없는 오류"}${savedRePaymentDetailId ? "\n→ DEDUCTION_PAID 상태로 저장됨. 결제/환불 탭의 [원거래 취소 재시도] 로 마무리하세요." : ""}`,
+                        error: `${legError}${savedRePaymentDetailId ? "\n→ DEDUCTION_PAID 상태로 저장됨. 결제/환불 탭의 [원거래 취소 재시도] 로 마무리하세요." : ""}`,
                         repaymentDone: !!rePaymentAuth,
                         repaymentAuthNo: rePaymentAuth?.authNo,
                         repaymentAmount: rePaymentAuth?.amount,
                     };
+                    continue;
                 }
+
+                terminalResults[sel.paymentDetailId] = {
+                    paidAmount,
+                    rePayment: rePaymentAuth,
+                    refund: lastLegRefund
+                        ? { amount: totalRefundedByLegs, authNo: lastLegRefund.authNo, authDate: lastLegRefund.authDate, vanKey: lastLegRefund.vanKey }
+                        : undefined as any,
+                    rePaymentDetailId: savedRePaymentDetailId,
+                    useAtomic: !isDecoupled,
+                };
             }
 
             // 실패 검사 — 복구 안내 메시지 포함
@@ -708,10 +965,10 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                     penaltyRate: rate,
                     manualAmount: refundType === "manual" ? preview.total : undefined,
                     reason: reason.trim() || undefined,
-                    membershipCardRefundAmount: termPair?.refund.amount,
-                    membershipCardRefundAuthNo: termPair?.refund.authNo,
-                    membershipCardRefundDate: termPair?.refund.authDate,
-                    membershipCardRefundVanKey: termPair?.refund.vanKey,
+                    membershipCardRefundAmount: termPair?.refund?.amount,
+                    membershipCardRefundAuthNo: termPair?.refund?.authNo,
+                    membershipCardRefundDate: termPair?.refund?.authDate,
+                    membershipCardRefundVanKey: termPair?.refund?.vanKey,
                     refundMethod: termPair ? "AUTO" : (skipTerminal ? "MANUAL" : undefined),
                     rePaymentAmount: termPair?.rePayment?.amount,
                     rePaymentMethod: termPair?.rePayment ? rePaymentMethod.toUpperCase() : undefined,
@@ -725,6 +982,8 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                     rePaymentTerminalAccepterName: termPair?.rePayment?.accepterName,
                     rePaymentTerminalCatId: termPair?.rePayment?.catId,
                     rePaymentTerminalMerchantRegNo: termPair?.rePayment?.merchantRegNo,
+                    operationKey: buildRefundOperationKey(m),
+                    idempotencyKey: createOperationIdempotencyKey(`membership-settlement-${m.paymentDetailId}`),
                 });
                 if (result.success) {
                     totalSuccess++;
@@ -774,6 +1033,8 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                         terminalRefundDate: tr.refund?.authDate,
                         terminalVanKey: tr.refund?.vanKey,
                         refundMethod: "AUTO",
+                        operationKey: buildRefundOperationKey(t),
+                        idempotencyKey: createOperationIdempotencyKey(`finalize-refund-${t.paymentDetailId}`),
                     });
                     if (result.success) totalSuccess++;
                     else { totalFail++; failureMessages.push(`${t.itemName}: ${result.message}`); }
@@ -824,6 +1085,8 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                 terminalRefundDate: pair?.refund?.authDate,
                                 terminalVanKey: pair?.refund?.vanKey,
                                 refundMethod: pair ? "AUTO" : "MANUAL",
+                                operationKey: buildRefundOperationKey(t),
+                                idempotencyKey: createOperationIdempotencyKey(`execute-refund-${t.paymentDetailId}`),
                                 rePaymentAmount: itemRePayAmount,
                                 rePaymentMethod: itemRePayMethod,
                                 rePaymentTerminalAuthNo: pair?.rePayment?.authNo,
@@ -936,6 +1199,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                 <div className="rounded-xl border border-[#F8DCE2] divide-y divide-[#F8DCE2]/60 overflow-hidden">
                                     {effectiveTickets.map((t) => {
                                         const calc = ticketCalcs[t.paymentDetailId];
+                                        const legs = t.legs && t.legs.length > 1 ? t.legs : null;
                                         return (
                                             <div key={t.paymentDetailId} className="px-3 py-2.5">
                                                 <div className="flex items-start justify-between gap-2">
@@ -944,6 +1208,7 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                                         {calc ? (
                                                             <div className="text-[10px] text-[#8B5A66] mt-0.5">
                                                                 결제 {formatWon(calc.paidAmount)}
+                                                                {legs && ` · 분할 ${legs.length}건`}
                                                                 {calc.usedCount > 0 && ` · 사용 ${calc.usedCount}회`}
                                                                 {calc.penaltyAmount > 0 && ` · 위약 −${formatWon(calc.penaltyAmount)}`}
                                                                 {calc.usageDeduction > 0 && ` · 차감 −${formatWon(calc.usageDeduction)}`}
@@ -954,12 +1219,27 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                                         {calc && !calc.canRefund && calc.reason && (
                                                             <div className="mt-0.5 text-[10px] font-bold text-[#99354E]">⚠ {calc.reason}</div>
                                                         )}
-                                                        {isTerminalPayment(t.paymentType) && (calc?.estimatedRefund ?? 0) > 0 && (
-                                                            <div className="mt-0.5 text-[10px] text-[#5C2A35] flex items-center gap-1">
-                                                                <CreditCard className="h-2.5 w-2.5" />
-                                                                {paymentTypeLabel(t.paymentType)} · 단말기 환불 대상
-                                                            </div>
-                                                        )}
+                                                        {!legs && (calc?.estimatedRefund ?? 0) > 0 && (() => {
+                                                            const headLeg = t.legs?.[0];
+                                                            const subLabel = headLeg?.paymentSubMethodLabel;
+                                                            const typeLabel = paymentTypeLabel(t.paymentType);
+                                                            const methodDisplay = subLabel ? `${typeLabel}(${subLabel})` : typeLabel;
+                                                            const authNo = headLeg?.terminalInfo?.authNo;
+                                                            const isTerminal = isTerminalPayment(t.paymentType);
+                                                            return (
+                                                                <div className="mt-0.5 text-[10px] text-[#5C2A35] flex items-center gap-1 flex-wrap">
+                                                                    <CreditCard className="h-2.5 w-2.5" />
+                                                                    <span className="font-bold">{methodDisplay}</span>
+                                                                    <span>→ {formatWon(calc!.estimatedRefund)} 환불</span>
+                                                                    {isTerminal && authNo && (
+                                                                        <span className="text-[#8B5A66]">· 승인 {authNo}</span>
+                                                                    )}
+                                                                    {isTerminal && !authNo && (
+                                                                        <span className="text-amber-700 font-bold">· ⚠ 원거래 정보 없음</span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </div>
                                                     <div className="shrink-0 text-right">
                                                         {refundType === "manual" ? (
@@ -984,6 +1264,35 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                                         )}
                                                     </div>
                                                 </div>
+                                                {legs && (
+                                                    <div className="mt-2 ml-3 pl-3 border-l-2 border-[#F4C7CE] space-y-1.5">
+                                                        <div className="text-[10px] font-bold text-[#8B3F50]">단말기 환불 진행 순서</div>
+                                                        {legs.map((leg, li) => {
+                                                            const subLabel = leg.paymentSubMethodLabel || paymentTypeLabel(leg.paymentType);
+                                                            const hasTerm = Boolean(leg.terminalInfo?.authNo);
+                                                            return (
+                                                                <div
+                                                                    key={`leg-${t.paymentDetailId}-${li}`}
+                                                                    className="flex items-center justify-between gap-2 rounded-md bg-[#FCF7F8] border border-[#F8DCE2] px-2 py-1.5"
+                                                                >
+                                                                    <div className="flex items-center gap-1.5 text-[10.5px] min-w-0">
+                                                                        <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[#D27A8C] text-white text-[9px] font-extrabold shrink-0">{li + 1}</span>
+                                                                        <CreditCard className="h-2.5 w-2.5 text-[#8B5A66] shrink-0" />
+                                                                        <span className="font-semibold text-[#5C2A35] truncate">{subLabel}</span>
+                                                                        {hasTerm ? (
+                                                                            <span className="text-[#8B5A66] truncate">· 승인 {leg.terminalInfo!.authNo}</span>
+                                                                        ) : (
+                                                                            <span className="text-amber-700 font-bold">⚠ 원거래 정보 없음</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="text-[11px] font-extrabold tabular-nums text-[#5C2A35] shrink-0">
+                                                                        {formatWon(leg.amount)}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -1242,8 +1551,20 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                                         원래 결제 카드 환불 진행 중 ({progress.current}/{progress.total})
                                     </div>
                                     <div className="text-[11px] text-[#8B5A66] mt-1">{progress.itemName}</div>
-                                    <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
-                                    <div className="text-[10px] text-[#8B5A66] mt-1">원거래 전체 금액이 카드사에 환불됩니다</div>
+                                    {progress.legTotal && progress.legTotal > 1 ? (
+                                        <>
+                                            <div className="mt-2 rounded-md bg-[#FCEBEF] px-3 py-1.5 text-[11px] font-bold text-[#8B3F50]">
+                                                분할 {progress.legCurrent}/{progress.legTotal} · {progress.legMethodLabel}
+                                            </div>
+                                            <div className="text-[13px] text-[#D27A8C] font-extrabold mt-1.5 tabular-nums">{formatWon(progress.legAmount ?? 0)}</div>
+                                            <div className="text-[10px] text-[#8B5A66] mt-1">이번 분할 금액만 단말기로 환불 요청</div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="text-[12px] text-[#D27A8C] font-bold mt-2 tabular-nums">{formatWon(progress.amount)}</div>
+                                            <div className="text-[10px] text-[#8B5A66] mt-1">원거래 전체 금액이 카드사에 환불됩니다</div>
+                                        </>
+                                    )}
                                 </>
                             )}
                             {progress.phase === "backend" && (
@@ -1257,7 +1578,17 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                 )}
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-2 border-t border-[#F8DCE2] px-6 py-3 bg-gradient-to-b from-[#FCF7F8] to-white shrink-0">
+                <div className="flex items-center justify-between gap-2 border-t border-[#F8DCE2] px-6 py-3 bg-gradient-to-b from-[#FCF7F8] to-white shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => setIsPayGuideOpen(true)}
+                        className="inline-flex items-center gap-1.5 h-9 rounded-lg border border-[#F4C7CE] bg-white px-3 text-[12px] font-bold text-[#8B3F50] hover:bg-[#FCEBEF] hover:border-[#D27A8C]/40 transition-colors"
+                        title="카카오페이 등 간편결제 환불 절차 안내"
+                    >
+                        <HelpCircle className="h-3.5 w-3.5" />
+                        페이류 환불 방법
+                    </button>
+                    <div className="flex items-center gap-2">
                     <button
                         type="button"
                         onClick={onClose}
@@ -1280,8 +1611,10 @@ export function UnifiedRefundModal({ open, selections, onClose, onCompleted }: U
                     >
                         {submitting ? "처리 중..." : (deductionTotal > 0 ? `공제액 ${formatWon(deductionTotal)} 결제 및 환불` : `${formatWon(grandTotal)} 환불 처리`)}
                     </button>
+                    </div>
                 </div>
             </div>
+            <PayRefundGuideModal open={isPayGuideOpen} onClose={() => setIsPayGuideOpen(false)} />
         </div>,
         document.body
     );

@@ -24,7 +24,6 @@ import {
     Pin,
     Minus,
     Gift,
-    Image as ImageIcon,
     Save,
     Ticket as TicketIcon,
     Printer,
@@ -38,7 +37,7 @@ import { ko } from "date-fns/locale";
 import { patientService, PatientDetail } from '../services/patientService';
 import { visitService, ReservationChangeHistoryItem } from '../services/visitService';
 import { chartConfigService } from '../services/chartConfigService';
-import { paymentService, PaymentItem, PaymentRecord, PaymentUsageSummaryItem, PaymentDetailBreakdown } from '../services/paymentService';
+import { paymentService, PaymentItem, PaymentRecord, PaymentUsageSummaryItem, PaymentDetailBreakdown, PaymentOperationSummary } from '../services/paymentService';
 import { memberConfigService } from '../services/memberConfigService';
 import { categoryTicketDefService } from '../services/categoryTicketDefService';
 import { membershipService, PatientMembership, MembershipBalance, MembershipHistory } from '../services/membershipService';
@@ -189,7 +188,7 @@ type RefundModalCheck = {
     estimatedRefund: number;
     canRefund: boolean;
     reason?: string;
-    items?: Array<{ itemName: string; itemType: string; rootId?: number; paidAmount: number; originalPrice: number; originalUnitPrice: number; eventPrice?: number; usedCount: number; totalCount?: number; usedAmountAtOriginalPrice: number; penaltyRate: number; penaltyAmount: number; estimatedRefund: number; refundFormula: string; paymentDetailIds?: number[] }>;
+    items?: Array<{ itemName: string; itemType: string; rootId?: number; paymentDetailId?: number; paidAmount: number; originalPrice: number; originalUnitPrice: number; eventPrice?: number; usedCount: number; totalCount?: number; usedAmountAtOriginalPrice: number; penaltyRate: number; penaltyAmount: number; estimatedRefund: number; refundFormula: string; paymentDetailIds?: number[] }>;
 };
 
 type RefundModalState = {
@@ -366,6 +365,11 @@ import {
     normalizeQueueProcedureKey,
     type ProcedureQueueSummary,
 } from "../utils/todoQueue";
+import {
+    findPaymentOperationContextsByPatient,
+    removePaymentOperationContext,
+    upsertPaymentOperationContext,
+} from "../lib/storage";
 
 // --- Interfaces ---
 
@@ -413,6 +417,7 @@ export default function PatientChartPage() {
     const [ticketQueueByProcedure, setTicketQueueByProcedure] = useState<Record<string, ProcedureQueueSummary>>({});
     const [patientRecords, setPatientRecords] = useState<PatientRecordData[]>([]);
     const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([]);
+    const [resumeCheckoutOperation, setResumeCheckoutOperation] = useState<PaymentOperationSummary | null>(null);
     const [memberships, setMemberships] = useState<PatientMembership[]>([]);
     const [customerReservations, setCustomerReservations] = useState<any[]>([]);
     const [changeHistoryReservId, setChangeHistoryReservId] = useState<number | null>(null);
@@ -434,6 +439,10 @@ export default function PatientChartPage() {
     const [isDoctorDropdownOpen, setIsDoctorDropdownOpen] = useState(false);
     const counselorDropdownRef = useRef<HTMLDivElement | null>(null);
     const doctorDropdownRef = useRef<HTMLDivElement | null>(null);
+    const [isStaffRoleSettingsOpen, setIsStaffRoleSettingsOpen] = useState(false);
+    const [staffRoleDraft, setStaffRoleDraft] = useState<{ counselor: Set<string>; doctor: Set<string> } | null>(null);
+    const [staffRoleSaving, setStaffRoleSaving] = useState(false);
+    const staffRoleSettingsRef = useRef<HTMLDivElement | null>(null);
 
     // Fetch hospital settings on mount to ensure fresh data
     useEffect(() => {
@@ -839,8 +848,81 @@ export default function PatientChartPage() {
             return sum + paymentService.calcActualPaidAmount(row);
         }, 0);
     }, [paymentRecords, selectedVisitDate]);
+    const outstandingPaymentMaster = useMemo(() => {
+        if (!selectedVisitDate) return null;
+        for (const row of paymentRecords) {
+            const status = String(row?.status ?? "").trim().toLowerCase();
+            if (status !== "in_progress") continue;
+            const paidAtDate = String(row?.paidAt || "").slice(0, 10);
+            if (paidAtDate !== selectedVisitDate) continue;
+            const outstanding = Math.max(0, Number(row?.outstandingAmount ?? 0));
+            if (outstanding <= 0) continue;
+            const masterId = Number(row?.paymentMasterId ?? row?.id ?? 0);
+            if (!Number.isFinite(masterId) || masterId <= 0) continue;
+            return {
+                masterId,
+                outstandingAmount: outstanding,
+                activeOperation: row?.activeOperation ?? null,
+            };
+        }
+        return null;
+    }, [paymentRecords, selectedVisitDate]);
     const dueAmount = cartPreview?.totalCashRequired ?? totalAmount;
-    const remaining = Math.max(0, dueAmount - paidAmount);
+    const cartRemaining = Math.max(0, dueAmount - paidAmount);
+    const remaining = outstandingPaymentMaster
+        ? outstandingPaymentMaster.outstandingAmount + cartRemaining
+        : cartRemaining;
+
+    useEffect(() => {
+        if (!patientIdStr) {
+            setResumeCheckoutOperation(null);
+            return;
+        }
+
+        if (outstandingPaymentMaster?.activeOperation && outstandingPaymentMaster.activeOperation.status !== "completed") {
+            setResumeCheckoutOperation(outstandingPaymentMaster.activeOperation);
+            upsertPaymentOperationContext({
+                operationKey: outstandingPaymentMaster.activeOperation.operationKey,
+                operationType: outstandingPaymentMaster.activeOperation.operationType,
+                patientId: Number(patientIdStr),
+                paymentMasterId: outstandingPaymentMaster.masterId,
+                status: outstandingPaymentMaster.activeOperation.status,
+                nextAction: outstandingPaymentMaster.activeOperation.nextAction,
+                summaryMessage: outstandingPaymentMaster.activeOperation.summaryMessage,
+            });
+            return;
+        }
+
+        const stored = findPaymentOperationContextsByPatient(Number(patientIdStr), "checkout")[0];
+        if (!stored?.operationKey) {
+            setResumeCheckoutOperation(null);
+            return;
+        }
+
+        let cancelled = false;
+        const loadStoredOperation = async () => {
+            try {
+                const operation = await paymentService.getOperationByKey(stored.operationKey);
+                if (cancelled) return;
+                if (!operation || operation.status === "completed") {
+                    removePaymentOperationContext(stored.operationKey);
+                    setResumeCheckoutOperation(null);
+                    return;
+                }
+                setResumeCheckoutOperation(operation);
+            } catch {
+                if (!cancelled) {
+                    setResumeCheckoutOperation(null);
+                }
+            }
+        };
+
+        void loadStoredOperation();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [patientIdStr, outstandingPaymentMaster?.activeOperation?.operationKey, outstandingPaymentMaster?.masterId]);
 
     const enabledCoupons = useMemo(() => {
         return (settings.chartConfig?.coupons || [])
@@ -941,20 +1023,32 @@ export default function PatientChartPage() {
         });
     }, [settings.activeBranchId]);
 
+    const staffRoleDept = settings.chartConfig?.staffRoleDept;
+    const hasStaffRoleDeptConfig = Boolean(
+        staffRoleDept && ((staffRoleDept.counselor?.length ?? 0) > 0 || (staffRoleDept.doctor?.length ?? 0) > 0)
+    );
     const counselorMembers = useMemo(() => {
         if (chartMembers.length === 0) return [];
+        if (hasStaffRoleDeptConfig) {
+            const allow = new Set((staffRoleDept?.counselor || []).map(String));
+            return chartMembers.filter((u) => !u.departmentId || allow.has(u.departmentId));
+        }
         return chartMembers.filter((u) => {
             const dept = chartDepartments.find((d) => d.id === u.departmentId);
             return !dept || !(dept.name.includes("원장") || dept.name.includes("진료") || dept.name.includes("의사"));
         });
-    }, [chartMembers, chartDepartments]);
+    }, [chartMembers, chartDepartments, hasStaffRoleDeptConfig, staffRoleDept?.counselor]);
     const doctorMembers = useMemo(() => {
         if (chartMembers.length === 0) return [];
+        if (hasStaffRoleDeptConfig) {
+            const allow = new Set((staffRoleDept?.doctor || []).map(String));
+            return chartMembers.filter((u) => !u.departmentId || allow.has(u.departmentId));
+        }
         return chartMembers.filter((u) => {
             const dept = chartDepartments.find((d) => d.id === u.departmentId);
             return !dept || (dept.name.includes("원장") || dept.name.includes("진료") || dept.name.includes("의사"));
         });
-    }, [chartMembers, chartDepartments]);
+    }, [chartMembers, chartDepartments, hasStaffRoleDeptConfig, staffRoleDept?.doctor]);
     const selectedCounselorId = String((selectedVisit as any)?.counselorId || (selectedVisit?.consultation as any)?.counselorId || "");
     const selectedDoctorCounselorId = String((selectedVisit as any)?.doctorCounselorId || (selectedVisit?.consultation as any)?.doctorCounselorId || "");
     const selectedCounselorLabel =
@@ -1569,6 +1663,64 @@ export default function PatientChartPage() {
         document.addEventListener("mousedown", handleOutsideClick);
         return () => document.removeEventListener("mousedown", handleOutsideClick);
     }, [isCounselorDropdownOpen, isDoctorDropdownOpen]);
+
+    useEffect(() => {
+        if (!isStaffRoleSettingsOpen) return;
+        const handleOutsideClick = (event: MouseEvent) => {
+            if (!staffRoleSettingsRef.current) return;
+            if (staffRoleSettingsRef.current.contains(event.target as Node)) return;
+            setIsStaffRoleSettingsOpen(false);
+        };
+        document.addEventListener("mousedown", handleOutsideClick);
+        return () => document.removeEventListener("mousedown", handleOutsideClick);
+    }, [isStaffRoleSettingsOpen]);
+
+    const openStaffRoleSettings = useCallback(() => {
+        const current = settings.chartConfig?.staffRoleDept;
+        setStaffRoleDraft({
+            counselor: new Set((current?.counselor || []).map(String)),
+            doctor: new Set((current?.doctor || []).map(String)),
+        });
+        setIsStaffRoleSettingsOpen(true);
+    }, [settings.chartConfig?.staffRoleDept]);
+
+    const toggleStaffRoleDeptDraft = useCallback((role: 'counselor' | 'doctor', deptId: string) => {
+        setStaffRoleDraft((prev) => {
+            if (!prev) return prev;
+            const next = {
+                counselor: new Set(prev.counselor),
+                doctor: new Set(prev.doctor),
+            };
+            if (next[role].has(deptId)) next[role].delete(deptId);
+            else next[role].add(deptId);
+            return next;
+        });
+    }, []);
+
+    const saveStaffRoleSettings = useCallback(async () => {
+        if (!staffRoleDraft || staffRoleSaving) return;
+        setStaffRoleSaving(true);
+        try {
+            const branchId = String(settings.activeBranchId || "1");
+            const payload = {
+                counselor: Array.from(staffRoleDraft.counselor),
+                doctor: Array.from(staffRoleDraft.doctor),
+            };
+            const updated = await chartConfigService.update(branchId, { staffRoleDept: payload } as any);
+            const mergedChartConfig = {
+                ...(settings.chartConfig || chartConfig || {}),
+                staffRoleDept: (updated as any).staffRoleDept || payload,
+            } as ChartConfigSettings;
+            setChartConfig(mergedChartConfig);
+            updateSettings({ chartConfig: mergedChartConfig });
+            setIsStaffRoleSettingsOpen(false);
+        } catch (error) {
+            console.error("Failed to save staff role dept settings:", error);
+            showAlert({ message: "상담/원장 부서 설정 저장에 실패했습니다.", type: "warning" });
+        } finally {
+            setStaffRoleSaving(false);
+        }
+    }, [staffRoleDraft, staffRoleSaving, settings.activeBranchId, settings.chartConfig, chartConfig, updateSettings, showAlert]);
 
     useEffect(() => {
         if (!isSearchOpen) return;
@@ -2219,11 +2371,46 @@ export default function PatientChartPage() {
             const pid = Number(patientIdStr);
             const amount = typeof paymentData === 'number' ? paymentData : (paymentData?.amount || 0);
             const method = paymentData?.method || 'card';
+            const operationKey = typeof paymentData?.operationKey === "string" ? paymentData.operationKey : undefined;
+            const idempotencyKey = typeof paymentData?.idempotencyKey === "string" ? paymentData.idempotencyKey : undefined;
 
             const actualPaid = paymentData?.paidAmount ?? amount;
             const isPartial = paymentData?.isPartialPayment === true;
 
-            await cartService.checkout(pid, {
+            if (outstandingPaymentMaster && cartItems.length === 0) {
+                const result = await paymentService.addPaymentDetail(
+                    outstandingPaymentMaster.masterId,
+                    paymentData?.paymentLines ?? [],
+                    {
+                        operationKey,
+                        idempotencyKey,
+                    },
+                );
+                if (result.operation?.status === "completed" && result.operation.operationKey) {
+                    removePaymentOperationContext(result.operation.operationKey);
+                } else if (result.operation?.operationKey) {
+                    upsertPaymentOperationContext({
+                        operationKey: result.operation.operationKey,
+                        operationType: result.operation.operationType,
+                        patientId: pid,
+                        paymentMasterId: result.operation.paymentMasterId ?? outstandingPaymentMaster.masterId,
+                        status: result.operation.status,
+                        nextAction: result.operation.nextAction,
+                        summaryMessage: result.operation.summaryMessage,
+                    });
+                }
+                await loadPersistenceData(pid);
+                showAlert({
+                    message: result.outstandingAmount > 0
+                        ? `잔액 수납 완료 (잔액 ${result.outstandingAmount.toLocaleString()}원 남음)`
+                        : "잔액 수납이 완료되었습니다.",
+                    type: result.outstandingAmount > 0 ? "warning" : "success",
+                });
+                setShowPaymentModal(false);
+                return result;
+            }
+
+            const result = await cartService.checkout(pid, {
                 visitId: selectedVisit?.id,
                 useMembership: prioritizedMembershipIds.length > 0,
                 selectedMembershipId,
@@ -2239,7 +2426,22 @@ export default function PatientChartPage() {
                 paidAmount: actualPaid,
                 memo: paymentData?.memo,
                 assignee: paymentData?.assignee,
+                operationKey,
+                idempotencyKey,
             });
+            if (result.operation?.status === "completed" && result.operation.operationKey) {
+                removePaymentOperationContext(result.operation.operationKey);
+            } else if (result.operation?.operationKey) {
+                upsertPaymentOperationContext({
+                    operationKey: result.operation.operationKey,
+                    operationType: result.operation.operationType,
+                    patientId: pid,
+                    paymentMasterId: result.operation.paymentMasterId,
+                    status: result.operation.status,
+                    nextAction: result.operation.nextAction,
+                    summaryMessage: result.operation.summaryMessage,
+                });
+            }
 
             await loadPersistenceData(pid);
             showAlert({
@@ -2249,6 +2451,7 @@ export default function PatientChartPage() {
                 type: isPartial ? "warning" : "success",
             });
             setShowPaymentModal(false);
+            return result;
         } catch (e: any) {
             console.error(e);
             showAlert({ message: "수납 처리 실패: " + (e?.message || "Unknown error"), type: "error" });
@@ -2487,7 +2690,7 @@ export default function PatientChartPage() {
                     const result = await paymentService.refundPaymentRecord(record.id, {
                         reason: refundModal.reason.trim() || undefined,
                         responsibilityType: refundModal.responsibilityType,
-                        manualUsedAmount,
+                        manualUsedAmount: Number.parseInt((refundModal.manualUsedAmount || "").replace(/[^0-9]/g, ""), 10) || 0,
                     });
                     await loadPersistenceData(Number(patientIdStr));
                     setRefundModal(null);
@@ -3351,6 +3554,70 @@ export default function PatientChartPage() {
                                                 </div>
                                             )}
                                         </div>
+
+                                        <div className="relative" ref={staffRoleSettingsRef}>
+                                            <button
+                                                type="button"
+                                                disabled={isReadOnly}
+                                                onClick={() => {
+                                                    if (isReadOnly) return;
+                                                    if (isStaffRoleSettingsOpen) setIsStaffRoleSettingsOpen(false);
+                                                    else openStaffRoleSettings();
+                                                }}
+                                                className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#F8DCE2] bg-white text-[#D27A8C] shadow-sm transition ${isReadOnly ? "opacity-50 cursor-not-allowed" : "hover:border-[#D27A8C]/40 hover:bg-[#FCEBEF] hover:text-[#5C2A35]"}`}
+                                                title="상담/원장 부서 설정"
+                                            >
+                                                <Settings className="h-3.5 w-3.5" />
+                                            </button>
+                                            {isStaffRoleSettingsOpen && staffRoleDraft && (
+                                                <div className="absolute right-0 top-[calc(100%+6px)] z-40 w-[360px] rounded-xl border border-[#F8DCE2] bg-white p-3 shadow-lg">
+                                                    <div className="mb-2 flex items-center justify-between">
+                                                        <div className="text-[12px] font-bold text-[#5C2A35]">상담/원장 드롭다운 부서 설정</div>
+                                                        <button type="button" onClick={() => setIsStaffRoleSettingsOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                                            <X className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </div>
+                                                    <div className="mb-2 text-[11px] text-[#8B5A66] leading-relaxed">
+                                                        각 부서가 어떤 드롭다운에 뜰지 선택하세요. 아무것도 선택 안 하면 기본 규칙(키워드 매칭)이 적용됩니다.
+                                                    </div>
+                                                    <div className="max-h-[260px] overflow-y-auto rounded-lg border border-[#F8DCE2]">
+                                                        <table className="w-full text-[11px]">
+                                                            <thead className="bg-[#FCF7F8]">
+                                                                <tr>
+                                                                    <th className="px-2 py-1.5 text-left font-bold text-[#8B5A66]">부서</th>
+                                                                    <th className="px-2 py-1.5 font-bold text-[#8B5A66] w-[60px]">상담</th>
+                                                                    <th className="px-2 py-1.5 font-bold text-[#8B5A66] w-[60px]">원장</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {chartDepartments.length === 0 ? (
+                                                                    <tr>
+                                                                        <td colSpan={3} className="px-2 py-3 text-center text-[#8B5A66]">등록된 부서가 없습니다.</td>
+                                                                    </tr>
+                                                                ) : chartDepartments.map((d) => (
+                                                                    <tr key={`staff-role-${d.id}`} className="border-t border-[#F8DCE2]">
+                                                                        <td className="px-2 py-1.5 text-[#242424] truncate">{d.name}</td>
+                                                                        <td className="px-2 py-1.5 text-center">
+                                                                            <input type="checkbox" checked={staffRoleDraft.counselor.has(d.id)} onChange={() => toggleStaffRoleDeptDraft('counselor', d.id)} />
+                                                                        </td>
+                                                                        <td className="px-2 py-1.5 text-center">
+                                                                            <input type="checkbox" checked={staffRoleDraft.doctor.has(d.id)} onChange={() => toggleStaffRoleDeptDraft('doctor', d.id)} />
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                    <div className="mt-3 flex items-center justify-between">
+                                                        <button type="button" onClick={() => { setStaffRoleDraft({ counselor: new Set(), doctor: new Set() }); }} className="text-[11px] text-[#8B5A66] underline hover:text-[#5C2A35]">모두 해제 (기본 규칙)</button>
+                                                        <div className="flex gap-2">
+                                                            <button type="button" onClick={() => setIsStaffRoleSettingsOpen(false)} disabled={staffRoleSaving} className="h-7 rounded-md border border-[#F8DCE2] bg-white px-3 text-[11px] font-semibold text-[#616161] hover:bg-[#FCF7F8] disabled:opacity-50">취소</button>
+                                                            <button type="button" onClick={() => void saveStaffRoleSettings()} disabled={staffRoleSaving} className="h-7 rounded-md bg-[#D27A8C] px-3 text-[11px] font-bold text-white hover:opacity-90 disabled:opacity-50">{staffRoleSaving ? "저장 중..." : "저장"}</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -3396,7 +3663,7 @@ export default function PatientChartPage() {
                                                 setPrintConfigDraft(draft);
                                                 setIsPrintSettingsOpen(true);
                                             }}
-                                            className="rounded-lg p-1 text-[#616161] hover:text-[#5C2A35] hover:bg-[#FCEBEF] transition-all duration-200"
+                                            className="rounded-lg p-1 text-[#D27A8C] hover:text-[#5C2A35] hover:bg-[#FCEBEF] transition-all duration-200"
                                             title="인쇄 설정"
                                         >
                                             <Settings className="w-3.5 h-3.5" />
@@ -3456,7 +3723,7 @@ export default function PatientChartPage() {
                                                     <button
                                                         type="button"
                                                         onClick={handleOpenMemoSectionSettings}
-                                                        className="rounded p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                                                        className="rounded p-1 text-[#D27A8C] hover:text-[#5C2A35] hover:bg-[#FCEBEF] transition-colors"
                                                         title="차트 메모 항목 설정"
                                                     >
                                                         <Settings className="w-3 h-3" />
@@ -3482,11 +3749,8 @@ export default function PatientChartPage() {
 
                                 {/* Medical Record */}
                                 <div className="border border-[#F8DCE2] rounded-2xl min-h-[350px] flex flex-col bg-white overflow-hidden">
-                                    <div className="h-9 px-3 border-b border-[#F8DCE2] bg-[#FCF7F8] flex items-center justify-between font-semibold text-[#5C2A35] text-sm">
-                                        <div className="flex items-center gap-2">
-                                            진료기록
-                                        </div>
-                                        <ImageIcon className="w-4 h-4 text-[#616161] hover:text-[#D27A8C] cursor-pointer transition-colors" />
+                                    <div className="h-9 px-3 border-b border-[#F8DCE2] bg-[#FCF7F8] flex items-center font-semibold text-[#5C2A35] text-sm">
+                                        진료기록
                                     </div>
                                     {canViewMedicalRecord ? (
                                     <SmartTextarea
@@ -3841,48 +4105,69 @@ export default function PatientChartPage() {
                         <div className="space-y-1.5 mb-3 shrink-0 max-h-[300px] overflow-y-auto custom-scrollbar">
                             {[...cartItems].reverse().map((item) => {
                                 const hasEvent = item.eventPrice != null && item.eventPrice < item.originalPrice;
+                                const isMembership = item.itemType === "membership";
+                                const lineTotal = (item.unitPrice || item.eventPrice || item.originalPrice || 0) * item.quantity;
                                 return (
                                     <div
                                         key={item.id}
-                                        className="flex items-center gap-2 text-[12px] p-2.5 bg-white hover:bg-[#FCF7F8] rounded-lg border border-[#F8DCE2] shadow-sm group transition-colors"
+                                        className="rounded-lg border border-[#F8DCE2] bg-white p-2.5 shadow-sm transition-colors hover:bg-[#FCF7F8]"
                                     >
-                                        <span className={`font-bold px-1.5 py-0.5 rounded-md text-[12px] shrink-0 ${item.itemType === "membership" ? "bg-violet-100 text-violet-700" : "bg-[#D27A8C]/10 text-[#D27A8C]"}`}>
-                                            {item.itemType === "membership" ? "회원권" : "티켓"}
-                                        </span>
-
-                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                            <span className="text-gray-800 font-bold text-[13px] break-keep leading-tight">{item.itemName}</span>
-                                            <div className="flex items-center gap-2 text-[12px]">
-                                                {hasEvent ? (
-                                                    <>
-                                                        <span className="text-gray-400 line-through">정상가 {(item.originalPrice || 0).toLocaleString()}원</span>
-                                                        <span className="text-red-500 font-bold">이벤트가 {(item.eventPrice || 0).toLocaleString()}원</span>
-                                                    </>
-                                                ) : (
-                                                    <span className="text-gray-500">{(item.originalPrice || item.unitPrice || 0).toLocaleString()}원</span>
-                                                )}
-                                            </div>
+                                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                                            <span className={`inline-flex items-center font-bold px-1.5 py-0.5 rounded-md text-[11px] shrink-0 ${isMembership ? "bg-violet-100 text-violet-700" : "bg-[#D27A8C]/10 text-[#D27A8C]"}`}>
+                                                {isMembership ? "회원권" : "티켓"}
+                                            </span>
+                                            {!isReadOnly && (
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <div className="flex items-center rounded-md border border-[#F8DCE2] overflow-hidden">
+                                                        <button
+                                                            onClick={() => handleUpdateQuantity(item, -1)}
+                                                            disabled={item.quantity <= 1}
+                                                            className="w-6 h-6 flex items-center justify-center text-[#616161] hover:bg-[#FCEBEF] disabled:opacity-30 disabled:cursor-not-allowed text-sm font-bold transition-colors"
+                                                            aria-label="수량 감소"
+                                                        >
+                                                            −
+                                                        </button>
+                                                        <span className="w-7 text-center text-xs font-bold text-[#242424] border-x border-[#F8DCE2]">{item.quantity}</span>
+                                                        <button
+                                                            onClick={() => handleUpdateQuantity(item, 1)}
+                                                            className="w-6 h-6 flex items-center justify-center text-[#616161] hover:bg-[#FCEBEF] text-sm font-bold transition-colors"
+                                                            aria-label="수량 증가"
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleRemoveCartItem(item.id)}
+                                                        className="w-6 h-6 flex items-center justify-center rounded-md text-[#C9A0A8] hover:bg-red-50 hover:text-red-500 transition-colors"
+                                                        aria-label="삭제"
+                                                    >
+                                                        <X className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        {!isReadOnly && (
-                                            <div className="flex items-center gap-0.5 shrink-0">
-                                                <button
-                                                    onClick={() => handleUpdateQuantity(item, -1)}
-                                                    disabled={item.quantity <= 1}
-                                                    className="w-6 h-6 flex items-center justify-center rounded border border-[#F8DCE2] text-[#616161] hover:bg-[#FCEBEF] disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold transition-colors"
-                                                >
-                                                    −
-                                                </button>
-                                                <span className="w-6 text-center text-xs font-bold text-[#242424]">{item.quantity}</span>
-                                                <button
-                                                    onClick={() => handleUpdateQuantity(item, 1)}
-                                                    className="w-6 h-6 flex items-center justify-center rounded border border-[#F8DCE2] text-[#616161] hover:bg-[#FCEBEF] text-xs font-bold transition-colors"
-                                                >
-                                                    +
-                                                </button>
-                                                <X className="w-4 h-4 text-gray-300 cursor-pointer hover:text-red-500 shrink-0 ml-1" onClick={() => handleRemoveCartItem(item.id)} />
+                                        <div className="text-[12.5px] font-semibold text-[#242424] leading-snug break-keep mb-1.5">
+                                            {item.itemName}
+                                        </div>
+
+                                        <div className="flex items-baseline justify-between gap-2 text-[12px]">
+                                            <div className="flex items-baseline gap-1.5 min-w-0">
+                                                {hasEvent ? (
+                                                    <>
+                                                        <span className="text-[#9E9E9E] line-through tabular-nums">{(item.originalPrice || 0).toLocaleString()}원</span>
+                                                        <span className="text-[#E74856] font-extrabold tabular-nums">{(item.eventPrice || 0).toLocaleString()}원</span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-[#616161] font-bold tabular-nums">{(item.originalPrice || item.unitPrice || 0).toLocaleString()}원</span>
+                                                )}
                                             </div>
-                                        )}
+                                            {item.quantity > 1 && (
+                                                <span className="text-[11px] text-[#8B5A66] tabular-nums shrink-0">
+                                                    소계 <span className="font-extrabold text-[#5C2A35]">{lineTotal.toLocaleString()}원</span>
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -4526,16 +4811,23 @@ export default function PatientChartPage() {
                                 </div>
                             </div>
 
-                            <button
-                                onClick={handleCheckoutClick}
-                                disabled={cartItems.length === 0 || isReadOnly || !canEditPayment}
-                                className={`w-full min-h-[40px] py-2.5 font-medium rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition-all duration-200 ease-in-out ${cartItems.length === 0 || isReadOnly || !canEditPayment
-                                    ? "bg-[#e0e0e0] text-[#616161] cursor-not-allowed"
-                                    : "bg-[#D27A8C] hover:bg-[#8B3F50] active:bg-[#5C2A35] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)] hover:shadow-[0_6px_16px_rgba(226,107,124,0.25)]"
-                                    }`}
-                            >
-                                <CreditCard className="w-3.5 h-3.5" /> 수납 추가
-                            </button>
+                            {(() => {
+                                const hasOutstanding = !!outstandingPaymentMaster;
+                                const payButtonDisabled = (cartItems.length === 0 && !hasOutstanding) || isReadOnly || !canEditPayment;
+                                const payButtonLabel = hasOutstanding && cartItems.length === 0 ? "잔액 수납" : "수납 추가";
+                                return (
+                                    <button
+                                        onClick={handleCheckoutClick}
+                                        disabled={payButtonDisabled}
+                                        className={`w-full min-h-[40px] py-2.5 font-medium rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition-all duration-200 ease-in-out ${payButtonDisabled
+                                            ? "bg-[#e0e0e0] text-[#616161] cursor-not-allowed"
+                                            : "bg-[#D27A8C] hover:bg-[#8B3F50] active:bg-[#5C2A35] text-white shadow-[0_4px_12px_rgba(226,107,124,0.18)] hover:shadow-[0_6px_16px_rgba(226,107,124,0.25)]"
+                                            }`}
+                                    >
+                                        <CreditCard className="w-3.5 h-3.5" /> {payButtonLabel}
+                                    </button>
+                                );
+                            })()}
 
                         </div>
                     </div>
@@ -5681,7 +5973,13 @@ export default function PatientChartPage() {
                         isOpen={showPaymentModal}
                         onClose={() => setShowPaymentModal(false)}
                         onAddPayment={handleAddPayment}
-                        totalAmount={Math.max(0, cartPreview?.totalCashRequired ?? remaining)}
+                        patientId={patient ? patient.id : undefined}
+                        paymentMasterId={outstandingPaymentMaster?.masterId}
+                        resumeOperation={outstandingPaymentMaster?.activeOperation ?? resumeCheckoutOperation}
+                        totalAmount={Math.max(0, outstandingPaymentMaster && cartItems.length === 0
+                            ? outstandingPaymentMaster.outstandingAmount
+                            : (cartPreview?.totalCashRequired ?? remaining))}
+                        patientPhone={patient?.phone}
                     />
                 )
             }
@@ -6621,6 +6919,7 @@ function RefundHistoryList({
         detailLines: string[];
     };
 
+    const { showAlert, showConfirm } = useAlert();
     const [refundFilterTab, setRefundFilterTab] = useState<'all' | 'ticket' | 'membership'>('all');
     const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [loadingGroupId, setLoadingGroupId] = useState<string | null>(null);
@@ -7212,25 +7511,32 @@ function RefundHistoryList({
     };
 
     // ISSUE-176: 통합 환불 모달 열기
+    // 분할 결제 대응: selection 은 티켓 1개당 1건, legs 배열에 모든 detail 의 원거래 정보를 담음 (단말기 호출 시 legs 별로 반복)
     const openUnifiedRefund = () => {
         const selected = eligibleCardsForBulk.filter((c) => selectedCardKeys.has(c.id));
         if (selected.length === 0) return;
         const selections: UnifiedRefundSelection[] = selected.map((c) => {
-            const pd = c.itemPaymentDetails[0];
+            const details = c.itemPaymentDetails || [];
+            const head = details[0];
             return {
+                customerId: c.record.patientId,
                 paymentMasterId: c.record.paymentMasterId || c.record.id,
-                paymentDetailId: pd.id,
+                paymentDetailId: head?.id ?? 0,
                 itemType: c.itemType as "ticket" | "membership",
                 itemName: c.itemName,
-                paymentType: pd.paymentType,
-                terminalInfo: (pd.terminalAuthNo || pd.terminalAuthDate || pd.terminalVanKey)
-                    ? {
-                        authNo: pd.terminalAuthNo,
-                        authDate: pd.terminalAuthDate,
-                        vanKey: pd.terminalVanKey,
-                        catId: pd.terminalCatId,
-                    }
+                paymentType: head?.paymentType,
+                terminalInfo: head && (head.terminalAuthNo || head.terminalAuthDate || head.terminalVanKey)
+                    ? { authNo: head.terminalAuthNo, authDate: head.terminalAuthDate, vanKey: head.terminalVanKey, catId: head.terminalCatId }
                     : undefined,
+                legs: details.map((pd) => ({
+                    paymentDetailId: pd.id,
+                    amount: pd.amount,
+                    paymentType: pd.paymentType,
+                    paymentSubMethodLabel: pd.paymentSubMethodLabel,
+                    terminalInfo: (pd.terminalAuthNo || pd.terminalAuthDate || pd.terminalVanKey)
+                        ? { authNo: pd.terminalAuthNo, authDate: pd.terminalAuthDate, vanKey: pd.terminalVanKey, catId: pd.terminalCatId }
+                        : undefined,
+                })),
             };
         });
         setUnifiedModalState(selections);
@@ -7295,6 +7601,7 @@ function RefundHistoryList({
                         : groupEntry.groupStatus === "refunded" ? "bg-red-100 text-red-600"
                         : groupEntry.groupStatus === "partial_refunded" ? "bg-amber-100 text-amber-700"
                         : "bg-emerald-50 text-emerald-700 border border-emerald-200";
+                    const activeOperation = groupEntry.cards[0]?.record.activeOperation;
 
                     return (
                         <div key={groupEntry.groupId} className="rounded-[16px] border border-slate-200 bg-white overflow-hidden shadow-sm">
@@ -7320,6 +7627,22 @@ function RefundHistoryList({
                                             </span>
                                             <span className="text-[10px] text-[#8B5A66]">{groupEntry.cards.length}건</span>
                                         </div>
+                                        {activeOperation && activeOperation.status !== "completed" && (
+                                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-[#8B3F50]">
+                                                <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 font-bold">
+                                                    {activeOperation.status}
+                                                </span>
+                                                <span className="inline-flex items-center rounded-full border border-amber-300 bg-white px-2 py-0.5 font-semibold">
+                                                    완료 {activeOperation.succeededLegCount}/{activeOperation.totalLegCount}
+                                                </span>
+                                                <span className="inline-flex items-center rounded-full border border-amber-300 bg-white px-2 py-0.5 font-semibold">
+                                                    다음 행동 {activeOperation.nextAction}
+                                                </span>
+                                                {activeOperation.summaryMessage && (
+                                                    <span className="text-[10px] text-[#8B5A66]">{activeOperation.summaryMessage}</span>
+                                                )}
+                                            </div>
+                                        )}
                                         {(() => {
                                             const memDeduct = groupEntry.cards[0]?.group.totalMembershipDeduction ?? 0;
                                             // 그룹 내 모든 PaymentDetail (수납 수단 chip 렌더용) — id 중복 제거
@@ -7394,7 +7717,7 @@ function RefundHistoryList({
                                                                             <span className="text-[#8B5A66] font-normal">· {g.details.length}건</span>
                                                                         )}
                                                                         {missingTerminal && (
-                                                                            <span className="ml-0.5 text-rose-500" title="단말기 정보 미등록">⚠</span>
+                                                                            <span className="ml-0.5 text-amber-600 font-extrabold" title="보류 — 승인번호/VANKEY 미입력 (환불 시 단말기 자동 연동 불가)">보류</span>
                                                                         )}
                                                                     </button>
                                                                 );
@@ -7503,17 +7826,29 @@ function RefundHistoryList({
                                             type="button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
+                                                // 분할 결제 대응: selection 은 티켓 1건, legs 배열에 모든 detail 원거래 정보
                                                 const selections: UnifiedRefundSelection[] = eligibleInGroup.map((c) => {
-                                                    const pd = c.itemPaymentDetails[0];
+                                                    const details = c.itemPaymentDetails || [];
+                                                    const head = details[0];
                                                     return {
+                                                        customerId: c.record.patientId,
                                                         paymentMasterId: c.record.paymentMasterId || c.record.id,
-                                                        paymentDetailId: pd.id,
+                                                        paymentDetailId: head?.id ?? 0,
                                                         itemType: c.itemType as "ticket" | "membership",
                                                         itemName: c.itemName,
-                                                        paymentType: pd.paymentType,
-                                                        terminalInfo: (pd.terminalAuthNo || pd.terminalAuthDate || pd.terminalVanKey)
-                                                            ? { authNo: pd.terminalAuthNo, authDate: pd.terminalAuthDate, vanKey: pd.terminalVanKey, catId: pd.terminalCatId }
+                                                        paymentType: head?.paymentType,
+                                                        terminalInfo: head && (head.terminalAuthNo || head.terminalAuthDate || head.terminalVanKey)
+                                                            ? { authNo: head.terminalAuthNo, authDate: head.terminalAuthDate, vanKey: head.terminalVanKey, catId: head.terminalCatId }
                                                             : undefined,
+                                                        legs: details.map((pd) => ({
+                                                            paymentDetailId: pd.id,
+                                                            amount: pd.amount,
+                                                            paymentType: pd.paymentType,
+                                                            paymentSubMethodLabel: pd.paymentSubMethodLabel,
+                                                            terminalInfo: (pd.terminalAuthNo || pd.terminalAuthDate || pd.terminalVanKey)
+                                                                ? { authNo: pd.terminalAuthNo, authDate: pd.terminalAuthDate, vanKey: pd.terminalVanKey, catId: pd.terminalCatId }
+                                                                : undefined,
+                                                        })),
                                                     };
                                                 });
                                                 if (selections.length > 0) setUnifiedModalState(selections);

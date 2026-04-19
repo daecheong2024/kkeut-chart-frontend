@@ -1,18 +1,32 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, CreditCard, Monitor, MoreHorizontal, Plus, Smartphone, Wallet, X } from "lucide-react";
 import { memberConfigService } from "../services/memberConfigService";
+import { paymentService, type PaymentOperationSummary, type SyncPaymentOperationLegRequest } from "../services/paymentService";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useSettingsStore } from "../stores/useSettingsStore";
 import { resolveActiveBranchId } from "../utils/branch";
 import { kisTerminalService } from "../services/kisTerminalService";
 import { isManualPaymentMode, getTerminalMode } from "../utils/terminalMode";
+import {
+  findPaymentOperationContextByMaster,
+  findPaymentOperationContextsByPatient,
+  removePaymentOperationContext,
+  upsertPaymentOperationContext,
+} from "../lib/storage";
+import { useAlert } from "./ui/AlertDialog";
 
 interface AddPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   totalAmount: number;
-  onAddPayment: (payment: any) => void | Promise<void>;
+  onAddPayment: (payment: any) => void | Promise<any>;
+  patientPhone?: string;
+  patientId?: number;
+  paymentMasterId?: number;
+  resumeOperation?: PaymentOperationSummary | null;
 }
+
+type PaymentMode = "terminal" | "manual";
 
 type PaymentCategory = "card" | "cash" | "pay" | "platform" | "other";
 type CashReceiptType = "consumer" | "business" | "voluntary";
@@ -23,6 +37,7 @@ type PaymentOption = {
 };
 
 type SplitPaymentLine = {
+  clientLegKey: string;
   method: PaymentCategory;
   paymentCategory: PaymentCategory;
   paymentSubMethod: string;
@@ -59,8 +74,10 @@ const CATEGORY_OPTIONS: Array<{ value: PaymentCategory; label: string; icon: Rea
 
 const DETAIL_OPTIONS: Record<PaymentCategory, PaymentOption[]> = {
   card: [
-    { value: "card_general", label: "일반 카드" },
-    { value: "card_keyed", label: "수기 결제" },
+    { value: "card_general", label: "일반카드" },
+    { value: "samsung_pay", label: "삼성페이" },
+    { value: "apple_pay", label: "애플페이" },
+    { value: "card_keyed", label: "수기결제" },
   ],
   cash: [
     { value: "cash_counter", label: "창구수납" },
@@ -102,6 +119,89 @@ function parseNumericInput(value: string): string {
 
 function formatWon(amount: number): string {
   return `${Math.max(0, Math.round(amount)).toLocaleString("ko-KR")}원`;
+}
+
+function createClientKey(prefix: string): string {
+  const suffix = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}-${suffix}`;
+}
+
+function isRetryableOperationLeg(status?: string): boolean {
+  return ["pending", "in_progress", "failed", "unknown", "needs_manual_action"].includes(String(status || "").toLowerCase());
+}
+
+function createResumeLine(leg: PaymentOperationSummary["legs"][number]): SplitPaymentLine {
+  return {
+    clientLegKey: leg.legKey,
+    method: (leg.paymentCategory || "card") as PaymentCategory,
+    paymentCategory: (leg.paymentCategory || "card") as PaymentCategory,
+    paymentSubMethod: leg.paymentSubMethod || "",
+    paymentSubMethodLabel: leg.paymentSubMethodLabel || "",
+    amount: Math.max(0, Math.round(leg.requestedAmount || 0)),
+    memo: undefined,
+    assignee: undefined,
+    cardCompany: undefined,
+    installment: undefined,
+    approvalNumber: leg.terminalAuthNo,
+    terminalAuthNo: leg.terminalAuthNo,
+    terminalAuthDate: leg.terminalAuthDate,
+    terminalVanKey: leg.terminalVanKey,
+    terminalCatId: leg.terminalCatId,
+  };
+}
+
+function resolveOperationSnapshot(
+  legs: SyncPaymentOperationLegRequest[],
+  completedAmount: number,
+  totalAmount: number,
+  fallbackSummary: string,
+): {
+  status: "in_progress" | "unknown" | "needs_manual_action" | "completed";
+  nextAction: "resume_checkout" | "verify_terminal" | "manual_close" | "retry_leg" | "none";
+  summaryMessage: string;
+  remainingAmount: number;
+} {
+  const hasUnknown = legs.some((leg) => leg.status === "unknown");
+  const hasManualAction = legs.some((leg) => leg.status === "needs_manual_action");
+  const hasFailed = legs.some((leg) => leg.status === "failed");
+  const hasPending = legs.some((leg) => leg.status === "pending" || leg.status === "in_progress");
+  const remainingAmount = Math.max(0, totalAmount - completedAmount);
+
+  if (hasUnknown) {
+    return {
+      status: "unknown",
+      nextAction: "verify_terminal",
+      summaryMessage: "단말기 응답 확인이 필요한 결제선이 있습니다.",
+      remainingAmount,
+    };
+  }
+
+  if (hasManualAction) {
+    return {
+      status: "needs_manual_action",
+      nextAction: "manual_close",
+      summaryMessage: "수기 확인 또는 수동 마감이 필요한 결제선이 있습니다.",
+      remainingAmount,
+    };
+  }
+
+  if (hasFailed || hasPending || remainingAmount > 0) {
+    return {
+      status: "in_progress",
+      nextAction: hasFailed ? "retry_leg" : "resume_checkout",
+      summaryMessage: fallbackSummary,
+      remainingAmount,
+    };
+  }
+
+  return {
+    status: "completed",
+    nextAction: "none",
+    summaryMessage: "결제가 완료되었습니다.",
+    remainingAmount: 0,
+  };
 }
 
 function roundRatio(part: number, total: number, amount: number): number {
@@ -194,19 +294,33 @@ function FancySelect({
   );
 }
 
-export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPayment }: AddPaymentModalProps) {
+export default function AddPaymentModal({
+  isOpen,
+  onClose,
+  totalAmount,
+  onAddPayment,
+  patientPhone,
+  patientId,
+  paymentMasterId,
+  resumeOperation,
+}: AddPaymentModalProps) {
   const { settings } = useSettingsStore();
+  const { showAlert } = useAlert();
   const resolvedBranchId = resolveActiveBranchId("");
   const currentUserName = useAuthStore((s) => s.userName);
 
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>(
+    isManualPaymentMode() ? "manual" : "terminal"
+  );
   const [category, setCategory] = useState<PaymentCategory>("card");
-  const [subMethod, setSubMethod] = useState<string>(DETAIL_OPTIONS.card[0]?.value || "");
+  const [subMethod, setSubMethod] = useState<string>("");
   const [lineAmountInput, setLineAmountInput] = useState<string>(String(Math.max(0, totalAmount)));
 
   const [cardCompany, setCardCompany] = useState<string>("");
   const [installment, setInstallment] = useState<string>("일시불");
   const [approvalNumber, setApprovalNumber] = useState<string>("");
   const [vanKeyInput, setVanKeyInput] = useState<string>("");
+  const [deferTerminalInput, setDeferTerminalInput] = useState<boolean>(false);
 
   const [cashReceiptOn, setCashReceiptOn] = useState<boolean>(true);
   const [cashReceiptType, setCashReceiptType] = useState<CashReceiptType>("consumer");
@@ -220,11 +334,27 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
   const [taxableInput, setTaxableInput] = useState<string>(String(Math.max(0, totalAmount)));
 
   const [lines, setLines] = useState<SplitPaymentLine[]>([]);
+  const [operationKey, setOperationKey] = useState<string>("");
+  const [operationSummary, setOperationSummary] = useState<PaymentOperationSummary | null>(resumeOperation ?? null);
   const [assignableMembers, setAssignableMembers] = useState<Array<{ id: string; name: string; jobTitleName?: string }>>([]);
 
   // KIS 단말기 연결 상태 (카드/페이 결제 시 사용자에게 시각적으로 표시)
   const [terminalConnected, setTerminalConnected] = useState<boolean>(kisTerminalService.isConnected());
   const [terminalChecking, setTerminalChecking] = useState<boolean>(false);
+
+  // 단말기 오류 시 2-옵션 다이얼로그 (재시도 / 부분 수납 or 중단)
+  type TerminalErrorChoice = "retry" | "cancel";
+  const [terminalErrorDialog, setTerminalErrorDialog] = useState<{
+    errorMsg: string;
+    successCount: number;
+    successTotal: number;
+    resolve: (choice: TerminalErrorChoice) => void;
+  } | null>(null);
+  const askTerminalErrorChoice = (errorMsg: string, successCount: number, successTotal: number): Promise<TerminalErrorChoice> => {
+    return new Promise<TerminalErrorChoice>((resolve) => {
+      setTerminalErrorDialog({ errorMsg, successCount, successTotal, resolve });
+    });
+  };
 
   const refreshTerminalStatus = async () => {
     if (terminalChecking) return;
@@ -252,25 +382,100 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
 
   useEffect(() => {
     if (!isOpen) return;
+    setPaymentMode(isManualPaymentMode() ? "manual" : "terminal");
     setCategory("card");
-    setSubMethod(DETAIL_OPTIONS.card[0]?.value || "");
+    setSubMethod("");
     setLineAmountInput(String(Math.max(0, totalAmount)));
     setCardCompany("");
     setInstallment("일시불");
     setApprovalNumber(""); setVanKeyInput("");
+    setDeferTerminalInput(false);
     setCashReceiptOn(true);
     setCashReceiptType("consumer");
-    setIdentityValue("");
+    setIdentityValue(patientPhone?.replace(/[^0-9]/g, "") || "");
     setMemo("");
     setTaxFreeInput("0");
     setTaxableInput(String(Math.max(0, totalAmount)));
     setLines([]);
+    setOperationSummary(resumeOperation ?? null);
     setSubmitting(false);
-  }, [isOpen, totalAmount]);
+  }, [isOpen, totalAmount, patientPhone, resumeOperation]);
 
   useEffect(() => {
-    setSubMethod(DETAIL_OPTIONS[category][0]?.value || "");
-  }, [category]);
+    if (!isOpen) return;
+
+    let cancelled = false;
+
+    const loadOperation = async () => {
+      const storedByMaster = paymentMasterId
+        ? findPaymentOperationContextByMaster(paymentMasterId, "add_payment_detail")
+        : null;
+      const storedByPatient = !paymentMasterId && patientId
+        ? findPaymentOperationContextsByPatient(patientId, "checkout")[0] || null
+        : null;
+      const storedOperationKey = storedByMaster?.operationKey || storedByPatient?.operationKey || "";
+      const nextOperationKey = resumeOperation?.operationKey
+        || storedOperationKey
+        || createClientKey(paymentMasterId ? `add-payment-${paymentMasterId}` : `checkout-${patientId || "unknown"}`);
+
+      if (cancelled) return;
+      setOperationKey(nextOperationKey);
+
+      let nextOperation = resumeOperation ?? null;
+      if (!nextOperation && storedOperationKey) {
+        try {
+          nextOperation = await paymentService.getOperationByKey(storedOperationKey);
+        } catch {
+          nextOperation = null;
+        }
+      }
+
+      if (cancelled) return;
+
+      if (!nextOperation || nextOperation.status === "completed") {
+        if (storedOperationKey) {
+          removePaymentOperationContext(storedOperationKey);
+        }
+        return;
+      }
+
+      setOperationSummary(nextOperation);
+      upsertPaymentOperationContext({
+        operationKey: nextOperation.operationKey,
+        operationType: nextOperation.operationType,
+        patientId,
+        paymentMasterId,
+        status: nextOperation.status,
+        nextAction: nextOperation.nextAction,
+        summaryMessage: nextOperation.summaryMessage,
+      });
+
+      const retryLines = nextOperation.legs
+        .filter((leg) => leg.role === "payment" && isRetryableOperationLeg(leg.status) && leg.requestedAmount > 0)
+        .sort((left, right) => left.sequence - right.sequence)
+        .map(createResumeLine);
+
+      if (retryLines.length > 0) {
+        setLines(retryLines);
+        setLineAmountInput("0");
+      }
+    };
+
+    void loadOperation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, patientId, paymentMasterId, resumeOperation]);
+
+  useEffect(() => {
+    if (paymentMode === "terminal") {
+      if (category === "card") { setSubMethod("card_general"); return; }
+      if (category === "pay") { setSubMethod(""); return; }
+      if (category === "cash") { setSubMethod("cash_counter"); return; }
+    }
+    setSubMethod("");
+  }, [category, paymentMode]);
 
   useEffect(() => {
     if (!submitting) return;
@@ -354,18 +559,24 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
   const taxSupply = useMemo(() => Math.round(taxableAmount / 1.1), [taxableAmount]);
   const taxVat = useMemo(() => taxableAmount - taxSupply, [taxableAmount, taxSupply]);
 
-  // 단말기 미연동 + 카드/페이는 승인번호 / VANKEY 수기 입력 필수 (환불 2단계 패턴 가능 조건)
+  // 수기 결제 모드 + 카드/페이는 승인번호 / VANKEY 수기 입력 필수 (환불 2단계 패턴 가능 조건)
+  // 단말기 결제 모드는 단말기 응답에서 자동 채워지므로 불필요
   const requiresManualTerminalInput =
-    !terminalConnected
-    && (category === "card" || category === "pay");
+    paymentMode === "manual"
+    && (category === "card" || category === "pay")
+    && !deferTerminalInput;
   const manualTerminalInputProvided =
     !requiresManualTerminalInput
     || (!!approvalNumber.trim() && !!vanKeyInput.trim());
 
+  const requiresSubMethodSelection = paymentMode === "manual";
+  const requiresCardCompanySelection = paymentMode === "manual" && category === "card";
+
   const lineCanAdd =
     lineAmount > 0 &&
     lineAmount <= remainingAmount &&
-    !!subMethod &&
+    (!requiresSubMethodSelection || !!subMethod) &&
+    (!requiresCardCompanySelection || !!cardCompany.trim()) &&
     manualTerminalInputProvided;
 
   if (!isOpen) return null;
@@ -400,6 +611,7 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
   })();
 
   const buildCurrentLine = (forcedAmount?: number): SplitPaymentLine => ({
+    clientLegKey: createClientKey("payment-leg"),
     method: category,
     paymentCategory: category,
     paymentSubMethod: subMethod,
@@ -409,12 +621,12 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
     assignee: assignee.trim() || undefined,
     cardCompany: cardCompany.trim() || undefined,
     installment: installment.trim() || undefined,
-    approvalNumber: approvalNumber.trim() || undefined,
-    terminalAuthNo: approvalNumber.trim() || undefined,
-    terminalAuthDate: requiresManualTerminalInput && approvalNumber.trim()
+    approvalNumber: deferTerminalInput ? undefined : (approvalNumber.trim() || undefined),
+    terminalAuthNo: deferTerminalInput ? undefined : (approvalNumber.trim() || undefined),
+    terminalAuthDate: !deferTerminalInput && requiresManualTerminalInput && approvalNumber.trim()
       ? todayYYYYMMDD
       : undefined,
-    terminalVanKey: vanKeyInput.trim() || undefined,
+    terminalVanKey: deferTerminalInput ? undefined : (vanKeyInput.trim() || undefined),
     cashReceipt:
       category === "cash"
         ? {
@@ -433,6 +645,14 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
     setLineAmountInput(String(remain));
     setMemo("");
     setApprovalNumber(""); setVanKeyInput("");
+    setDeferTerminalInput(false);
+    if (paymentMode === "terminal" && category === "card") {
+      setSubMethod("card_general");
+    } else if (paymentMode === "terminal" && category === "cash") {
+      setSubMethod("cash_counter");
+    } else {
+      setSubMethod("");
+    }
     if (category === "card") {
       setCardCompany("");
       setInstallment("일시불");
@@ -459,6 +679,7 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
     if (draftLines.length === 0) {
       if (lineAmount <= 0) return [];
       if (lineAmount !== totalAmount) return [];
+      if (!lineCanAdd) return [];
       draftLines.push(buildCurrentLine(totalAmount));
       return draftLines;
     }
@@ -469,6 +690,106 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
       return draftLines;
     }
     return [];
+  };
+
+  const syncCurrentOperation = async (
+    submitLines: SplitPaymentLine[],
+    overrides: Record<string, Partial<SyncPaymentOperationLegRequest>>,
+    fallbackSummary: string,
+  ) => {
+    if (!operationKey || !patientId) return null;
+
+    const legMap = new Map<string, SyncPaymentOperationLegRequest>();
+    for (const existingLeg of operationSummary?.legs || []) {
+      if (existingLeg.role !== "payment") continue;
+      legMap.set(existingLeg.legKey, {
+        legKey: existingLeg.legKey,
+        sequence: existingLeg.sequence,
+        role: "payment",
+        status: existingLeg.status as SyncPaymentOperationLegRequest["status"],
+        requestedAmount: existingLeg.requestedAmount,
+        completedAmount: existingLeg.completedAmount,
+        paymentCategory: existingLeg.paymentCategory,
+        paymentSubMethod: existingLeg.paymentSubMethod,
+        paymentSubMethodLabel: existingLeg.paymentSubMethodLabel,
+        isTerminalRequired: existingLeg.isTerminalRequired,
+        allowManualClose: existingLeg.allowManualClose,
+        originPaymentDetailId: existingLeg.originPaymentDetailId,
+        resultPaymentDetailId: existingLeg.resultPaymentDetailId,
+        resultRefundHistId: existingLeg.resultRefundHistId,
+        terminalRequestKey: existingLeg.terminalRequestKey,
+        terminalTradeKey: existingLeg.terminalTradeKey,
+        terminalAuthNo: existingLeg.terminalAuthNo,
+        terminalAuthDate: existingLeg.terminalAuthDate,
+        terminalVanKey: existingLeg.terminalVanKey,
+        terminalCatId: existingLeg.terminalCatId,
+        errorMessage: existingLeg.errorMessage,
+      });
+    }
+
+    submitLines.forEach((line, index) => {
+      const base = legMap.get(line.clientLegKey) || {
+        legKey: line.clientLegKey,
+        sequence: index + 1,
+        role: "payment" as const,
+        status: "pending" as const,
+        requestedAmount: line.amount,
+        completedAmount: 0,
+        paymentCategory: line.paymentCategory,
+        paymentSubMethod: line.paymentSubMethod,
+        paymentSubMethodLabel: line.paymentSubMethodLabel,
+        isTerminalRequired: line.paymentCategory === "card" || line.paymentCategory === "pay",
+        allowManualClose: true,
+      };
+
+      legMap.set(line.clientLegKey, {
+        ...base,
+        sequence: index + 1,
+        requestedAmount: line.amount,
+        paymentCategory: line.paymentCategory,
+        paymentSubMethod: line.paymentSubMethod,
+        paymentSubMethodLabel: line.paymentSubMethodLabel,
+        terminalAuthNo: line.terminalAuthNo || line.approvalNumber || base.terminalAuthNo,
+        terminalAuthDate: line.terminalAuthDate || base.terminalAuthDate,
+        terminalVanKey: line.terminalVanKey || base.terminalVanKey,
+        terminalCatId: line.terminalCatId || base.terminalCatId,
+        ...overrides[line.clientLegKey],
+      });
+    });
+
+    const nextLegs = Array.from(legMap.values()).sort((left, right) => left.sequence - right.sequence);
+    const completedAmount = nextLegs.reduce((sum, leg) => sum + Number(leg.completedAmount || 0), 0);
+    const snapshot = resolveOperationSnapshot(nextLegs, completedAmount, totalAmount, fallbackSummary);
+    const summary = await paymentService.syncOperation({
+      operationKey,
+      operationType: paymentMasterId ? "add_payment_detail" : "checkout",
+      status: snapshot.status,
+      nextAction: snapshot.nextAction,
+      customerId: patientId,
+      paymentMasterId,
+      requestedAmount: totalAmount,
+      completedAmount,
+      remainingAmount: snapshot.remainingAmount,
+      summaryMessage: snapshot.summaryMessage,
+      legs: nextLegs,
+    });
+
+    setOperationSummary(summary);
+    if (summary.status === "completed") {
+      removePaymentOperationContext(summary.operationKey);
+    } else {
+      upsertPaymentOperationContext({
+        operationKey: summary.operationKey,
+        operationType: summary.operationType,
+        patientId,
+        paymentMasterId: summary.paymentMasterId ?? paymentMasterId,
+        status: summary.status,
+        nextAction: summary.nextAction,
+        summaryMessage: summary.summaryMessage,
+      });
+    }
+
+    return summary;
   };
 
   const canSubmit = !submitting && buildSubmitLines().length > 0;
@@ -483,20 +804,33 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
 
     try {
       setSubmitting(true);
+      await syncCurrentOperation(submitLines, {}, "결제선을 순차적으로 처리하고 있습니다.");
 
       const terminalLines: SplitPaymentLine[] = [];
-      const manualMode = isManualPaymentMode();
+      const manualMode = paymentMode === "manual";
       let prevTerminalSuccess = false;
       for (const line of submitLines) {
         const needsTerminal = !manualMode && (
-          (line.paymentCategory === "card" && line.paymentSubMethod === "card_general")
+          (line.paymentCategory === "card" && line.paymentSubMethod !== "card_keyed")
             || line.paymentCategory === "pay"
         );
 
         if (needsTerminal) {
+          await syncCurrentOperation(submitLines, {
+            [line.clientLegKey]: {
+              status: "in_progress",
+              errorMessage: undefined,
+            },
+          }, "단말기 결제를 진행하고 있습니다.");
+
           if (prevTerminalSuccess) {
+            const nextCategoryLabel = CATEGORY_OPTIONS.find((c) => c.value === line.paymentCategory)?.label || line.paymentCategory;
+            const nextSubLabel = line.paymentSubMethodLabel
+              || DETAIL_OPTIONS[line.paymentCategory].find((o) => o.value === line.paymentSubMethod)?.label
+              || line.paymentSubMethod
+              || "";
             const ok = window.confirm(
-              "이전 카드 결제가 완료되었습니다.\n\n카드를 단말기에서 빼신 후 [확인]을 눌러주세요.\n→ 다음 분할 결제를 진행합니다."
+              `이전 결제가 완료되었습니다.\n\n다음 결제: ${line.amount.toLocaleString()}원 · ${nextCategoryLabel}${nextSubLabel ? ` (${nextSubLabel})` : ""}\n\n이전 카드/폰을 단말기에서 빼고, 다음 결제수단 준비를 완료하신 후 [확인] 을 눌러주세요.\n→ 단말기로 결제 요청을 보냅니다.`
             );
             if (!ok) { setSubmitting(false); return; }
           }
@@ -506,69 +840,96 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
           const installment = installmentMap[line.installment || ""] || "00";
 
           let terminalSuccess = false;
-          let terminalErrorMsg = "";
-          try {
-            const connected = await kisTerminalService.connect();
-            if (!connected) {
-              terminalErrorMsg = "단말기 연결 실패 — 단말기 전원 및 네트워크를 확인해 주세요.";
-            } else {
-              const result = await kisTerminalService.requestPayment({
-                tradeType,
-                amount: line.amount,
-                installment,
-                merchantTel,
-              });
-
-              if (result.success) {
-                terminalLines.push({
-                  ...line,
-                  approvalNumber: result.authNo,
-                  cardCompany: result.issuerName || line.cardCompany,
-                  terminalAuthNo: result.authNo,
-                  terminalAuthDate: result.replyDate,
-                  terminalCardNo: result.cardNo,
-                  terminalIssuerName: result.issuerName,
-                  terminalAccepterName: result.accepterName,
-                  terminalTranNo: result.tranNo,
-                  terminalVanKey: result.vanKey,
-                  terminalCatId: result.catId,
-                  terminalMerchantRegNo: result.merchantRegNo,
-                });
-                terminalSuccess = true;
-                prevTerminalSuccess = true;
+          let cancelRemaining = false;
+          // 재시도 가능 루프: 단말기 호출 실패 시 [재시도] 선택 가능
+          while (!terminalSuccess && !cancelRemaining) {
+            let terminalErrorMsg = "";
+            try {
+              const connected = await kisTerminalService.connect();
+              if (!connected) {
+                terminalErrorMsg = "단말기 연결 실패 — 단말기 전원 및 네트워크를 확인해 주세요.";
               } else {
+                const result = await kisTerminalService.requestPayment({
+                  tradeType,
+                  amount: line.amount,
+                  installment,
+                  merchantTel,
+                });
+                if (result.success) {
+                  const autoSubMethodLabel = line.paymentCategory === "pay" && result.issuerName
+                    ? result.issuerName
+                    : line.paymentSubMethodLabel;
+                  terminalLines.push({
+                    ...line,
+                    paymentSubMethodLabel: autoSubMethodLabel,
+                    approvalNumber: result.authNo,
+                    cardCompany: result.issuerName || line.cardCompany,
+                    terminalAuthNo: result.authNo,
+                    terminalAuthDate: result.replyDate,
+                    terminalCardNo: result.cardNo,
+                    terminalIssuerName: result.issuerName,
+                    terminalAccepterName: result.accepterName,
+                    terminalTranNo: result.tranNo,
+                    terminalVanKey: result.vanKey,
+                    terminalCatId: result.catId,
+                    terminalMerchantRegNo: result.merchantRegNo,
+                  });
+                  terminalSuccess = true;
+                  prevTerminalSuccess = true;
+                  await syncCurrentOperation(submitLines, {
+                    [line.clientLegKey]: {
+                      status: "succeeded",
+                      completedAmount: line.amount,
+                      terminalAuthNo: result.authNo,
+                      terminalAuthDate: result.replyDate,
+                      terminalVanKey: result.vanKey,
+                      terminalCatId: result.catId,
+                      errorMessage: undefined,
+                    },
+                  }, "성공한 결제선은 저장되고, 남은 결제선만 이어서 처리할 수 있습니다.");
+                  break;
+                }
                 terminalErrorMsg = `단말기 승인 실패: ${result.displayMsg || `응답코드 ${result.replyCode}`}`;
               }
+            } catch (termErr: any) {
+              terminalErrorMsg = `단말기 통신 오류: ${termErr?.message || "알 수 없는 오류"}`;
             }
-          } catch (termErr: any) {
-            terminalErrorMsg = `단말기 통신 오류: ${termErr?.message || "알 수 없는 오류"}`;
-          }
 
-          if (!terminalSuccess) {
-            if (terminalLines.length > 0) {
-              const successTotal = terminalLines.reduce((s, l) => s + l.amount, 0);
-              const proceed = window.confirm(
-                `${terminalErrorMsg}\n\n이미 승인된 ${terminalLines.length}건(${successTotal.toLocaleString()}원)이 있습니다.\n\n[확인] → 이 건도 수기로 추가하여 전체 수납\n[취소] → 성공한 ${successTotal.toLocaleString()}원만 부분 수납 (나머지는 미수납 처리)`
-              );
-              if (!proceed) {
-                break;
-              }
-            } else {
-              const proceed = window.confirm(
-                `${terminalErrorMsg}\n\n단말기 없이 수기로 결제 기록을 남기시겠습니까?\n\n[확인] → 승인번호 없이 결제 기록 (수기)\n[취소] → 결제 중단`
-              );
-              if (!proceed) {
-                return;
-              }
+            // 실패 → 2-옵션 다이얼로그 (재시도 / 취소)
+            const successTotal = terminalLines.reduce((s, l) => s + l.amount, 0);
+            const choice = await askTerminalErrorChoice(terminalErrorMsg, terminalLines.length, successTotal);
+            if (choice === "retry") {
+              continue;
             }
-            terminalLines.push({
-              ...line,
-              approvalNumber: line.approvalNumber || "",
-              terminalVanKey: line.terminalVanKey || "",
-            });
+            // choice === "cancel" → 부분 수납 또는 전체 중단
+            cancelRemaining = true;
+            const failureStatus = /통신|timeout|연결/i.test(terminalErrorMsg) ? "unknown" : "needs_manual_action";
+            await syncCurrentOperation(submitLines, {
+              [line.clientLegKey]: {
+                status: failureStatus,
+                errorMessage: terminalErrorMsg,
+              },
+            }, failureStatus === "unknown"
+              ? "단말기 승인 여부 확인 후 남은 결제선을 이어서 처리해 주세요."
+              : "남은 결제선을 다시 진행하거나 수동 마감해 주세요.");
+          }
+          if (cancelRemaining) {
+            if (terminalLines.length > 0) {
+              // 부분 수납 모드: 이 라인 이후는 처리 안 함
+              break;
+            }
+            // 성공한 라인이 하나도 없으면 전체 중단
+            return;
           }
         } else {
           terminalLines.push(line);
+          await syncCurrentOperation(submitLines, {
+            [line.clientLegKey]: {
+              status: "succeeded",
+              completedAmount: line.amount,
+              errorMessage: undefined,
+            },
+          }, "성공한 결제선은 저장되고, 남은 결제선만 이어서 처리할 수 있습니다.");
         }
       }
 
@@ -590,6 +951,8 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
         amount: totalAmount,
         paidAmount: actualPaidTotal,
         isPartialPayment: isPartial,
+        operationKey,
+        idempotencyKey: createClientKey(paymentMasterId ? "add-detail" : "checkout"),
         method: firstLine.paymentCategory,
         paymentCategory: firstLine.paymentCategory,
         paymentSubMethod: firstLine.paymentSubMethod,
@@ -602,9 +965,26 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
         paymentLines: withTax,
       };
 
-      await Promise.resolve(onAddPayment(payload));
+      const submitResult: any = await Promise.resolve(onAddPayment(payload));
+      const latestOperation = submitResult?.operation ?? null;
+      if (latestOperation?.operationKey) {
+        setOperationSummary(latestOperation);
+        if (latestOperation.status === "completed") {
+          removePaymentOperationContext(latestOperation.operationKey);
+        } else {
+          upsertPaymentOperationContext({
+            operationKey: latestOperation.operationKey,
+            operationType: latestOperation.operationType,
+            patientId,
+            paymentMasterId: latestOperation.paymentMasterId ?? paymentMasterId,
+            status: latestOperation.status,
+            nextAction: latestOperation.nextAction,
+            summaryMessage: latestOperation.summaryMessage,
+          });
+        }
+      }
     } catch (e: any) {
-      alert(e.message || "결제 처리 중 오류가 발생했습니다.");
+      showAlert({ message: e?.message || "결제 처리 중 오류가 발생했습니다.", type: "error" });
     } finally {
       setSubmitting(false);
     }
@@ -668,6 +1048,26 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                 </div>
               </div>
 
+              {operationSummary && operationSummary.status !== "completed" && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-[12px] text-amber-900">
+                  <div className="font-extrabold">이전 결제 작업을 이어서 처리합니다.</div>
+                  <div className="mt-1 leading-relaxed">
+                    {operationSummary.summaryMessage || "완료된 결제선은 다시 처리하지 않고 남은 결제선만 이어집니다."}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
+                    <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5">
+                      완료 {operationSummary.succeededLegCount}/{operationSummary.totalLegCount}
+                    </span>
+                    <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5">
+                      남은 결제선 {operationSummary.pendingLegCount + operationSummary.unknownLegCount + operationSummary.manualActionLegCount}건
+                    </span>
+                    <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5">
+                      다음 행동 {operationSummary.nextAction}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-500">비과세 결제금액</label>
@@ -717,6 +1117,34 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
           <section className="flex min-h-0 flex-col">
             <div className="flex-1 overflow-y-auto py-5 pl-6 pr-8">
               <div className="space-y-5">
+                <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+                  {([
+                    { value: "terminal" as const, label: "단말기 결제", desc: "단말기 응답으로 자동 입력" },
+                    { value: "manual" as const, label: "직접 결제", desc: "카드사·페이·승인번호 수기 입력" },
+                  ]).map((tab) => {
+                    const active = paymentMode === tab.value;
+                    return (
+                      <button
+                        key={tab.value}
+                        type="button"
+                        onClick={() => {
+                          setPaymentMode(tab.value);
+                          if (tab.value === "terminal" && (category === "platform" || category === "other")) {
+                            setCategory("card");
+                          }
+                        }}
+                        className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+                          active
+                            ? "bg-white text-blue-700 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                        title={tab.desc}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
                 <div>
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <label className="block text-xs font-semibold text-blue-600">결제방법 *</label>
@@ -759,47 +1187,45 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                     })()}
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    {CATEGORY_OPTIONS.map((opt) => {
-                      const active = category === opt.value;
-                      const disabled = false;
-                      return (
-                        <button
-                          key={opt.value}
-                          onClick={() => !disabled && setCategory(opt.value)}
-                          disabled={disabled}
-                          className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold transition-colors ${
-                            disabled
-                              ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
-                              : active
+                    {CATEGORY_OPTIONS
+                      .filter((opt) => paymentMode === "manual" || (opt.value !== "platform" && opt.value !== "other"))
+                      .map((opt) => {
+                        const active = category === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            onClick={() => setCategory(opt.value)}
+                            className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold transition-colors ${
+                              active
                                 ? "border-blue-500 bg-blue-50 text-blue-700"
                                 : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                          }`}
-                        >
-                          {opt.icon}
-                          <span>{opt.label}</span>
-                        </button>
-                      );
-                    })}
+                            }`}
+                          >
+                            {opt.icon}
+                            <span>{opt.label}</span>
+                          </button>
+                        );
+                      })}
                   </div>
-                  {(category === "card" || category === "pay") && !terminalConnected && (
+                  {paymentMode === "terminal" && (category === "card" || category === "pay") && !terminalConnected && (
                     <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700 leading-snug">
-                      ⚠ 단말기가 연결되어 있지 않습니다.<br/>
-                      단말기에서 카드 처리한 뒤 <b>승인번호 / VANKEY</b> 를 아래 칸에 직접 입력해 주세요. (필수 — 입력해야 추가 가능)<br/>
-                      <span className="text-rose-500">거래일자는 오늘 날짜로 자동 저장됩니다. 다른 날 거래라면 결제 후 [수납 정보 보기]에서 수정 가능.</span>
+                      ⚠ KIS 단말기가 연결되어 있지 않습니다. 단말기 전원/네트워크를 확인하거나, <b>직접 결제</b> 탭으로 전환해 승인번호를 수기 입력하세요.
                     </div>
                   )}
                 </div>
 
-                <div className="grid grid-cols-[1fr_180px_120px] gap-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-blue-600">상세결제수단 *</label>
-                    <FancySelect
-                      value={subMethod}
-                      onChange={setSubMethod}
-                      options={DETAIL_OPTIONS[category]}
-                      placeholder="상세결제수단 선택"
-                    />
-                  </div>
+                <div className={requiresSubMethodSelection ? "grid grid-cols-[1fr_180px_120px] gap-3" : "grid grid-cols-[1fr_120px] gap-3"}>
+                  {requiresSubMethodSelection && (
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-blue-600">상세결제수단 *</label>
+                      <FancySelect
+                        value={subMethod}
+                        onChange={setSubMethod}
+                        options={DETAIL_OPTIONS[category]}
+                        placeholder="상세결제수단 선택"
+                      />
+                    </div>
+                  )}
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-blue-600">결제금액 *</label>
                     <input
@@ -816,8 +1242,8 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                         const missing: string[] = [];
                         if (lineAmount <= 0) missing.push("결제금액");
                         if (lineAmount > remainingAmount) missing.push("남은 금액 초과");
-                        if (!subMethod) missing.push("상세결제수단");
-                        if (category === "card" && !cardCompany.trim()) missing.push("카드사");
+                        if (requiresSubMethodSelection && !subMethod) missing.push("상세결제수단");
+                        if (requiresCardCompanySelection && !cardCompany.trim()) missing.push("카드사");
                         if (requiresManualTerminalInput && !approvalNumber.trim()) missing.push("승인번호");
                         if (requiresManualTerminalInput && !vanKeyInput.trim()) missing.push("VANKEY");
                         return missing.length > 0 ? `필수 입력 누락: ${missing.join(", ")}` : "";
@@ -832,11 +1258,17 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                   </div>
                 </div>
 
+                {paymentMode === "terminal" && (category === "card" || category === "pay") && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] text-blue-800 leading-snug">
+                    ℹ️ 카드사/승인번호/VANKEY는 단말기 응답에서 자동으로 채워집니다. 별도 선택 불필요.
+                  </div>
+                )}
+
                 {!lineCanAdd && lineAmount > 0 && (() => {
                   const missing: string[] = [];
                   if (lineAmount > remainingAmount) missing.push("남은 결제 금액 초과");
-                  if (!subMethod) missing.push("상세결제수단");
-                  if (category === "card" && !cardCompany.trim()) missing.push("카드사");
+                  if (requiresSubMethodSelection && !subMethod) missing.push("상세결제수단");
+                  if (requiresCardCompanySelection && !cardCompany.trim()) missing.push("카드사");
                   if (requiresManualTerminalInput && !approvalNumber.trim()) missing.push("승인번호");
                   if (requiresManualTerminalInput && !vanKeyInput.trim()) missing.push("VANKEY");
                   if (missing.length === 0) return null;
@@ -847,7 +1279,7 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                   );
                 })()}
 
-                {category === "card" && (
+                {paymentMode === "manual" && category === "card" && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="mb-1 block text-xs font-medium text-slate-500">카드사</label>
@@ -925,7 +1357,7 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                   </div>
                 )}
 
-                {category === "platform" && (
+                {paymentMode === "manual" && category === "platform" && (
                   <div className="rounded-xl border border-blue-100 bg-blue-50/80 p-3 text-xs text-blue-700">
                     병원이 아닌 외부 서비스에서 결제한 금액을 수납기록에 추가할 때 사용합니다.
                   </div>
@@ -957,30 +1389,60 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                     />
                   </div>
                 </div>
-                {(category === "card" || category === "pay") && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-500">
-                        승인번호 {requiresManualTerminalInput && <span className="text-rose-500">*</span>}
+                {paymentMode === "manual" && (category === "card" || category === "pay") && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-600">단말기 거래 정보</span>
+                      <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                        <span className={`text-[11px] font-semibold ${deferTerminalInput ? "text-amber-700" : "text-slate-500"}`}>
+                          나중에 입력 (보류 저장)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setDeferTerminalInput((prev) => !prev)}
+                          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors ${
+                            deferTerminalInput ? "border-amber-500 bg-amber-400" : "border-slate-300 bg-slate-200"
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-150 ${
+                              deferTerminalInput ? "left-[18px]" : "left-0.5"
+                            }`}
+                          />
+                        </button>
                       </label>
-                      <input
-                        value={approvalNumber}
-                        onChange={(e) => setApprovalNumber(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
-                        placeholder={requiresManualTerminalInput ? "영수증의 승인번호 입력" : "단말기 자동입력 또는 수기 입력"}
-                      />
                     </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-500">
-                        VANKEY {requiresManualTerminalInput && <span className="text-rose-500">*</span>}
-                      </label>
-                      <input
-                        value={vanKeyInput}
-                        onChange={(e) => setVanKeyInput(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
-                        placeholder={requiresManualTerminalInput ? "영수증의 VANKEY 입력" : "단말기 자동입력 또는 수기 입력"}
-                      />
-                    </div>
+                    {deferTerminalInput ? (
+                      <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] leading-snug text-amber-800">
+                        <div className="font-bold">⚠ 승인번호 / VANKEY 없이 보류 상태로 저장됩니다.</div>
+                        <div className="mt-0.5 text-amber-700">환불·재출력 시 단말기 자동 연동이 불가하며, 단말기 직접 취소가 필요합니다. 가능하면 결제 후 영수증 보고 보완 입력해 주세요.</div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-slate-500">
+                            승인번호 <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            value={approvalNumber}
+                            onChange={(e) => setApprovalNumber(e.target.value)}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                            placeholder="영수증의 승인번호 입력"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-slate-500">
+                            VANKEY <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            value={vanKeyInput}
+                            onChange={(e) => setVanKeyInput(e.target.value)}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                            placeholder="영수증의 VANKEY 입력"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -992,16 +1454,23 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {lines.map((line, idx) => (
+                      {lines.map((line, idx) => {
+                        const isCardOrPay = line.paymentCategory === "card" || line.paymentCategory === "pay";
+                        const isPending = isCardOrPay && !line.terminalAuthNo && !line.approvalNumber;
+                        return (
                         <div key={`${line.paymentCategory}-${line.paymentSubMethod}-${idx}`} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
                           <span className="w-6 text-slate-400">{idx + 1}</span>
                           <span className="min-w-0 flex-1 truncate text-slate-700">{lineSummary(line)}</span>
+                          {isPending && (
+                            <span className="shrink-0 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-700" title="승인번호/VANKEY 미입력 - 보류 저장">보류</span>
+                          )}
                           <span className="font-bold text-slate-900">{formatWon(line.amount)}</span>
                           <button onClick={() => handleRemoveLine(idx)} className="text-slate-400 hover:text-red-500">
                             <X className="h-4 w-4" />
                           </button>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1023,6 +1492,57 @@ export default function AddPaymentModal({ isOpen, onClose, totalAmount, onAddPay
           </button>
         </div>
       </div>
+      {terminalErrorDialog && (
+        <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4">
+          <div className="w-full max-w-[480px] rounded-2xl border border-[#F4C7CE] bg-white shadow-2xl overflow-hidden">
+            <div className="border-b border-[#F8DCE2] bg-gradient-to-b from-amber-50 to-white px-5 py-4">
+              <div className="text-[14px] font-extrabold text-amber-900">단말기 결제 오류</div>
+              <div className="mt-1 text-[11.5px] text-amber-800 whitespace-pre-wrap leading-relaxed">
+                {terminalErrorDialog.errorMsg}
+              </div>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              {terminalErrorDialog.successCount > 0 && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11.5px] text-emerald-800">
+                  ✅ 이미 승인된 결제: <b>{terminalErrorDialog.successCount}건 · {terminalErrorDialog.successTotal.toLocaleString()}원</b>
+                </div>
+              )}
+              <div className="space-y-1.5 text-[11.5px] text-[#3F2A30]">
+                <div className="flex items-start gap-1.5">
+                  <span className="font-bold text-[#D27A8C]">[재시도]</span>
+                  <span>단말기 상태 확인 후 같은 결제를 다시 시도합니다.</span>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="font-bold text-slate-500">
+                    [{terminalErrorDialog.successCount > 0 ? "부분 수납" : "중단"}]
+                  </span>
+                  <span>
+                    {terminalErrorDialog.successCount > 0
+                      ? `성공한 ${terminalErrorDialog.successTotal.toLocaleString()}원만 부분 수납하고, 나머지는 미수납 상태로 남겨 나중에 [잔액 수납] 버튼으로 처리.`
+                      : "이번 수납 처리를 중단합니다. 승인번호 수기 입력이 필요하면 [직접 결제] 탭으로 전환 후 진행."}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-[#F8DCE2] bg-white px-5 py-3 flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => { terminalErrorDialog.resolve("cancel"); setTerminalErrorDialog(null); }}
+                className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-[12px] font-bold text-slate-600 hover:bg-slate-50"
+              >
+                {terminalErrorDialog.successCount > 0 ? "부분 수납" : "중단"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { terminalErrorDialog.resolve("retry"); setTerminalErrorDialog(null); }}
+                className="h-9 rounded-lg bg-[#D27A8C] px-4 text-[12px] font-extrabold text-white hover:bg-[#8B3F50]"
+              >
+                재시도
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
